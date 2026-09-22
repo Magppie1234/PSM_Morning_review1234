@@ -1,0 +1,88 @@
+/* Incentive card, light theme. Uses the .ps tokens from presales.css. */
+
+.ic { border-color: var(--accent-line); }
+.ic-title { display: flex; align-items: center; gap: 12px; }
+
+.ic-badge {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ic-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.ic-close:hover { background: var(--line-soft); color: var(--ink); }
+
+.ic-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 24px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.ic-label { display: block; color: var(--muted); font-size: 0.76rem; font-weight: 700; }
+.ic-note { display: block; margin-top: 4px; color: var(--muted); font-size: 0.76rem; font-weight: 600; }
+.ic-total { display: block; margin-top: 4px; font-size: 2rem; line-height: 1.1; letter-spacing: -0.03em; font-weight: 800; color: var(--ink); }
+.ic-total.earned { color: var(--ok); }
+.ic-progress-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.ic-progress-head .ic-note { margin: 0; }
+
+.ic-bar {
+  position: relative;
+  height: 8px;
+  margin-top: 10px;
+  border-radius: 99px;
+  background: var(--line-soft);
+}
+
+.ic-bar i { display: block; height: 100%; border-radius: inherit; background: #e0a526; }
+.ic-bar i.ok { background: var(--ok); }
+.ic-bar b { position: absolute; top: -4px; width: 2px; height: 16px; background: var(--ink-2); border-radius: 1px; }
+.ic-gate { display: block; margin-top: 8px; color: var(--warn); font-size: 0.76rem; font-weight: 700; }
+.ic-gate.ok { color: var(--ok); }
+
+.ic-streams {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  padding: 16px 20px;
+}
+
+.ic-stream { padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fcfcfb; }
+.ic-stream-head { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 0.74rem; font-weight: 700; }
+.ic-stream-head em { flex-shrink: 0; color: var(--accent); font-style: normal; }
+.ic-stream strong { display: block; margin-top: 6px; font-size: 1.25rem; letter-spacing: -0.02em; }
+.ic-stream strong.na { color: #a3a7b0; }
+.ic-stream p { margin-top: 6px; color: var(--ink-2); font-size: 0.76rem; line-height: 1.45; }
+
+.ic-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 20px 14px;
+  border-top: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.ic-foot span { display: flex; align-items: flex-start; gap: 7px; }
+.ic-foot svg { flex-shrink: 0; margin-top: 1px; color: var(--accent); }
+
+@media (max-width: 780px) {
+  .ic-hero { grid-template-columns: 1fr; }
+}

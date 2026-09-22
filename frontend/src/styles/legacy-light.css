@@ -1,0 +1,96 @@
+/* Light restyle for the Design and PDI screens, which still use the original component classes.
+   Scoped to .lt so tokens come from .ps (presales.css) and nothing else changes. */
+
+.lt .metric-grid,
+.lt .risk-grid { gap: 10px; }
+.lt .metric-grid { margin-top: 0; }
+.lt .risk-grid { margin-top: 12px; }
+
+.lt .metric-card {
+  min-height: 0;
+  padding: 16px 18px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  transition: border-color 0.15s ease, box-shadow 0.2s var(--ease-out);
+}
+
+.lt .metric-card:hover { transform: none; border-color: #cfd0c8; box-shadow: 0 6px 18px -8px rgba(19, 28, 51, 0.18); }
+.lt .metric-icon { color: var(--accent); }
+.lt .metric-label { color: var(--muted); font-size: 0.78rem; font-weight: 700; }
+.lt .metric-copy strong { font-size: clamp(1.5rem, 2vw, 1.95rem); letter-spacing: -0.03em; font-weight: 800; }
+.lt .metric-subtext { color: var(--muted); font-size: 0.74rem; font-weight: 600; }
+.lt .metric-trend { position: static; display: block; margin-top: 8px; }
+
+.lt .risk-card { background: var(--surface); }
+.lt .risk-card.danger { color: var(--danger); border-color: var(--danger-line); background: var(--surface); }
+.lt .risk-card.warning { color: var(--warn); border-color: var(--warn-line); background: var(--surface); }
+.lt .risk-card .metric-label { color: var(--ink-2); }
+.lt .risk-card .metric-copy strong { color: inherit; font-size: 1.5rem; }
+.lt .risk-card .metric-arrow { color: var(--muted); }
+
+.lt .panel {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.lt .panel-header {
+  min-height: 0;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.lt .panel-header p { margin-top: 3px; color: var(--muted); font-size: 0.75rem; font-weight: 600; }
+.lt .panel-header button,
+.lt .action-link { color: var(--accent); }
+
+.lt table { font-size: 0.8rem; }
+.lt th, .lt td { padding: 11px 10px; border-bottom-color: var(--line-soft); }
+.lt td { min-width: 84px; }
+.lt tbody th { min-width: 200px; white-space: normal; }
+.lt thead { background: #fbfbfa; color: var(--muted); }
+.lt thead th { font-size: 0.7rem; font-weight: 700; }
+.lt tbody tr:hover { background: #fafaf8; }
+.lt tbody th, .lt .psm-link { color: var(--ink); }
+.lt .danger-text, .lt .ageing { color: var(--danger); }
+.lt .empty-leads { color: var(--muted); }
+
+.lt .status.success { color: var(--ok); }
+.lt .status.warning { color: var(--warn); }
+.lt .status.danger { color: var(--danger); }
+.lt .priority.high { color: var(--danger); background: var(--danger-soft); }
+.lt .priority.medium { color: var(--warn); background: var(--warn-soft); }
+
+.lt .design-subtabs-bar { margin-bottom: 16px; padding-bottom: 12px; border-bottom-color: var(--line); }
+.lt .subtab-btn { border-color: var(--line); color: var(--ink-2); }
+.lt .subtab-btn:hover { background: var(--accent-soft); color: var(--accent); }
+.lt .subtab-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.lt .subtab-badge { background: var(--line-soft); color: var(--ink-2); }
+.lt .subtab-btn.active .subtab-badge { background: var(--surface); color: var(--accent); }
+
+.lt .filter {
+  height: 36px;
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.lt .filter select { font-size: 0.8rem; font-weight: 650; color: var(--ink); }
+.lt .detail-notice { border: 0; border-radius: 8px; background: var(--accent-soft); color: var(--ink-2); }
+
+.lt .lt-critical { border-color: var(--danger-line); }
+.lt .lt-critical-title { display: flex; align-items: center; gap: 7px; color: var(--danger); }
+.lt .badge-action { background: var(--danger-soft) !important; color: var(--danger) !important; border-radius: 8px !important; display: inline-block; line-height: 1.35; }
+
+.lt .ps-funnel { margin-top: 14px; }
+
+/* Decision queue: two queues side by side */
+.dq-split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+@media (max-width: 1100px) {
+  .dq-split { grid-template-columns: 1fr; }
+}

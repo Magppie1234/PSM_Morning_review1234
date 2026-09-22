@@ -1,0 +1,74 @@
+/* Universal period filter: Daily | Monthly | Quarterly | Custom. Uses the .ps tokens. */
+
+.pf { position: relative; }
+
+.pf-group {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.pf-group button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.pf-group button:hover { background: var(--line-soft); color: var(--ink); }
+.pf-group button[aria-pressed='true'] { background: var(--accent); color: #fff; box-shadow: 0 2px 6px -2px rgba(29, 92, 224, 0.5); }
+
+.pf-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 300px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 16px 40px -16px rgba(19, 28, 51, 0.35);
+  animation: pf-in 0.18s var(--ease-out);
+}
+
+.pf-pop label { display: grid; gap: 4px; color: var(--muted); font-size: 0.72rem; font-weight: 700; }
+
+.pf-pop input {
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.pf-pop input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pf-error { grid-column: 1 / -1; color: var(--danger); font-size: 0.74rem; font-weight: 650; }
+.pf-note { grid-column: 1 / -1; color: var(--muted); font-size: 0.72rem; }
+.pf-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
+.pf-actions button { height: 32px; padding: 0 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; }
+.pf-cancel { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); }
+.pf-apply { border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+
+@keyframes pf-in { from { opacity: 0; transform: translateY(-4px); } }
+
+@media (max-width: 780px) {
+  .pf, .pf-group { width: 100%; }
+  .pf-group button { flex: 1; justify-content: center; padding: 0 8px; }
+  .pf-pop { left: 0; right: auto; width: min(300px, 100%); }
+}
