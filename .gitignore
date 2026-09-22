@@ -1,0 +1,24 @@
+# Dependencies and builds
+node_modules/
+dist/
+coverage/
+
+# Secrets — only the .env.example files are committed
+.env
+.env.*
+!.env.example
+
+# Runtime data: Zoho token, CRM caches, factory meeting state, factory spreadsheets
+backend/.data/
+*.xlsx
+
+# Legacy runtime files (before they moved to backend/.data/)
+backend/.zoho_token.json
+backend/.leads_cache.json
+backend/.deals_cache.json
+backend/.standup_state.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
