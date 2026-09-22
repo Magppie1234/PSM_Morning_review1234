@@ -37,11 +37,14 @@ function zeroReason(key, row) {
 }
 
 // A number cell whose zero shows its reason on hover (and on keyboard focus).
+// Column names shown beside each value when the table turns into cards on phones.
+const LABELS = { leads: 'Leads', inHours: 'Arrived 9:30–6:30', afterHours: 'Arrived after hours', architectLeads: 'Architect', clientReach: 'Client reach', missed: 'Missed' };
+
 function Num({ row, field, className = '', title }) {
   const value = row[field] ?? 0;
-  if (value !== 0) return <td className={`num ${className}`.trim()} title={title}>{value}</td>;
+  if (value !== 0) return <td className={`num ${className}`.trim()} title={title} data-label={LABELS[field]}>{value}</td>;
   return (
-    <td className="num">
+    <td className="num" data-label={LABELS[field]}>
       <span className="ps-zero" title={zeroReason(field, row)} tabIndex={0} aria-label={`0. ${zeroReason(field, row)}`}>0</span>
     </td>
   );
@@ -66,7 +69,7 @@ export function TeamTable({ rows = [], onPsm, onDetail }) {
         <button type="button" className="ps-link" onClick={() => onPsm('All PSM')}>View all</button>
       </header>
       <div className="ps-scroll">
-        <table className="ps-table">
+        <table className="ps-table ps-team-table">
           <thead>
             <tr>
               <th scope="col" rowSpan={2}>PSM</th>
@@ -103,18 +106,20 @@ export function TeamTable({ rows = [], onPsm, onDetail }) {
                 <Num row={row} field="leads" />
                 <Num row={row} field="inHours" />
                 <Num row={row} field="afterHours" className="ps-warn-text" title={`${row.afterHours} of ${row.leads} leads arrived after 6:30 pm or before 9:30 am`} />
-                <td><Rate value={row.contacted} base={row.leads} of="leads" reason={zeroReason('contacted', row)} /></td>
-                <td><Rate value={row.qualified} base={row.contacted} of="contacted" reason={zeroReason('qualified', row)} /></td>
+                <td data-label="Contacted"><Rate value={row.contacted} base={row.leads} of="leads" reason={zeroReason('contacted', row)} /></td>
+                <td data-label="Qualified"><Rate value={row.qualified} base={row.contacted} of="contacted" reason={zeroReason('qualified', row)} /></td>
                 <Num row={row} field="architectLeads" />
                 <Num row={row} field="clientReach" title={`${row.clientReach} of ${row.leads} leads came to us first`} />
-                <td className="num" title={row.zeroReason}><strong>{row.value}</strong></td>
+                <td className="num" title={row.zeroReason} data-label="Value"><strong>{row.value}</strong></td>
                 <Num row={row} field="missed" className="ps-danger-text" />
-                <td>
+                <td className="ps-td-status" data-label="Status">
                   <span className={`ps-status ${row.tone}`} title={row.zeroReason}>
                     <i aria-hidden="true" />
                     {row.status}
                   </span>
                 </td>
+                {/* Phones have no hover, so the card spells out why a PSM has no leads. */}
+                {row.zeroReason && <td className="ps-zero-note">{row.zeroReason}</td>}
               </tr>
             ))}
           </tbody>
