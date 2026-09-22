@@ -1,6 +1,17 @@
-import { UsersRound, Briefcase, PencilRuler, ClipboardCheck, Factory, Truck, Wrench, ShieldCheck, AlertCircle, Building2 } from 'lucide-react';
+import { UsersRound, Briefcase, PencilRuler, ClipboardCheck, Factory, Truck, Wrench, ShieldCheck, AlertCircle, Building2, Menu, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
+// Desktop: a fixed left navigation. Phones (≤780px): a slim top bar with the current page and a menu button
+// that slides the same navigation in as a drawer.
 export function Sidebar({ currentTab, onTabChange }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (event) => event.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+
   const navItems = [
     {
       id: 'pre-sales',
@@ -58,8 +69,28 @@ export function Sidebar({ currentTab, onTabChange }) {
     }
   ];
 
+  const current = navItems.find((item) => item.id === currentTab) ?? navItems[0];
+  const choose = (id) => {
+    setOpen(false);
+    onTabChange(id);
+  };
+
   return (
-    <aside className="sidebar" aria-label="Main Navigation">
+    <>
+    <header className="mobile-bar">
+      <button type="button" className="mobile-menu-btn" aria-label="Open menu" aria-expanded={open} aria-controls="main-nav" onClick={() => setOpen(true)}>
+        <Menu size={22} aria-hidden="true" />
+      </button>
+      <div className="mobile-bar-title">
+        <strong>{current.label}</strong>
+        <span>MAGPPIE · Morning Review</span>
+      </div>
+    </header>
+    {open && <div className="mobile-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />}
+    <aside id="main-nav" className={`sidebar${open ? ' open' : ''}`} aria-label="Main Navigation">
+      <button type="button" className="mobile-close-btn" aria-label="Close menu" onClick={() => setOpen(false)}>
+        <X size={20} aria-hidden="true" />
+      </button>
       <div className="sidebar-brand">
         <div className="brand-logo">
           <Building2 size={22} className="brand-icon" />
@@ -80,7 +111,8 @@ export function Sidebar({ currentTab, onTabChange }) {
               key={item.id}
               type="button"
               className={`nav-item ${isActive ? 'active' : ''}`}
-              onClick={() => onTabChange(item.id)}
+              onClick={() => choose(item.id)}
+              aria-current={isActive ? 'page' : undefined}
             >
               <span className="nav-icon">
                 <IconComponent size={18} strokeWidth={isActive ? 2.5 : 2} />
@@ -105,5 +137,6 @@ export function Sidebar({ currentTab, onTabChange }) {
         </div>
       </div>
     </aside>
+    </>
   );
 }
