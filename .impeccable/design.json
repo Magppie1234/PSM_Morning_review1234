@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-18T01:13:33.787Z",
+  "title": "Design System: PSM Morning Review",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "panel",
+        "value": "0 8px 26px rgb(27 63 128 / 5%)",
+        "purpose": "Quiet data-panel elevation."
+      },
+      {
+        "name": "metric-hover",
+        "value": "0 13px 28px rgb(32 71 145 / 11%)",
+        "purpose": "Hover lift on selectable metric and risk cards."
+      }
+    ],
+    "motion": [
+      {
+        "name": "metric-hover",
+        "value": "transform .18s ease, box-shadow .18s ease, border-color .18s ease",
+        "purpose": "The existing hover transition; source currently has no reduced-motion override."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "three-column",
+        "value": "900px"
+      },
+      {
+        "name": "two-column",
+        "value": "780px"
+      },
+      {
+        "name": "single-column",
+        "value": "440px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Text action",
+      "kind": "button",
+      "description": "Panel header and recommended-action buttons.",
+      "html": "<button class=\"ds-action\">View all</button>",
+      "css": ".ds-action { padding: 0; border: 0; color: #1260e9; background: transparent; font: 700 .75rem Manrope, sans-serif; text-align: left; cursor: pointer; } .ds-action:focus-visible { outline: 3px solid #76a7ff; outline-offset: 2px; }"
+    },
+    {
+      "name": "Filter select",
+      "kind": "input",
+      "refersTo": "filter",
+      "description": "Native dimension select; disabled variants stay visibly unavailable.",
+      "html": "<label class=\"ds-filter\"><select aria-label=\"PSM\"><option>All PSM</option></select></label>",
+      "css": ".ds-filter { height: 36px; min-width: 112px; padding: 0 8px; border: 1px solid #dce5f4; border-radius: 8px; background: #fff; display: flex; align-items: center; } .ds-filter select { width: 100%; border: 0; color: #16315f; background: transparent; font: 650 .72rem Manrope, sans-serif; } .ds-filter select:disabled { cursor: not-allowed; color: #91a1bb; } .ds-filter select:focus-visible { outline: 3px solid #76a7ff; outline-offset: 2px; }"
+    },
+    {
+      "name": "Metric card",
+      "kind": "card",
+      "refersTo": "metric-card",
+      "description": "Whole-card action; this style preview deliberately contains no business values.",
+      "html": "<button class=\"ds-metric\"><span>Leads received</span></button>",
+      "css": ".ds-metric { min-height: 144px; width: 100%; padding: 18px 17px 14px; text-align: left; border: 1px solid #dee7f5; border-radius: 10px; background: #fff; color: #10224c; font: 750 .82rem Manrope, sans-serif; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; } .ds-metric:hover { transform: translateY(-3px); box-shadow: 0 13px 28px rgb(32 71 145 / 11%); border-color: #b9cef9; } .ds-metric:focus-visible { outline: 3px solid #76a7ff; outline-offset: 2px; }"
+    },
+    {
+      "name": "Priority badge",
+      "kind": "chip",
+      "description": "High priority uses a warm tint and explicit text.",
+      "html": "<span class=\"ds-priority\">High</span>",
+      "css": ".ds-priority { display: inline-block; padding: 4px 9px; border-radius: 20px; font: 750 .7rem Manrope, sans-serif; color: #c73035; background: #ffdedf; }"
+    },
+    {
+      "name": "Data panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Shared container for performance, decision queue, and funnel sections.",
+      "html": "<section class=\"ds-panel\"><header><h2>PSM Performance</h2></header></section>",
+      "css": ".ds-panel { overflow: hidden; border: 1px solid #dce6f4; border-radius: 10px; background: #fff; box-shadow: 0 8px 26px rgb(27 63 128 / 5%); color: #10224c; font-family: Manrope, sans-serif; } .ds-panel header { min-height: 50px; padding: 0 14px; display: flex; align-items: center; border-bottom: 1px solid #e2eaf7; } .ds-panel h2 { margin: 0; font-size: 1.02rem; letter-spacing: -.025em; }"
+    }
+  ],
+  "narrative": {
+    "overview": "The supplied PSM Morning Review mockup is the binding visual reference: a clean, compact leadership dashboard with white panels, deep navy text, blue interactions, and restrained risk colors. There is no sidebar. This standalone app has its own Manrope-based visual system; do not import the typography, shell, or tokens of another MAGPPIE project.",
+    "dos": [
+      "Do preserve the supplied reference's six-KPI, five-risk, paired-table, and funnel composition at desktop size.",
+      "Do keep the standalone app's Manrope typography, white surfaces, and navy/blue hierarchy.",
+      "Do retain labels alongside risk color, accessible control names, and visible focus.",
+      "Do preserve demo disclosures and current filter/drilldown limitations."
+    ],
+    "donts": [
+      "Don't add a sidebar, decorative hero, or an unrelated dashboard shell.",
+      "Don't fabricate CRM values, trend directions, conversion rates, or functioning lead details in documentation or styling.",
+      "Don't treat this source extraction as a browser, accessibility, or live-data validation report."
+    ]
+  }
+}
