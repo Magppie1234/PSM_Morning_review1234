@@ -1,0 +1,10 @@
+# Never upload secrets, runtime data or local builds to Vercel.
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+backend/.data
+*.xlsx
+*.zip
+.impeccable
