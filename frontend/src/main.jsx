@@ -13,5 +13,6 @@ import './styles/ams.css';
 import './styles/leadflow.css';
 import './styles/formula.css';
 import './styles/period-filter.css';
+import './styles/mobile.css';
 
 createRoot(document.getElementById('root')).render(<StrictMode><App /></StrictMode>);
