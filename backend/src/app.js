@@ -5,6 +5,7 @@ import path from 'path';
 import { config } from './config/env.js';
 import { basicAuth } from './middleware/basicAuth.js';
 import { apiRoutes } from './routes/index.js';
+import { clearApiCache } from './services/zohoClient.js';
 
 // Builds the Express app. Kept separate from server.js so it can be started, tested or wrapped by a host
 // without opening a port.
@@ -19,6 +20,11 @@ export function createApp() {
   // frontend is served by this same server, so no cross-origin access is needed.
   app.use('/api', cors({ origin: config.corsOrigins.length ? config.corsOrigins : false }));
   app.use(express.json({ limit: '100kb' }));
+  // The Refresh button on a board sends ?refresh=1: answer it from Zoho, not from the cached copy.
+  app.use('/api', (request, _response, next) => {
+    if (request.query.refresh === '1') clearApiCache();
+    next();
+  });
   app.use('/api', apiRoutes);
 
   // Production: serve the built frontend, and send every other page request to its index.html.

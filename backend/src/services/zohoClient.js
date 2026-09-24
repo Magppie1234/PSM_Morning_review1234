@@ -70,6 +70,12 @@ function forgetToken(staleValue) {
   removeFile(TOKEN_FILE);
 }
 
+// Drops the 60-second copy of every Zoho response, so the next read goes to the CRM. Used by the
+// Refresh button on the boards; the saved token and the on-disk fallback lists are left alone.
+export function clearApiCache() {
+  apiCache.clear();
+}
+
 export async function zohoGet(path, query = {}, retried = false) {
   const cacheKey = `${path}?${new URLSearchParams(query).toString()}`;
   const cached = apiCache.get(cacheKey);
@@ -162,11 +168,22 @@ export async function getRecentContacts(since) {
   return getRecordsInWindow('Contacts', CONTACT_FIELDS, since);
 }
 
-const CONTACT_FIELDS = 'Full_Name,Sales_Manager,Total_Opportunity_Value,Client_Status,Lead_Source,Created_Time,Modified_Time,Modified_By,Actual_Closure_Date';
+// City, Owner, Stage ("Status"), Amount ("BD Value"), Est_Closoure_Date ("Est. Closure Date", the CRM's
+// own spelling) and the two product fields are read for the Sales board's lead generation and sales
+// performance sections; the boards that do not need them simply ignore them.
+const CONTACT_FIELDS = 'Full_Name,Sales_Manager,Owner,City,Stage,Amount,Total_Opportunity_Value,Client_Status,Lead_Source,Created_Time,Modified_Time,Modified_By,Actual_Closure_Date,Est_Closoure_Date,Product_Requirement,Product_Type';
 
 // Every Contact whose Client Status is Closed (closures are dated by Actual_Closure_Date, not creation).
 export async function getClosedContacts() {
   return getAllRecords('Contacts', CONTACT_FIELDS, { criteria: '(Client_Status:equals:Closed)', maxPages: 10 });
+}
+
+// Contacts with an Est. Closure Date in the given range, for the Sales board's estimate and overdue cards.
+// Their estimate can be years older than the reporting period — an overdue deal stays overdue however long
+// ago its date passed — so this cannot be a slice of the created-in-period list and is read on its own.
+export async function getEstimateContacts(from, to) {
+  const criteria = `((Est_Closoure_Date:greater_equal:${from})and(Est_Closoure_Date:less_equal:${to}))`;
+  return getAllRecords('Contacts', CONTACT_FIELDS, { criteria, maxPages: 15 });
 }
 
 // Ownership history of one lead from its Zoho Timeline: every owner change (newest first) with who made it

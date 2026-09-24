@@ -2,9 +2,105 @@ import { useState, useEffect } from 'react';
 import { ArrivalTime, arrivalDate } from './leadArrival.jsx';
 import { X, ShieldCheck, ArrowLeft, Ruler, Building, Calendar, Phone, Flame, CheckCircle2, AlertTriangle, FileText, User, Sparkles } from 'lucide-react';
 import { Icon } from './Icon.jsx';
+import { SortTh, TableSearch, amountOf, timeOf, useTableTools } from './tableTools.jsx';
 
 const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 });
 const formatMoney = (val) => typeof val === 'number' ? `₹${inr.format(val / 100000)}L` : String(val ?? '—');
+
+// The columns change with the kind of record on show, so each sort key reads whichever field is there.
+const RECORD_FIELDS = {
+  name: (rec) => rec.client || rec.name,
+  owner: (rec) => rec.designer || rec.owner || rec.psm,
+  created: (rec) => timeOf(rec.created),
+  detail: (rec) => rec.product ?? rec.space ?? rec.applianceStatus,
+  stage: (rec) => rec.stage ?? rec.city ?? rec.siteCompletionDate,
+  followUp: (rec) => rec.paymentStatus ?? rec.followUp ?? rec.criticalReason,
+  value: (rec) => amountOf(rec.value ?? rec.valueFormatted)
+};
+const recordText = (rec) =>
+  [rec.client, rec.name, rec.id, rec.designer, rec.owner, rec.psm, rec.stage, rec.city, rec.product, rec.status, rec.followUp]
+    .filter(Boolean)
+    .join(' ');
+
+// The records behind the card that was clicked. Searchable, and every column sorts.
+function RecordsTable({ records, recordType, isLeadRecord, onSelect }) {
+  const tools = useTableTools(records, { fields: RECORD_FIELDS, search: recordText });
+  return (
+    <div className="modal-records-section">
+      <div className="section-title-row">
+        <h3>Matching Live Records ({tools.shown === tools.total ? tools.total : `${tools.shown} of ${tools.total}`})</h3>
+        <div className="tt-bar">
+          <TableSearch tools={tools} label="Search these records" placeholder="Search name, owner, stage…" />
+          <span className="records-note">Click any record row to inspect full details</span>
+        </div>
+      </div>
+
+      <div className="table-scroll modal-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <SortTh tools={tools} field="name">{recordType === 'pdi' ? 'Site / Client' : recordType === 'design' ? 'Project / Client' : recordType === 'deal' ? 'Deal / Project' : 'Lead / Customer'}</SortTh>
+              <SortTh tools={tools} field="owner">{recordType === 'pdi' ? 'Measurement' : recordType === 'design' ? 'Designer' : 'Owner'}</SortTh>
+              {isLeadRecord && <SortTh tools={tools} field="created">Came on</SortTh>}
+              {isLeadRecord && <SortTh tools={tools} field="created">Time</SortTh>}
+              <SortTh tools={tools} field="detail">{recordType === 'pdi' ? 'Appliance Specs' : recordType === 'design' ? 'Space / Area' : 'Product'}</SortTh>
+              <SortTh tools={tools} field="stage">{recordType === 'pdi' ? 'Target Completion' : recordType === 'design' ? 'Stage / Revision' : recordType === 'deal' ? 'Stage' : 'City / Source'}</SortTh>
+              <SortTh tools={tools} field="followUp">{recordType === 'pdi' ? 'Critical Reason' : recordType === 'design' ? 'Payment Status' : 'Follow-up'}</SortTh>
+              <SortTh tools={tools} field="value">Value</SortTh>
+            </tr>
+          </thead>
+          <tbody>
+            {tools.rows.length ? (
+              tools.rows.map((rec) => (
+                <tr
+                  key={rec.id}
+                  onClick={() => onSelect(rec)}
+                  title="Click to view detailed record breakdown"
+                >
+                  <th scope="row">
+                    <strong style={{ color: '#1260e9', cursor: 'pointer' }}>{rec.client || rec.name}</strong>
+                    <span style={{ display: 'block', fontSize: '0.7rem', color: '#667085' }}>{rec.id}</span>
+                  </th>
+                  <td>
+                    {recordType === 'pdi'
+                      ? <span className={`status ${rec.isMeasurementDone ? 'success' : 'danger'}`}><i />{rec.isMeasurementDone ? 'Done' : 'Pending'}</span>
+                      : rec.designer || rec.owner || rec.psm || 'Unassigned'}
+                  </td>
+                  {isLeadRecord && <td>{arrivalDate(rec.created)}</td>}
+                  {isLeadRecord && <td><ArrivalTime lead={rec} /></td>}
+                  <td>
+                    {recordType === 'pdi'
+                      ? <span className={`priority ${rec.applianceStatus === 'Specs Missing' ? 'high' : 'normal'}`}>{rec.applianceStatus}</span>
+                      : rec.sqFt ? `${rec.space} (${rec.sqFt})` : rec.product ?? 'Interior'}
+                  </td>
+                  <td>
+                    {recordType === 'pdi'
+                      ? <span>{rec.siteCompletionDate}</span>
+                      : rec.revisions ? `${rec.stage} · ${rec.revisions}` : rec.stage ?? `${rec.city} · ${rec.architect ?? rec.source}`}
+                  </td>
+                  <td>
+                    {recordType === 'pdi'
+                      ? <span style={{ color: rec.criticality === 'Critical' ? '#d93025' : '#475467', fontWeight: rec.criticality === 'Critical' ? 600 : 400 }}>{rec.criticalReason || 'On Track'}</span>
+                      : rec.paymentStatus || rec.followUp || '—'}
+                  </td>
+                  <td><strong>{typeof rec.value === 'number' ? formatMoney(rec.value) : rec.value || rec.valueFormatted || '—'}</strong></td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={isLeadRecord ? 8 : 6} className="empty-leads">
+                  {tools.total
+                    ? `No records match “${tools.query.trim()}”.`
+                    : 'No matching records currently in risk queue for this metric.'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export function MetricDetailModal({ item, onClose, leads = [], deals = [], projects = [], mode = 'pre-sales' }) {
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -416,75 +512,7 @@ export function MetricDetailModal({ item, onClose, leads = [], deals = [], proje
             </div>
           </div>
         ) : (
-          /* Matching Records Table List */
-          <div className="modal-records-section">
-            <div className="section-title-row">
-              <h3>Matching Live Records ({records.length})</h3>
-              <span className="records-note">Click any record row to inspect full details</span>
-            </div>
-
-            <div className="table-scroll modal-table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>{recordType === 'pdi' ? 'Site / Client' : recordType === 'design' ? 'Project / Client' : recordType === 'deal' ? 'Deal / Project' : 'Lead / Customer'}</th>
-                    <th>{recordType === 'pdi' ? 'Measurement' : recordType === 'design' ? 'Designer' : 'Owner'}</th>
-                    {isLeadRecord && <th>Came on</th>}
-                    {isLeadRecord && <th>Time</th>}
-                    <th>{recordType === 'pdi' ? 'Appliance Specs' : recordType === 'design' ? 'Space / Area' : 'Product'}</th>
-                    <th>{recordType === 'pdi' ? 'Target Completion' : recordType === 'design' ? 'Stage / Revision' : recordType === 'deal' ? 'Stage' : 'City / Source'}</th>
-                    <th>{recordType === 'pdi' ? 'Critical Reason' : recordType === 'design' ? 'Payment Status' : 'Follow-up'}</th>
-                    <th>Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {records.length ? (
-                    records.map((rec) => (
-                      <tr
-                        key={rec.id}
-                        onClick={() => setSelectedRecord(rec)}
-                        title="Click to view detailed record breakdown"
-                      >
-                        <th scope="row">
-                          <strong style={{ color: '#1260e9', cursor: 'pointer' }}>{rec.client || rec.name}</strong>
-                          <span style={{ display: 'block', fontSize: '0.7rem', color: '#667085' }}>{rec.id}</span>
-                        </th>
-                        <td>
-                          {recordType === 'pdi'
-                            ? <span className={`status ${rec.isMeasurementDone ? 'success' : 'danger'}`}><i />{rec.isMeasurementDone ? 'Done' : 'Pending'}</span>
-                            : rec.designer || rec.owner || rec.psm || 'Unassigned'}
-                        </td>
-                        {isLeadRecord && <td>{arrivalDate(rec.created)}</td>}
-                        {isLeadRecord && <td><ArrivalTime lead={rec} /></td>}
-                        <td>
-                          {recordType === 'pdi'
-                            ? <span className={`priority ${rec.applianceStatus === 'Specs Missing' ? 'high' : 'normal'}`}>{rec.applianceStatus}</span>
-                            : rec.sqFt ? `${rec.space} (${rec.sqFt})` : rec.product ?? 'Interior'}
-                        </td>
-                        <td>
-                          {recordType === 'pdi'
-                            ? <span>{rec.siteCompletionDate}</span>
-                            : rec.revisions ? `${rec.stage} · ${rec.revisions}` : rec.stage ?? `${rec.city} · ${rec.architect ?? rec.source}`}
-                        </td>
-                        <td>
-                          {recordType === 'pdi'
-                            ? <span style={{ color: rec.criticality === 'Critical' ? '#d93025' : '#475467', fontWeight: rec.criticality === 'Critical' ? 600 : 400 }}>{rec.criticalReason || 'On Track'}</span>
-                            : rec.paymentStatus || rec.followUp || '—'}
-                        </td>
-                        <td><strong>{typeof rec.value === 'number' ? formatMoney(rec.value) : rec.value || rec.valueFormatted || '—'}</strong></td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={isLeadRecord ? 8 : 6} className="empty-leads">
-                        No matching records currently in risk queue for this metric.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <RecordsTable records={records} recordType={recordType} isLeadRecord={isLeadRecord} onSelect={setSelectedRecord} />
         )}
 
         {/* Footer */}

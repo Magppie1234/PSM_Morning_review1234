@@ -1,3 +1,5 @@
+import { SortSelect, SortTh, amountOf, useTableTools } from '../tableTools.jsx';
+
 const RANK = { danger: 0, warning: 1, success: 2, neutral: 3 };
 const pct = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
 
@@ -50,10 +52,32 @@ function Num({ row, field, className = '', title }) {
   );
 }
 
+// Any column can be sorted; until one is picked the table keeps its own "needs attention first" order.
+const FIELDS = {
+  psm: (row) => row.psm,
+  leads: (row) => row.leads,
+  inHours: (row) => row.inHours,
+  afterHours: (row) => row.afterHours,
+  contacted: (row) => row.contacted,
+  qualified: (row) => row.qualified,
+  architectLeads: (row) => row.architectLeads,
+  clientReach: (row) => row.clientReach,
+  value: (row) => amountOf(row.value),
+  missed: (row) => row.missed,
+  status: (row) => RANK[row.tone] ?? 3
+};
+// Column names for the phone's sort menu, where the headings are hidden.
+const SORT_OPTIONS = [
+  ['psm', 'PSM'], ['leads', 'Leads'], ['inHours', 'Arrived 9:30–6:30'], ['afterHours', 'Arrived after hours'],
+  ['contacted', 'Contacted'], ['qualified', 'Qualified'], ['architectLeads', 'Architect'],
+  ['clientReach', 'Client reach'], ['value', 'Value'], ['missed', 'Missed'], ['status', 'Status']
+];
+
 export function TeamTable({ rows = [], onPsm, onDetail }) {
   const sorted = [...rows].sort(
     (a, b) => (RANK[a.tone] ?? 3) - (RANK[b.tone] ?? 3) || b.missed - a.missed || b.leads - a.leads
   );
+  const tools = useTableTools(sorted, { fields: FIELDS });
   const select = (name) => {
     onPsm(name);
     onDetail(`${name}'s records are filtered below`);
@@ -66,30 +90,33 @@ export function TeamTable({ rows = [], onPsm, onDetail }) {
           <h2>PSM performance</h2>
           <p>Sorted by who needs attention first</p>
         </div>
-        <button type="button" className="ps-link" onClick={() => onPsm('All PSM')}>View all</button>
+        <div className="tt-bar">
+          <SortSelect tools={tools} options={SORT_OPTIONS} />
+          <button type="button" className="ps-link" onClick={() => onPsm('All PSM')}>View all</button>
+        </div>
       </header>
       <div className="ps-scroll">
         <table className="ps-table ps-team-table">
           <thead>
             <tr>
-              <th scope="col" rowSpan={2}>PSM</th>
-              <th scope="col" rowSpan={2} className="num">Leads</th>
+              <SortTh tools={tools} field="psm" rowSpan={2}>PSM</SortTh>
+              <SortTh tools={tools} field="leads" rowSpan={2} className="num">Leads</SortTh>
               <th scope="colgroup" colSpan={2} className="ps-th-group" title="When the lead was created in Zoho (IST). Office hours are 9:30 am – 6:30 pm.">Lead arrival</th>
-              <th scope="col" rowSpan={2}>Contacted</th>
-              <th scope="col" rowSpan={2}>Qualified</th>
-              <th scope="col" rowSpan={2} className="num">Architect</th>
-              <th scope="col" rowSpan={2} className="num" title={CLIENT_REACH_HINT}>Client reach</th>
-              <th scope="col" rowSpan={2} className="num">Value</th>
-              <th scope="col" rowSpan={2} className="num">Missed</th>
-              <th scope="col" rowSpan={2}>Status</th>
+              <SortTh tools={tools} field="contacted" rowSpan={2}>Contacted</SortTh>
+              <SortTh tools={tools} field="qualified" rowSpan={2}>Qualified</SortTh>
+              <SortTh tools={tools} field="architectLeads" rowSpan={2} className="num">Architect</SortTh>
+              <SortTh tools={tools} field="clientReach" rowSpan={2} className="num" title={CLIENT_REACH_HINT}>Client reach</SortTh>
+              <SortTh tools={tools} field="value" rowSpan={2} className="num">Value</SortTh>
+              <SortTh tools={tools} field="missed" rowSpan={2} className="num">Missed</SortTh>
+              <SortTh tools={tools} field="status" rowSpan={2}>Status</SortTh>
             </tr>
             <tr>
-              <th scope="col" className="num ps-th-sub">9:30–6:30</th>
-              <th scope="col" className="num ps-th-sub" title="Created after 6:30 pm or before 9:30 am">After hours</th>
+              <SortTh tools={tools} field="inHours" className="num ps-th-sub">9:30–6:30</SortTh>
+              <SortTh tools={tools} field="afterHours" className="num ps-th-sub" title="Created after 6:30 pm or before 9:30 am">After hours</SortTh>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((row) => (
+            {tools.rows.map((row) => (
               <tr key={row.psm} onClick={() => select(row.psm)}>
                 <th scope="row">
                   <button

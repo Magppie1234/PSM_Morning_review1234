@@ -34,8 +34,24 @@ function LeadListToggle({ psm, leads, children }) {
 }
 const timeOf = (date) => date?.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
 
+// Reads Zoho again instead of the copy the API keeps for a minute.
+export function RefreshButton({ onRefresh, loading }) {
+  return (
+    <button
+      type="button"
+      className={`ps-refresh${loading ? ' is-busy' : ''}`}
+      onClick={onRefresh}
+      disabled={loading}
+      title="Fetch the latest records from Zoho CRM"
+    >
+      <RefreshCw size={14} aria-hidden="true" />
+      {loading ? 'Refreshing' : 'Refresh'}
+    </button>
+  );
+}
+
 export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selectedDetail, onDetail, onOpen }) {
-  const { data, error, loading, fetchedAt } = state;
+  const { data, error, loading, fetchedAt, refresh } = state;
   const [showFormula, toggleFormula] = useFormulaSwitch();
 
   if (!data) {
@@ -44,6 +60,7 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
       <div className="screen-message error">
         {error || 'Dashboard data could not be loaded.'}
         <span>Make sure the backend is running on port 4010.</span>
+        <RefreshButton onRefresh={refresh} loading={loading} />
       </div>
     );
   }
@@ -66,7 +83,7 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
     <div className={`ps${loading ? ' is-refreshing' : ''}`}>
       <header className="ps-head">
         <div>
-          <h1>PSM Morning Review</h1>
+          <h1>PSM Monitoring Review</h1>
           <p className="ps-sub">
             <span>{range ?? periodName}</span>
             <span title="Leads owned by Deepak, Ishita, Sowmya and Sparshan, including converted ones">PSM team leads, incl. converted</span>
@@ -88,6 +105,7 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
 
         <div className="ps-controls">
           <PeriodFilter value={timeframe} onChange={onTimeframe} />
+          <RefreshButton onRefresh={refresh} loading={loading} />
           <FormulaButton on={showFormula} onToggle={toggleFormula} />
           <label className="ps-select">
             <select aria-label="PSM" value={psm} onChange={(event) => onPsm(event.target.value)}>

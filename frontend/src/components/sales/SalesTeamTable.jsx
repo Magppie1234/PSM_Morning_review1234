@@ -1,9 +1,26 @@
+import { SortTh, amountOf, useTableTools } from '../tableTools.jsx';
+
 const RANK = { danger: 0, warning: 1, success: 2 };
+
+// Any column can be sorted; until one is picked the table keeps its own "needs attention first" order.
+const FIELDS = {
+  owner: (row) => row.owner,
+  deals: (row) => row.deals,
+  architectDeals: (row) => row.architectDeals ?? 0,
+  design: (row) => row.design ?? 0,
+  approval: (row) => row.approval ?? 0,
+  price: (row) => row.price ?? 0,
+  won: (row) => row.won ?? 0,
+  value: (row) => amountOf(row.value),
+  overdue: (row) => row.overdue,
+  status: (row) => RANK[row.tone] ?? 3
+};
 
 export function SalesTeamTable({ rows = [], onOwner, onDetail }) {
   const sorted = [...rows].sort(
     (a, b) => (RANK[a.tone] ?? 3) - (RANK[b.tone] ?? 3) || b.overdue - a.overdue || b.deals - a.deals
   );
+  const tools = useTableTools(sorted, { fields: FIELDS });
   const select = (name) => {
     onOwner(name);
     onDetail(`${name}'s records are filtered below`);
@@ -22,20 +39,20 @@ export function SalesTeamTable({ rows = [], onOwner, onDetail }) {
         <table className="ps-table">
           <thead>
             <tr>
-              <th scope="col">Sales rep</th>
-              <th scope="col" className="num">Deals</th>
-              <th scope="col" className="num">Architect</th>
-              <th scope="col" className="num">In design</th>
-              <th scope="col" className="num">In approval</th>
-              <th scope="col" className="num">Price disc.</th>
-              <th scope="col" className="num">Won</th>
-              <th scope="col" className="num">Pipeline value</th>
-              <th scope="col" className="num">Overdue</th>
-              <th scope="col">Status</th>
+              <SortTh tools={tools} field="owner">Sales rep</SortTh>
+              <SortTh tools={tools} field="deals" className="num">Deals</SortTh>
+              <SortTh tools={tools} field="architectDeals" className="num">Architect</SortTh>
+              <SortTh tools={tools} field="design" className="num">In design</SortTh>
+              <SortTh tools={tools} field="approval" className="num">In approval</SortTh>
+              <SortTh tools={tools} field="price" className="num">Price disc.</SortTh>
+              <SortTh tools={tools} field="won" className="num">Won</SortTh>
+              <SortTh tools={tools} field="value" className="num">Pipeline value</SortTh>
+              <SortTh tools={tools} field="overdue" className="num">Overdue</SortTh>
+              <SortTh tools={tools} field="status">Status</SortTh>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((row) => (
+            {tools.rows.map((row) => (
               <tr key={row.owner} onClick={() => select(row.owner)}>
                 <th scope="row">
                   <button

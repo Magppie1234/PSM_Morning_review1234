@@ -1,0 +1,155 @@
+/* Search boxes and sortable column headings (components/tableTools.jsx), plus the header refresh button. */
+
+.tt-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line, #e7e7e2);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--muted, #626b7d);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.tt-search:focus-within {
+  border-color: var(--accent-line, #cddcf8);
+  box-shadow: 0 0 0 3px var(--accent-soft, #eef3fd);
+}
+
+.tt-search.is-active { border-color: var(--accent-line, #cddcf8); }
+.tt-search > svg { flex-shrink: 0; }
+
+.tt-search input {
+  width: 100%;
+  min-width: 120px;
+  border: 0;
+  background: transparent;
+  color: var(--ink, #131c33);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.tt-search input::placeholder { color: var(--muted, #626b7d); font-weight: 600; }
+.tt-search input:focus { outline: none; }
+.tt-search input::-webkit-search-cancel-button { display: none; }
+
+.tt-count {
+  flex-shrink: 0;
+  color: var(--muted, #626b7d);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tt-clear {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted, #626b7d);
+  cursor: pointer;
+}
+
+.tt-clear:hover { background: var(--line-soft, #f0f0ec); color: var(--ink, #131c33); }
+
+/* Sortable headings: the whole heading is a button, so the arrow and the label click together. */
+.tt-th { padding: 0 !important; }
+
+.tt-sort {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 34px;
+  padding: 9px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.ps-table .tt-th:first-child .tt-sort { padding-left: 16px; }
+.ps-table .tt-th.num .tt-sort { justify-content: flex-end; }
+.tt-sort:hover { color: var(--ink, #131c33); }
+.tt-sort:hover .tt-arrow { opacity: 1; }
+
+.tt-arrow {
+  flex-shrink: 0;
+  opacity: 0.35;
+  transition: opacity 0.12s ease;
+}
+
+.tt-sorted { color: var(--accent, #1d5ce0); }
+.tt-sorted .tt-arrow { opacity: 1; }
+
+/* The phone's stand-in for sortable headings, which are hidden once rows become cards. */
+.tt-sort-select { display: none; }
+
+@media (max-width: 780px) {
+  .tt-sort-select {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 44px;
+    padding: 0 10px;
+    border: 1px solid var(--line, #e7e7e2);
+    border-radius: 8px;
+    background: var(--surface, #fff);
+    color: var(--muted, #626b7d);
+  }
+
+  .tt-sort-select select {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--ink, #131c33);
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 650;
+  }
+}
+
+/* Refresh: asks the API for fresh CRM data instead of the minute-old copy it keeps. */
+.ps-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line, #e7e7e2);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--ink-2, #33405a);
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ps-refresh:hover:not(:disabled) { border-color: var(--accent-line, #cddcf8); color: var(--accent, #1d5ce0); }
+.ps-refresh:disabled { color: var(--muted, #626b7d); cursor: progress; }
+.ps-refresh.is-busy svg { animation: tt-spin 0.9s linear infinite; }
+
+@keyframes tt-spin { to { transform: rotate(360deg); } }
+
+/* A table's own toolbar, above the rows. */
+.tt-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-refresh.is-busy svg { animation: none; }
+}
