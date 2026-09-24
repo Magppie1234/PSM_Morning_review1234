@@ -83,7 +83,7 @@ export function Sidebar({ currentTab, onTabChange }) {
       </button>
       <div className="mobile-bar-title">
         <strong>{current.label}</strong>
-        <span>MAGPPIE · Morning Review</span>
+        <span>MAGPPIE · Monitoring Review</span>
       </div>
     </header>
     {open && <div className="mobile-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />}
@@ -96,7 +96,7 @@ export function Sidebar({ currentTab, onTabChange }) {
           <Building2 size={22} className="brand-icon" />
           <div>
             <div className="brand-title">MAGPPIE</div>
-            <div className="brand-subtitle">Morning Review System</div>
+            <div className="brand-subtitle">Monitoring Review System</div>
           </div>
         </div>
       </div>
