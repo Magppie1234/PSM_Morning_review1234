@@ -1,20 +1,27 @@
-import { RefreshCw, X } from 'lucide-react';
-import { PeriodFilter } from '../PeriodFilter.jsx';
-import { IncentivePolicyCard } from '../IncentivePolicyCard.jsx';
-import { PsmLeadList } from '../PsmLeadList.jsx';
-import { ActionRow } from '../presales/ActionRow.jsx';
+import { RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 import { BoardSkeleton } from '../presales/BoardSkeleton.jsx';
-import { GroupedQueue } from '../presales/GroupedQueue.jsx';
-import { PreSalesFunnel } from '../presales/PreSalesFunnel.jsx';
-import { SummaryStrip } from '../presales/SummaryStrip.jsx';
-import { SalesTeamTable } from './SalesTeamTable.jsx';
+import { RefreshButton } from '../presales/PreSalesBoard.jsx';
+import { LeadGeneration } from './LeadGeneration.jsx';
+import { SalesPerformance } from './SalesPerformance.jsx';
+import { SalesFilters } from './SalesFilters.jsx';
+import { SalesRecordsPopup } from './SalesRecordsPopup.jsx';
+import { useDashboard } from '../../hooks/useDashboard.js';
 
-const ALL_REPS = 'All Sales Reps';
-const FLOW = /^(active opportunities|in design|sent for approval|price discussion)/i;
 const timeOf = (date) => date?.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
 
-export function SalesBoard({ state, timeframe, onTimeframe, owner, onOwner, selectedDetail, onDetail, onOpen }) {
-  const { data, error, loading, fetchedAt } = state;
+// The board's two views. Both read the same endpoint and share the city and period filter below the tabs.
+const SECTIONS = [
+  { id: 'lead-generation', label: 'Lead generation' },
+  { id: 'sales-performance', label: 'Sales performance' }
+];
+
+export function SalesBoard() {
+  const [section, setSection] = useState('lead-generation');
+  const [city, setCity] = useState('all');
+  const [period, setPeriod] = useState('monthly');
+  const [card, setCard] = useState(null);
+  const { data, error, loading, fetchedAt, refresh } = useDashboard({ timeframe: period, city }, '/api/sales-funnel');
 
   if (!data) {
     if (loading) return <BoardSkeleton />;
@@ -22,85 +29,68 @@ export function SalesBoard({ state, timeframe, onTimeframe, owner, onOwner, sele
       <div className="screen-message error">
         {error || 'Sales data could not be loaded.'}
         <span>Make sure the backend is running on port 4010.</span>
+        <RefreshButton onRefresh={refresh} loading={loading} />
       </div>
     );
   }
 
   const meta = data.meta ?? {};
   const [periodName, range] = (meta.reportLabel ?? '').split(' · ');
-  const selectedOwner = owner !== ALL_REPS ? owner : '';
-  const clearOwner = () => {
-    onOwner(ALL_REPS);
-    onDetail('');
-  };
 
   return (
     <div className={`ps${loading ? ' is-refreshing' : ''}`}>
       <header className="ps-head">
         <div>
-          <h1>Sales Morning Review</h1>
+          <h1>Sales Monitoring Review</h1>
           <p className="ps-sub">
             <span>{range ?? periodName}</span>
-            <span>Active pipeline, design progress, approvals and bookings</span>
-            {meta.isDemo ? (
-              <span className="ps-source demo">Demo data · CRM integration pending</span>
-            ) : (
-              <span className="ps-source live">
-                <i aria-hidden="true" />
-                Live from Zoho CRM{fetchedAt ? ` · updated ${timeOf(fetchedAt)}` : ''}
-              </span>
-            )}
+            <span>Lead generation and the closing pipeline</span>
+            <span className="ps-source live">
+              <i aria-hidden="true" />
+              Live from Zoho CRM{fetchedAt ? ` · updated ${timeOf(fetchedAt)}` : ''}
+            </span>
             {loading && <span className="ps-refreshing" role="status"><RefreshCw size={13} aria-hidden="true" /> Updating</span>}
           </p>
         </div>
         <div className="ps-controls">
-          <PeriodFilter value={timeframe} onChange={onTimeframe} />
-          <label className="ps-select">
-            <select aria-label="Sales rep" value={owner} onChange={(event) => onOwner(event.target.value)}>
-              {(data.filters?.owners ?? [ALL_REPS]).map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </label>
+          <RefreshButton onRefresh={refresh} loading={loading} />
         </div>
       </header>
 
-      {meta.notice && <p className="ps-notice">{meta.notice}</p>}
-
-      {selectedDetail && (
-        <div className="ps-detail" role="status">
-          <strong>{selectedDetail}</strong>
-          <button type="button" onClick={() => onDetail('')} aria-label="Dismiss filter notice"><X size={15} /></button>
-        </div>
-      )}
+      <div className="sb-tabs" role="tablist" aria-label="Sales views">
+        {SECTIONS.map((entry) => (
+          <button
+            type="button"
+            key={entry.id}
+            role="tab"
+            aria-selected={section === entry.id}
+            onClick={() => { setSection(entry.id); setCard(null); }}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
 
       <div className="ps-body">
-        <SummaryStrip kpis={data.kpis ?? []} onOpen={onOpen} flow={FLOW} />
-        <ActionRow risks={data.risks ?? []} onOpen={onOpen} />
+        <SalesFilters
+          cities={data.filters?.cities ?? []}
+          city={city}
+          onCity={setCity}
+          timeframe={period}
+          onTimeframe={setPeriod}
+        />
 
-        <div className="ps-split">
-          <SalesTeamTable rows={data.performance ?? []} onOwner={onOwner} onDetail={onDetail} />
-          <GroupedQueue rows={data.decisions ?? []} onOpen={onOpen} />
+        {meta.notice && <p className="sb-notice">{meta.notice}</p>}
+
+        <div className={`sb-section${loading ? ' is-loading' : ''}`}>
+          {section === 'lead-generation' ? (
+            <LeadGeneration data={data.leadGeneration} loading={loading} onOpen={setCard} />
+          ) : (
+            <SalesPerformance data={data.salesPerformance} loading={loading} onOpen={setCard} />
+          )}
         </div>
 
-        {selectedOwner && (
-          <>
-            <PsmLeadList psm={selectedOwner} leads={data.leads ?? []} deals={data.deals ?? []} mode="sales" onClear={clearOwner} />
-            <div className="ps-incentive">
-              <IncentivePolicyCard
-                personName={selectedOwner}
-                mode="sales"
-                performanceRow={data.performance?.[0] || null}
-                leads={data.leads || []}
-                deals={data.deals || []}
-                periodLabel={(periodName ?? '').toLowerCase()}
-                onClose={() => onOwner(ALL_REPS)}
-              />
-            </div>
-          </>
-        )}
-
-        <PreSalesFunnel stages={data.funnel ?? []} periodName={periodName} onOpen={onOpen} title="Pipeline conversion" detailLabel="Pipeline Conversion details" />
+        {card && <SalesRecordsPopup card={card} records={data.records ?? []} onClose={() => setCard(null)} />}
       </div>
     </div>
   );

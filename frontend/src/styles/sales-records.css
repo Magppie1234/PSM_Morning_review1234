@@ -1,0 +1,111 @@
+/* The filter bar above the closure tables in SalesRecordsPopup.jsx.
+
+   Only the two closure cards ("Est. closure for this month" and "Overdue orders") show it; every other
+   card keeps the header search alone. The popup shell, the table and the search box itself are styled by
+   leadflow.css and table-tools.css — this file adds the bar those controls sit in, and nothing else.
+
+   Uses the .ps tokens (--surface, --line, --ink, --ink-2, --muted, --accent …) from presales.css. Every
+   class is prefixed sr- so it cannot collide with .lf-, .tt- or .ps-. */
+
+.sr-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--line-soft);
+}
+
+/* The search sits first and takes the slack on a wide popup. */
+.sr-filters .sr-search {
+  flex: 1 1 220px;
+  min-width: 180px;
+  height: 38px;
+  background: var(--surface);
+}
+
+/* The lead table carries five dropdowns as well as the search. Giving the search a row of its own keeps
+   the dropdowns together on the next line instead of leaving one orphaned beside it. */
+.sr-wide .sr-search { flex: 1 1 100%; }
+
+/* Controls keep their own width and wrap onto the next row rather than squeezing each other thin. */
+.sr-filter {
+  display: grid;
+  gap: 4px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.sr-filter-label {
+  color: var(--ink-2);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.sr-filter select {
+  /* Wide enough to read a name, capped so one long option cannot stretch the row. */
+  min-width: 148px;
+  max-width: 230px;
+  height: 38px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.sr-filter select:hover { border-color: var(--ink-2); }
+
+.sr-filter select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sr-clear {
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sr-clear:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+.sr-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Phones: the bar becomes a two-column grid of thumb-sized controls, with the client search and the
+   clear button across the full width. Matches the 780px breakpoint the rest of the board uses. */
+@media (max-width: 780px) {
+  .sr-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px;
+  }
+  .sr-filters .sr-search,
+  .sr-clear { grid-column: 1 / -1; }
+  .sr-filters .sr-search { min-height: 44px; }
+  .sr-filters .sr-search input { font-size: 1rem; }
+  .sr-filter select { width: 100%; max-width: none; min-height: 44px; font-size: 0.9rem; }
+  .sr-clear { min-height: 44px; }
+}
+
+@media (max-width: 420px) {
+  .sr-filters { grid-template-columns: minmax(0, 1fr); }
+}

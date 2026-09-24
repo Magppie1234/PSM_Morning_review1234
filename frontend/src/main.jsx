@@ -13,6 +13,11 @@ import './styles/ams.css';
 import './styles/leadflow.css';
 import './styles/formula.css';
 import './styles/period-filter.css';
+import './styles/table-tools.css';
+import './styles/sales-records.css';
+import './styles/sales-sections.css';
+import './styles/sales-leadgen.css';
+import './styles/sales-performance.css';
 import './styles/mobile.css';
 
 createRoot(document.getElementById('root')).render(<StrictMode><App /></StrictMode>);

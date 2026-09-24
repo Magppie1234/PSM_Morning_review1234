@@ -2,13 +2,14 @@ import { localDayKey } from './timeUtils.js';
 
 // The universal reporting periods and the period each one is compared with:
 //   daily      yesterday                     vs the day before
+//   this-week  this week so far, Mon → today vs the same weekdays of last week
 //   weekly     last full week, Mon → Sun    vs the week before it
 //   monthly    this month, 1st → today       vs the same days of last month
 //   quarterly  this quarter, 1st → today     vs the same days of last quarter
 //   custom     any from → to (≤ 366 days)    vs the equal-length window just before it
 // Encoded as a string so every endpoint takes one `timeframe` query value: "custom:2026-09-01:2026-09-15".
 
-export const PERIODS = ['daily', 'weekly', 'monthly', 'quarterly', 'custom'];
+export const PERIODS = ['daily', 'this-week', 'weekly', 'monthly', 'quarterly', 'custom'];
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_CUSTOM_DAYS = 366;
 
@@ -25,6 +26,8 @@ const monthStart = (iso, shift = 0) => {
   return toIso(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + shift, 1)));
 };
 const minIso = (a, b) => (a < b ? a : b);
+// The Monday of the week `iso` falls in (weeks run Mon → Sun here, unlike JavaScript's Sun → Sat).
+const mondayOf = (iso) => addDays(iso, -((utc(iso).getUTCDay() + 6) % 7));
 
 function label(start, end) {
   const fmt = (iso, withMonth) => utc(iso).toLocaleDateString('en-IN', { timeZone: 'UTC', day: 'numeric', ...(withMonth ? { month: 'short' } : {}) });
@@ -44,8 +47,14 @@ export function parsePeriod(timeframe = 'daily', now = new Date()) {
   const yesterday = addDays(today, -1);
   const [kind, from, to] = String(timeframe || 'daily').toLowerCase().split(':');
 
+  // The week in progress, so today's work shows up; `weekly` deliberately stays the last full week.
+  // Comparing with the same weekdays of the week before keeps a Tuesday honest against a Tuesday.
+  if (kind === 'this-week') {
+    const start = mondayOf(today);
+    return { kind, start, end: today, prevStart: addDays(start, -7), prevEnd: addDays(today, -7), name: 'Week to date', shortLabel: 'This week' };
+  }
   if (kind === 'weekly') {
-    const thisMonday = addDays(today, -((utc(today).getUTCDay() + 6) % 7));
+    const thisMonday = mondayOf(today);
     const start = addDays(thisMonday, -7);
     const end = addDays(thisMonday, -1);
     return { kind, start, end, prevStart: addDays(start, -7), prevEnd: addDays(end, -7), name: 'Last week', shortLabel: 'Last week' };

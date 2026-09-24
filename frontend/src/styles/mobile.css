@@ -70,13 +70,20 @@
   .ps-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
   .ps-controls > .pf { grid-column: 1 / -1; }
   .ps-controls > .ps-select { grid-column: 1 / -1; order: 1; }
-  .ps-controls > .fx-toggle, .ps-controls > .ps-locked { order: 2; }
+  .ps-controls > .ps-refresh, .ps-controls > .fx-toggle, .ps-controls > .ps-locked { order: 2; }
   .pf-group { display: flex; flex-wrap: wrap; width: 100%; gap: 3px; }
   .pf-group button { flex: 1 1 30%; justify-content: center; height: 40px; padding: 0 8px; }
   .pf-pop { left: 0; right: auto; width: min(300px, 100%); }
   .ps-select { min-height: 44px; }
   .ps-select select { min-height: 42px; width: 100%; font-size: 1rem; }
-  .fx-toggle, .ps-locked { justify-content: center; min-height: 44px; }
+  .fx-toggle, .ps-locked, .ps-refresh { justify-content: center; min-height: 44px; }
+
+  /* ---- Search boxes: a full-width row of their own, above the table they filter ---- */
+  .tt-bar { width: 100%; justify-content: space-between; }
+  .tt-search { flex: 1 1 100%; min-height: 44px; }
+  .tt-search input { font-size: 1rem; }
+  .tt-clear { width: 32px; height: 32px; }
+  .panel-header, .section-title-row { flex-wrap: wrap; }
 
   /* ---- Tap targets across the board ---- */
   .ps-link { min-height: 40px; }
@@ -132,6 +139,8 @@
   }
   .lf-detail-head { flex-wrap: wrap; padding-right: 52px; }
   .lf-detail-actions { width: 100%; justify-content: stretch; }
+  .lf-detail-actions > .lf-detail-search { flex: 1 1 100%; }
+  .lf-detail-actions > .lf-detail-sort { flex: 1 1 100%; }
   .lf-detail-actions > .lf-detail-filter { flex: 1 1 100%; }
   .lf-detail-actions > .lf-detail-filter select { width: 100%; max-width: none; min-height: 42px; }
   .lf-detail-actions > .fs-switch { flex: 1 1 100%; display: grid; grid-template-columns: 1fr 1fr; }

@@ -1,0 +1,174 @@
+/* Lead generation on the Sales board.
+
+   The section is the PSM board's funnel: it reuses .lf, .lf-c, .lf-node, .lf-w, .lf-card, .lf-label,
+   .lf-figures, .lf-share and the .tone-* palette from leadflow.css, so there is only ONE card system
+   in the product. Nothing here restates those styles.
+
+   What is left is the handful of things the funnel has no equivalent for:
+     .lg-flow       four columns instead of six
+     .lg-c-source   the "By source" group and its heading
+     .lg-node-rows  the Delhi / Hyderabad / Others rows merged under a card
+     .lg-loading    hold the previous numbers on screen and dim them while the API is re-read
+
+   Loaded after leadflow.css and before mobile.css, so every override below that touches a .lf-
+   rule is repeated inside leadflow's own @media (max-width: 1180px) breakpoint — the section
+   inherits the funnel's stacking rather than fighting it.
+
+   INCOMING ──► QUALIFICATION ──┬─► PSM QUALIFIED  ─┬─► ARCHITECT / WALK-INS
+                                └─► SELF QUALIFIED ─┘   / REFERRALS / AD GLOBAL            */
+
+/* Four stages, not six. The first two columns carry the city rows, so they get a little more width. */
+.lf.lg-flow {
+  grid-template-columns:
+    minmax(0, 1.15fr)
+    minmax(0, 1.1fr)
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+}
+
+/* Screen-reader-only group heading — the "Qualified by" pair is shown as bare cards. */
+.lg-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* "By source" sits above its column, in the funnel's own label voice. */
+.lg-group-h {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+/* ---- City rows -------------------------------------------------------------
+   They belong to the Incoming and Qualification cards, but a <button> cannot hold
+   another <button>. So the list sits directly under the card button inside the same
+   .lf-node and the two are merged into one shape: the card drops its bottom border
+   and bottom corners, the list supplies them. */
+.lg-node-rows .lf-card {
+  min-height: 104px;
+  border-bottom: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* The lift would peel the card off the rows below it; the border and shadow still respond. */
+.lg-node-rows .lf-card:hover { transform: none; }
+
+.lg-rows {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 0 0 10px 10px;
+  background: #fcfcfb;
+  list-style: none;
+}
+
+.lg-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.lg-row:hover { border-color: var(--line); background: var(--line-soft); }
+.lg-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.lg-row-label {
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lg-row-figure {
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A caveat the API attached to a card — why a count reads lower than expected, and so on. */
+.lg-note {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* ---- Zero states: still a card, but it says so ---------------------------- */
+.lf-card.lg-zero { background: var(--line-soft); }
+.lf-card.lg-zero .lf-figures strong { color: var(--muted); }
+.lf-card.lg-zero .lf-inline-value { color: var(--muted); }
+.lg-none { color: var(--muted); font-size: 0.72rem; font-weight: 650; }
+
+/* ---- Reacting to fresh data ------------------------------------------------
+   The Incoming and Qualification counts tick up in JS; every other figure fades in
+   when its value changes (React re-keys the node, so the animation replays). */
+@keyframes lg-flip {
+  from { opacity: 0; transform: translateY(-3px); }
+}
+.lg-flip { display: inline-block; animation: lg-flip 0.28s var(--ease-out); }
+
+/* Re-reading the API: keep the previous numbers on screen and dim them. Never a spinner. */
+.lg-flow.lg-loading .lf-node {
+  opacity: 0.55;
+  transition: opacity 0.2s var(--ease-out);
+}
+
+/* ---- Stacking ---------------------------------------------------------------
+   leadflow.css folds .lf into a single column at 1180px and hides every wire, which
+   also covers phones at 780px. Repeat the column override at the same breakpoint so
+   the higher-specificity rule above does not keep the four-column track alive, and
+   let the two breakdown columns spread instead of running down the page. */
+@media (max-width: 1180px) {
+  .lf.lg-flow { grid-template-columns: 1fr; }
+
+  /* Only the two breakdown columns spread. Incoming and Qualification carry their city rows, so they
+     stay one wide block each rather than being squeezed side by side. */
+  .lg-flow .lg-c-breakdown {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+  }
+  .lg-flow .lg-c-breakdown > .lg-group-h,
+  .lg-flow .lg-c-breakdown > .lg-sr { grid-column: 1 / -1; }
+}
+
+/* Phones: thumb-sized city rows, and no hover-only affordances. */
+@media (max-width: 780px) {
+  .lg-row { min-height: 44px; padding: 10px 12px; }
+  .lg-rows { gap: 6px; padding: 7px; }
+  .lg-row-label { font-size: 0.88rem; white-space: normal; }
+  .lg-row-figure { font-size: 1.1rem; }
+  .lg-node-rows .lf-card { min-height: 112px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-flip { animation: none; }
+  .lg-row { transition: none; }
+  .lg-flow.lg-loading .lf-node { transition: none; }
+}

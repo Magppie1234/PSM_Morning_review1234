@@ -35,20 +35,18 @@ export default function App() {
   // One reporting period shared by every tab: daily, monthly, quarterly or a custom range.
   const [timeframe, setTimeframe] = useState('daily');
   const [psm, setPsm] = useState('All PSM');
-  const [salesOwner, setSalesOwner] = useState('All Sales Reps');
+  // The decision queue reads every sales rep's deals; only that board uses this now.
+  const salesOwner = 'All Sales Reps';
   const [selectedDetail, setSelectedDetail] = useState('');
   const [modalItem, setModalItem] = useState(null);
   const [modalProjects, setModalProjects] = useState([]);
 
-  // Only the tabs on screen fetch; the decision queue needs both lead and deal data.
+  // Only the tabs on screen fetch. The Sales board reads its own endpoint, so the deal dashboard is now
+  // needed only by the decision queue, which pairs it with the lead data.
   const isSales = currentTab === 'sales';
   const preSalesState = useDashboard({ timeframe, psm }, '/api/dashboard', !isSales);
-  const salesState = useDashboard(
-    { timeframe, owner: salesOwner },
-    '/api/sales-dashboard',
-    isSales || currentTab === 'decision-queue'
-  );
-  const data = (isSales ? salesState : preSalesState).data;
+  const salesState = useDashboard({ timeframe, owner: salesOwner }, '/api/sales-dashboard', currentTab === 'decision-queue');
+  const data = preSalesState.data;
 
   const handleTabChange = (tabId) => {
     setCurrentTab(tabId);
@@ -75,21 +73,10 @@ export default function App() {
         onOpen={handleCardClick}
       />
     ),
-    sales: () => (
-      <SalesBoard
-        state={salesState}
-        timeframe={timeframe}
-        onTimeframe={setTimeframe}
-        owner={salesOwner}
-        onOwner={setSalesOwner}
-        selectedDetail={selectedDetail}
-        onDetail={setSelectedDetail}
-        onOpen={handleCardClick}
-      />
-    ),
+    sales: () => <SalesBoard />,
     design: () => (
       <div className="ps lt">
-        <BoardHeader title="Design Morning Review" subtitle="Pre-design concepts and post-design production drawings" timeframe={timeframe} onTimeframe={setTimeframe} />
+        <BoardHeader title="Design Monitoring Review" subtitle="Pre-design concepts and post-design production drawings" timeframe={timeframe} onTimeframe={setTimeframe} />
         <DesignDashboard onSelectDetail={handleCardClick} timeframe={timeframe} />
       </div>
     ),

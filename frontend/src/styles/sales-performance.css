@@ -1,0 +1,223 @@
+/* Sales performance on the Sales board.
+
+   The section IS the PSM funnel: it renders LeadFlow's own markup and classes
+   (.lf, .lf-c, .lf-node, .lf-w, .lf-card, .lf-label, .lf-figures, .lf-share, .lf-delta),
+   so the cards, the elbow wires, the hover lift, the focus ring, the phone stack and the
+   prefers-reduced-motion handling all come from leadflow.css. Nothing there is forked.
+
+   This file only adds what the funnel does not have:
+     1. five columns instead of six,
+     2. the customer's green gradient laid over .lf-card on the S1–S5 cards,
+     3. the city sub-rows that sit inside the closures block,
+     4. the stage-name line, the per-card note, the dim-on-refresh and the value fade.
+   Everything new is prefixed sp-. Loaded after leadflow.css, so single-class rules here
+   would beat single-class rules there — hence the min-width guard on the grid override. */
+
+/* 1 · Column count. [Est. closure + Overdue stacked] → S1–S5 → S6 → Order Booked →
+   Handover is five, but the component counts its columns and sets the class, so the chain
+   still fills the row if a node is missing from the payload rather than leaving a dead
+   track. Guarded so leadflow.css's own "collapse to one column" at 1180px still wins.
+
+   The gutter is widened from leadflow's 36px because the share percentage rides the
+   incoming wire and has to fit between the bracket's vertical rail and the card's own
+   border. It scales with the viewport so laptop widths do not pay for it in card width. */
+@media (min-width: 1181px) {
+  .sp-lf { --lf-gap: clamp(82px, 5.6vw, 96px); }
+  .sp-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sp-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .sp-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+  /* Leadflow puts the fan-out rail at the midpoint of the gutter, which leaves only half
+     a gutter of clear wire to carry the percentage — measured, the label overlapped the
+     rail by 11px at 1440. Pull the rail back towards the source column so the arrows into
+     the ladder get a long clear run instead. The two halves of the joint must move by
+     complementary fractions (0.18 + 0.82 = 1) or the line breaks where they meet, and the
+     override is scoped to this one joint so the ladder → S6 wiring is untouched. */
+  .sp-lf .sp-c-source > .lf-node > .lf-w.out-h {
+    right: calc(var(--lf-gap) * -0.18);
+    width: calc(var(--lf-gap) * 0.18);
+  }
+  .sp-lf .sp-c-source > .lf-node > .lf-w.out-v { right: calc(var(--lf-gap) * -0.18); }
+  .sp-lf .lf-c-outcomes > .lf-node > .lf-w.in-h {
+    left: calc(var(--lf-gap) * -0.82);
+    width: calc(var(--lf-gap) * 0.82);
+  }
+  .sp-lf .lf-c-outcomes > .lf-node > .lf-w.in-v { left: calc(var(--lf-gap) * -0.82); }
+}
+
+/* The share percentage, riding the wire that points at its card.
+
+   It sits in the clear run between the bracket rail and the card, vertically centred on
+   the horizontal wire, with the card container's own background behind it so the line
+   does not strike through the digits. Anchored to the card's left edge rather than
+   centred in the gutter, so it holds its position as the gutter flexes and as the five
+   cards take different heights. Decorative — the same figure, with its full "of S1–S5"
+   wording, is in the card's aria-label and tooltip. */
+.sp-wire-share {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 3px);
+  z-index: 1;
+  padding: 1px 3px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  /* 0.9rem floor, easing up to 0.95rem on wide screens. Measured: the widest label
+     ("67.3%") is 52px at 0.9rem and the clear run between rail and card is 62px at the
+     narrowest desktop width, so the floor holds everywhere above 1180px. Still well below
+     the card's own count (1.45rem on these lf-sm cards), so it reads as a label on the
+     arrow rather than competing with the figure. */
+  font-size: clamp(0.9rem, 0.5vw + 0.45rem, 0.95rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* One or the other, never both: on the wire while the wires exist, inside the card once
+   leadflow hides them at 1180px, so the figure never vanishes with the wiring. */
+.lf-figures em.sp-inline-share { display: none; }
+@media (max-width: 1180px) {
+  .sp-wire-share { display: none; }
+  /* Matched to the wire label's emphasis — this copy sits inside the card and has no rail
+     to clear, so it takes the full size. No colour here: the green cards already route
+     .lf-figures em through --sp-fg-2, and overriding it would undo the measured contrast
+     on S4 and S5. */
+  .lf-figures em.sp-inline-share { display: inline; font-size: 0.9rem; font-weight: 800; }
+}
+
+/* A re-read keeps the numbers already on screen and dims them — never a spinner,
+   never an unmount. Nothing moves, so a click still lands where the user aimed. */
+.sp-lf { transition: opacity 0.2s var(--ease-out); }
+.lf.is-stale { opacity: 0.55; }
+
+/* The real Zoho stage name, printed under the S-label */
+.sp-name { color: var(--ink-2); font-size: 0.72rem; font-weight: 650; line-height: 1.3; }
+
+/* An optional caveat from the API, e.g. how many records have no Current Stage set.
+   Small and muted, but never below 4.5:1 — see the per-step colours further down. */
+.sp-card-note { margin-top: auto; color: var(--muted); font-size: 0.7rem; font-weight: 600; line-height: 1.35; }
+
+.sp-note { grid-column: 1 / -1; margin: 14px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
+.sp-note strong { color: var(--ink-2); font-weight: 700; }
+
+/* A zero card keeps its full shape and its place in the tab order; it just has nothing
+   to open, so it drops the pointer and the funnel's hover lift. */
+.lf-card.sp-empty,
+.sp-city.sp-empty { cursor: default; }
+.lf-card.sp-empty:hover { transform: none; border-color: var(--line); box-shadow: none; }
+.sp-city.sp-empty:hover { background: transparent; }
+
+/* Money re-fades when the figure changes */
+.sp-fade { animation: sp-in 0.32s var(--ease-out); }
+@keyframes sp-in { from { opacity: 0; transform: translateY(3px); } }
+
+/* ---------- 2 · The green gradient, laid over .lf-card ----------
+   tone-* only sets --tone, so these override the card surface without touching the
+   funnel's card rules.
+
+   S4 and S5 were lightened because the bottom of the ramp read as too dense. The old
+   ramp's relative luminance fell 0.84 → 0.73 → 0.55 → 0.49 per step; the new one falls
+   0.84 → 0.73 → 0.70 → 0.68, so the five read as one even progression instead of two pale
+   steps and two heavy ones. S1–S3 are untouched.
+
+   Every step now takes dark ink, which is also why the set finally looks consistent —
+   S5 no longer has to flip to white. Measured (4.5:1 = AA body text):
+     S1 #eaf6ee  ink 15.23:1   ink-2 9.36:1
+     S2 #c9e9d5  ink 12.97:1   ink-2 7.96:1
+     S3 #8fd3ab  ink  9.72:1   ink-2 5.97:1
+     S4 #47bb89  ink  7.04:1   (was #3fa878, ink 5.71 — ink-2 is 4.33 here, so S4 and S5
+     S5 #349e70  ink  5.05:1    use full ink for secondary text too)
+   Previously S5 #1f7a53 needed white (5.29:1) because dark ink was only 3.20:1. */
+
+.lf-card.sp-stage {
+  --sp-fg: var(--ink);
+  --sp-fg-2: var(--ink-2);
+  background: var(--sp-bg);
+  border-color: color-mix(in srgb, var(--sp-bg) 82%, #131c33);
+  border-top-color: color-mix(in srgb, var(--sp-bg) 55%, #0b3b27);
+  color: var(--sp-fg);
+}
+.lf-card.sp-stage:hover { border-color: var(--sp-fg); border-top-color: var(--sp-fg); }
+.lf-card.sp-stage.sp-empty:hover { border-color: color-mix(in srgb, var(--sp-bg) 82%, #131c33); }
+
+.lf-card.sp-stage .lf-label { color: var(--sp-fg); }
+.lf-card.sp-stage .lf-label i { background: var(--sp-fg); }
+.lf-card.sp-stage .sp-name,
+.lf-card.sp-stage .lf-inline-value,
+.lf-card.sp-stage .lf-figures em,
+.lf-card.sp-stage .sp-card-note,
+.lf-card.sp-stage .lf-delta.flat { color: var(--sp-fg-2); }
+.lf-card.sp-stage .lf-share { background: color-mix(in srgb, #131c33 16%, var(--sp-bg)); }
+.lf-card.sp-stage .lf-share b { background: var(--sp-fg); }
+
+/* Declared at .lf-card.sp-sN so the per-step ink beats the defaults above */
+.lf-card.sp-s1 { --sp-bg: #eaf6ee; }
+.lf-card.sp-s2 { --sp-bg: #c9e9d5; }
+.lf-card.sp-s3 { --sp-bg: #8fd3ab; }
+.lf-card.sp-s4 { --sp-bg: #47bb89; --sp-fg: #131c33; --sp-fg-2: #131c33; }
+.lf-card.sp-s5 { --sp-bg: #349e70; --sp-fg: #131c33; --sp-fg-2: #131c33; }
+
+/* ---------- 3 · Closures this month, with its three cities in the same block ----------
+   The card and the rows are one visual block: the card loses its bottom corners and the
+   list picks them up, so the seam reads as a divider inside a single card. */
+
+.sp-stack { display: grid; }
+.lf-card.sp-card-top { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+.sp-cities {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+  background: #fcfcfb;
+  list-style: none;
+}
+
+.sp-city {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 2px 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.sp-cities li:first-child .sp-city { border-top: 0; }
+.sp-cities li:last-child .sp-city { border-radius: 0 0 9px 9px; }
+.sp-city:hover { background: var(--line-soft); }
+.sp-city-name { color: var(--ink-2); font-size: 0.7rem; font-weight: 750; letter-spacing: 0.02em; line-height: 1.25; text-transform: uppercase; }
+.sp-city strong { font-size: 1rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.sp-city .lf-inline-value { font-size: 0.82rem; }
+.sp-city .lf-delta.flat { font-size: 0.68rem; }
+
+/* ---------- Phones ----------
+   leadflow.css already stacks the columns and hides the wires at 1180px and below;
+   these are only the bits it has no reason to know about. */
+@media (max-width: 780px) {
+  /* one card per row, so the gradient still reads S1 → S5 top to bottom */
+  .sp-lf .lf-c-outcomes { grid-template-columns: 1fr; }
+  .sp-city { min-height: 48px; padding: 10px 14px; }
+  /* no hover on touch — the tint would stick after a tap */
+  .sp-city:hover { background: transparent; }
+  .sp-city:active { background: var(--line-soft); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-lf { transition: none; }
+  .sp-city { transition: none; }
+  .sp-fade { animation: none; }
+}
