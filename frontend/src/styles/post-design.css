@@ -1,0 +1,53 @@
+.design-sections { display: flex; gap: 24px; border-bottom: 1px solid var(--line, #dce6f4); margin: 8px 0 24px; }
+.design-sections button { padding: 12px 4px; border: 0; border-bottom: 3px solid transparent; background: none; color: var(--ink-2, #52617c); font: inherit; font-weight: 700; cursor: pointer; }
+.design-sections button[aria-pressed="true"] { color: var(--ink, #10224c); border-bottom-color: #3569ce; }
+.post-board { --post-line: #dce1e8; --post-muted: #53617a; color: #10224c; min-width: 0; font-variant-numeric: tabular-nums; }
+.post-board ::selection { background: #dbe8ff; color: #10224c; }
+.post-board button, .post-board input, .post-board select { font: inherit; }
+.post-board button { cursor: pointer; }
+.post-board :focus-visible, .design-sections :focus-visible { outline: 3px solid #3569ce; outline-offset: 3px; }
+.post-heading, .post-table-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.post-heading h2 { font-size: 1.2rem; margin: 0; letter-spacing: -.025em; }
+.post-heading p, .post-table-head p { color: var(--post-muted); margin: 5px 0 0; font-size: .82rem; }
+.post-refresh { display: inline-flex; align-items: center; gap: 7px; background: white; border: 1px solid var(--post-line); border-radius: 6px; padding: 10px 12px; color: inherit; }
+.post-toolbar { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-top: 24px; }
+.post-toolbar label, .post-table-head label { display: grid; gap: 6px; font-size: .75rem; font-weight: 650; }
+.post-toolbar select, .post-table-head select { border: 1px solid var(--post-line); border-radius: 6px; padding: 10px 30px 10px 10px; background: white; color: inherit; min-height: 42px; }
+.post-toolbar .post-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--post-line); border-radius: 6px; padding: 0 12px; min-height: 42px; background: white; }
+.post-search input { border: 0; background: transparent; min-width: 0; width: 220px; padding: 11px 0; color: inherit; }
+.post-search input::placeholder { color: var(--post-muted); }
+.post-scope { margin-left: auto; padding-bottom: 10px; color: var(--post-muted); font-size: .8rem; }
+.post-context { margin: 16px 0 0; color: var(--post-muted); font-size: .78rem; line-height: 1.5; }
+.post-records { border: 1px solid var(--post-line); border-radius: 10px; background: white; overflow: hidden; }
+.post-table-head { padding: 18px 20px; }.post-table-head h3 { font-size: 1rem; margin: 0; }
+.post-table-scroll { overflow: auto; max-height: 560px; scrollbar-color: #a8b5c7 #f2f5f9; }
+.post-board table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+.post-board th, .post-board td { padding: 13px 15px; text-align: left; border-bottom: 1px solid #edf0f3; white-space: nowrap; }
+.post-board thead th { position: sticky; top: 0; z-index: 2; background: #f4f6f9; font-size: .7rem; color: #435370; }
+.post-board thead button { border: 0; padding: 0; background: none; color: inherit; font-weight: inherit; }
+.post-board tbody th { position: sticky; left: 0; z-index: 1; background: white; min-width: 190px; max-width: 270px; white-space: normal; }
+.post-board tbody tr:hover th, .post-board tbody tr:hover td { background: #f7f9fc; }
+.post-board tbody th small { display: block; margin-top: 4px; font-size: .65rem; font-weight: 450; color: var(--post-muted); overflow-wrap: anywhere; }
+.post-status { color: #53617a; font-size: .72rem; }.post-status.complete { color: #167341; }
+.post-notice { padding: 10px 20px; margin: 0; background: #fff9ee; color: #73511d; font-size: .76rem; line-height: 1.5; }
+.post-table-foot { padding: 12px 20px; color: var(--post-muted); font-size: .71rem; border-top: 1px solid var(--post-line); }
+.post-board .post-empty { padding: 36px 20px; text-align: center; white-space: normal; }
+.post-empty p { color: var(--post-muted); }.post-empty button, .post-feedback button { border: 1px solid #bdc6d1; padding: 10px 16px; border-radius: 6px; background: white; color: #10224c; }
+.post-definitions { margin: 16px 0 28px; color: var(--post-muted); font-size: .76rem; line-height: 1.6; }.post-definitions summary { cursor: pointer; color: #10224c; }.post-definitions p { max-width: 90ch; }
+.post-feedback { padding: 40px 16px; color: #53617a; }
+@media (max-width: 600px) { .post-toolbar { align-items: stretch; gap: 12px; }.post-toolbar > label { width: 100%; }.post-search input { width: 100%; }.post-scope { margin-left: 0; padding: 0; }.post-heading { align-items: start; }.post-table-head { flex-wrap: wrap; padding: 16px; }.post-table-head label { width: 100%; }.post-board tbody th { min-width: 130px; max-width: 160px; } }
+
+/* Cards and connectors inherit leadflow.css and pre-design.css directly. */
+.post-board > .lf { margin-top: 24px; }
+.post-dialog { width: min(1320px, calc(100vw - 48px)); margin: auto; color: var(--ink); }
+.post-dialog::backdrop { background: rgba(19, 28, 51, .42); }
+.post-dialog .post-records { display: flex; flex-direction: column; border: 0; border-radius: 0; min-height: 0; }
+.post-dialog .post-table-scroll { min-height: 0; max-height: none; flex: 1; }
+.post-dialog .post-table-head { padding: 0 0 16px; margin: 0; align-items: flex-start; }
+.post-dialog .post-table-head > div { flex: 1; }
+.post-dialog .post-table-foot { flex-shrink: 0; }
+@media (max-width: 600px) {
+  .post-dialog { width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 16px 12px; }
+  .post-dialog .post-records { flex: 1; }
+  .post-dialog .post-table-head label { width: auto; order: 3; flex-basis: 100%; }
+}

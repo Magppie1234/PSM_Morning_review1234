@@ -2,6 +2,7 @@ import { buildContactStages } from './contactStages.js';
 import { buildLeadFlow } from './leadFlow.js';
 import { buildMandate } from './mandate.js';
 import { PSM_NAMES } from '../config/roster.js';
+import { OTHER_CITY_KEY, canonicalCityName, cityBucketOf, cityRows, mergeCityNames } from '../config/salesFunnel.js';
 import { withAllPsms } from './teamRows.js';
 import { dayOffset, getTimeframeFilter, localDayKey } from './timeUtils.js';
 
@@ -34,7 +35,44 @@ const arrivalTime = (dateStr) => {
   const time = Date.parse(dateStr ?? '');
   return Number.isNaN(time) ? null : new Date(time).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true });
 };
-const CLIENT_REACH_SOURCE = /website|whatsapp|chatbot|^chat$|direct instagram|ivr|walk.?in|scanner|repeat/i;
+const CLIENT_REACH_SOURCE = /website|whatsapp|chatbot|^chat$|direct instagram|\bivr\b|walk.?in|scanner|repeat/i;
+
+// ---------------------------------------------------------------------------
+// Delhi / Hyderabad / Others
+// ---------------------------------------------------------------------------
+// Leads.City and Contacts.City are both free text, mixed case, and blank on a lot of records, so the
+// bucketing and the spelling normalisation are the ones in config/salesFunnel.js that the Sales board
+// already uses — one implementation, not a second one written for this board.
+// The batch merge runs over every lead AND contact in view at once, so both halves of the funnel fold
+// the same spellings the same way; it is what moves "Hyderbad" into Hyderabad instead of leaving it in
+// Others, exactly as on the Sales board.
+const contactValue = (contact) => (Number(contact?.Total_Opportunity_Value) || 0) * 100_000;
+
+function cityLookup(records) {
+  const named = records.map((record) => ({ id: String(record.id), name: canonicalCityName(record.City) }));
+  const counts = new Map();
+  named.forEach(({ name }) => counts.set(name, (counts.get(name) ?? 0) + 1));
+  const merged = mergeCityNames(counts);
+  const buckets = new Map(named.map(({ id, name }) => [id, cityBucketOf(merged.get(name) ?? name)]));
+  // A record the lookup has never seen falls to Others, which is where a blank city goes too, so a
+  // card's three rows always add back up to its own count.
+  return (record) => buckets.get(String(record?.id)) ?? OTHER_CITY_KEY;
+}
+
+// Sales qualified and Closed are counted in contactStages.js, which is a counting module and knows
+// nothing about cities. Their split is added here instead, by joining each node's own ids back to the
+// contacts it was built from — working from the ids rather than from the contact list, so an id the
+// list cannot resolve still lands in Others rather than dropping out of the total.
+function addContactCityRows(nodes, contacts, cityOf) {
+  const byId = new Map(contacts.map((contact) => [String(contact.id), contact]));
+  Object.values(nodes).forEach((stage) => {
+    const mine = stage.ids.map((id) => ({ id, contact: byId.get(id) ?? null }));
+    stage.byCity = cityRows(mine, (rows, row) => {
+      const value = rows.reduce((sum, entry) => sum + contactValue(entry.contact), 0);
+      return { ...row, count: rows.length, value, valueLabel: money(value), ids: rows.map((entry) => entry.id) };
+    }, (entry) => cityOf(entry.contact));
+  });
+}
 
 // Raw leads are the leads owned by the PSM team, converted or not — the same cohort the Executive
 // Command Centre uses, so the two dashboards agree.
@@ -153,11 +191,14 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
   // Raw leads include junk and not-interested ones, so the flow cards can show where every lead went.
   const ownedBy = (lead) => !isSpecificPsm || (lead.Owner?.name ?? 'Unassigned') === selectedPsm;
   const rawItems = items.filter((item) => ownedBy(item.lead));
+  // One city pass for the whole board: every lead and every contact in view, bucketed together before
+  // a single card is counted, so the lead-side and contact-side stages agree on where a city belongs.
+  const cityOf = cityLookup([...magppie, ...(contacts ?? []), ...(closedContacts ?? [])]);
   const flow = buildLeadFlow(
     rawItems.map((item) => item.lead),
     magppie.filter((lead) => tf.previousMatches(lead.Created_Time) && ownedBy(lead)),
     tf.previousLabel,
-    leadValue
+    { valueOf: leadValue, labelOf: money, cityKeyOf: cityOf }
   );
   // Sales qualified and Closed come from Contacts (qualified opportunities), not from lead statuses.
   const contactStages = buildContactStages({
@@ -167,6 +208,7 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
     inScope: (name) => (isSpecificPsm ? name === selectedPsm : PSM_NAMES.has(name)),
     raw: rawItems.length
   });
+  addContactCityRows(contactStages.nodes, contactStages.records, cityOf);
   Object.assign(flow.nodes, contactStages.nodes);
   flow.contactsAvailable = contactStages.available;
   const mandate = buildMandate({

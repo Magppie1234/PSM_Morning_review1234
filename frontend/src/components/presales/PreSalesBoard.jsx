@@ -1,18 +1,18 @@
+import { RefreshButton } from '../../shared/ui/RefreshButton.jsx';
 import { ChevronDown, Lock, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
 import { IncentivePolicyCard } from '../IncentivePolicyCard.jsx';
 import { PsmLeadList } from '../PsmLeadList.jsx';
 import { ActionRow } from './ActionRow.jsx';
 import { BoardSkeleton } from './BoardSkeleton.jsx';
-import { PreSalesFunnel } from './PreSalesFunnel.jsx';
-import { GroupedQueue } from './GroupedQueue.jsx';
 import { LeadFlow } from './LeadFlow.jsx';
 import { MandateBar } from './MandateBar.jsx';
 import { MondayRoster } from './MondayRoster.jsx';
 import { TeamTable } from './TeamTable.jsx';
 import { PeriodFilter } from '../PeriodFilter.jsx';
+import IndiaHeatMap from '../IndiaHeatMap.jsx';
 import { Formula, FormulaButton, FormulaPanel, FormulaProvider, useFormulaSwitch } from '../formula/FormulaPanel.jsx';
-import { conversionFormula, mandateFormula, queueFormula, riskFormulas, rotaFormula, teamFormula } from '../formula/formulas.js';
+import { conversionFormula, mandateFormula, riskFormulas, rotaFormula, teamFormula } from '../formula/formulas.js';
 
 const ALL_PSM = 'All PSM';
 const isPending = (item) => item?.value === '—';
@@ -34,24 +34,9 @@ function LeadListToggle({ psm, leads, children }) {
 }
 const timeOf = (date) => date?.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
 
-// Reads Zoho again instead of the copy the API keeps for a minute.
-export function RefreshButton({ onRefresh, loading }) {
-  return (
-    <button
-      type="button"
-      className={`ps-refresh${loading ? ' is-busy' : ''}`}
-      onClick={onRefresh}
-      disabled={loading}
-      title="Fetch the latest records from Zoho CRM"
-    >
-      <RefreshCw size={14} aria-hidden="true" />
-      {loading ? 'Refreshing' : 'Refresh'}
-    </button>
-  );
-}
-
+export { RefreshButton } from '../../shared/ui/RefreshButton.jsx';
 export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selectedDetail, onDetail, onOpen }) {
-  const { data, error, loading, fetchedAt, refresh } = state;
+  const { data, error, loading, refreshing, stale, fetchedAt, refresh } = state;
   const [showFormula, toggleFormula] = useFormulaSwitch();
 
   if (!data) {
@@ -92,10 +77,10 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
             ) : (
               <span className="ps-source live">
                 <i aria-hidden="true" />
-                Live from Zoho CRM{fetchedAt ? ` · updated ${timeOf(fetchedAt)}` : ''}
+                {stale ? 'Saved data · refresh needed' : 'Zoho CRM'}{fetchedAt ? ` · updated ${timeOf(fetchedAt)}` : ''} · 30-minute refresh
               </span>
             )}
-            {loading && (
+            {refreshing && (
               <span className="ps-refreshing" role="status">
                 <RefreshCw size={13} aria-hidden="true" /> Updating
               </span>
@@ -105,7 +90,7 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
 
         <div className="ps-controls">
           <PeriodFilter value={timeframe} onChange={onTimeframe} />
-          <RefreshButton onRefresh={refresh} loading={loading} />
+          <RefreshButton onRefresh={refresh} loading={loading || refreshing} />
           <FormulaButton on={showFormula} onToggle={toggleFormula} />
           <label className="ps-select">
             <select aria-label="PSM" value={psm} onChange={(event) => onPsm(event.target.value)}>
@@ -127,6 +112,7 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
       </header>
 
       {meta.notice && <p className="ps-notice">{meta.notice}</p>}
+      {error && <p className="ps-notice" role="alert">{error} Showing the last loaded data.</p>}
 
       {selectedDetail && (
         <div className="ps-detail" role="status">
@@ -161,13 +147,13 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
           </p>
         )}
 
-        <div className="ps-split">
+        {/* The Senior decision queue used to sit beside this table. It is off every board now; the same
+            leads are reachable from the funnel cards and the Needs action row. */}
+        <div className="ps-split ps-split-one">
           <TeamTable rows={data.performance ?? []} onPsm={onPsm} onDetail={onDetail} />
-          <GroupedQueue rows={data.decisions ?? []} onOpen={onOpen} />
         </div>
-        <FormulaPanel title="PSM performance and decision queue">
+        <FormulaPanel title="PSM performance">
           <Formula entry={teamFormula} />
-          <Formula entry={queueFormula} compact />
         </FormulaPanel>
 
         {selectedPsm && (
@@ -189,10 +175,27 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
           </>
         )}
 
-        <PreSalesFunnel stages={data.funnel ?? []} periodName={periodName} onOpen={onOpen} />
+        {/* The chevron conversion funnel used to sit here. It said the same thing as the card flow above,
+            in a second visual language, so it was removed rather than kept in two places. */}
         <FormulaPanel title="Lead conversion funnel"><Formula entry={conversionFormula} /></FormulaPanel>
+
+        {/* Raw leads carry no closure outcome, so the map offers lead generation only and says why. */}
+        <IndiaHeatMap points={leadPoints(data.leads)} title="Where the leads came from" />
       </div>
     </div>
     </FormulaProvider>
   );
 }
+
+// One entry per city for the map, counted from the period's raw leads. The map folds spelling variants
+// together itself, so the city is passed through exactly as Zoho holds it.
+function leadPoints(leads = []) {
+  const counts = new Map();
+  leads.forEach((lead) => {
+    const city = (lead.city ?? '').trim();
+    if (!city || /not recorded/i.test(city)) return;
+    counts.set(city, (counts.get(city) ?? 0) + 1);
+  });
+  return [...counts].map(([city, count]) => ({ city, leads: count }));
+}
+

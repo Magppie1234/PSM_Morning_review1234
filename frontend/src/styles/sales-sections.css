@@ -139,12 +139,15 @@
 
 @media (max-width: 780px) {
   .sb-tabs { flex-wrap: wrap; }
-  .sb-tabs button { flex: 1 1 100%; min-height: 44px; }
+  .sb-tabs button { flex: 1 1 45%; min-height: 44px; padding: 0 8px; }
   .sf-bar { flex-direction: column; align-items: stretch; }
-  .sf-group { width: 100%; }
+  .sf-group { width: 100%; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sf-group[aria-label='Period'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sf-icon { display: none; }
   .sf-btn { flex: 1 1 40%; justify-content: center; min-height: 44px; }
   .sf-others { flex: 1 1 100%; }
   .sf-others > .sf-btn { width: 100%; }
+  .sf-btn { padding: 0 6px; min-width: 0; }
   .sf-menu { left: 0; right: 0; min-width: 0; }
 }
 

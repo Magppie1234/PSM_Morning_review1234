@@ -1,0 +1,14 @@
+.lf.pdi-review-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pdi-dialog { min-height: 320px; }
+.pdi-dialog-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 0; }
+.pdi-dialog-tools label { display: flex; align-items: center; gap: 8px; font-size: .8rem; }
+.pdi-dialog-tools input, .pdi-dialog-tools select { min-height: 38px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); padding: 8px 10px; }
+.pdi-view-switch { display: flex; gap: 4px; margin-right: auto; }
+.pdi-view-switch button { display: inline-flex; gap: 6px; align-items: center; min-height: 38px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink-2); background: var(--surface); }
+.pdi-view-switch button[aria-pressed="true"] { color: white; background: var(--accent); border-color: var(--accent); }
+.pdi-dialog .pdi-reason { white-space: normal; min-width: 240px; max-width: 380px; line-height: 1.5; }
+.pdi-chart-view { overflow: auto; padding: 24px 8px; min-height: 0; }
+.pdi-chart-view > p { color: var(--muted); font-size: .8rem; }
+.pdi-dialog a { color: var(--accent); text-underline-offset: 3px; }
+@media (max-width: 1180px) { .lf.pdi-review-flow { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .pdi-dialog-tools { align-items: stretch; }.pdi-dialog-tools label { width: 100%; }.pdi-dialog-tools input { width: 100%; }.pdi-dialog-tools select { flex: 1; }.pdi-view-switch { width: 100%; }.pdi-view-switch button { flex: 1; justify-content: center; } }

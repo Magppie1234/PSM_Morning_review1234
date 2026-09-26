@@ -1,312 +1,115 @@
-import { useState } from 'react';
-import { Ruler, CheckCircle2, Clock, AlertTriangle, Building, Flame, Compass, Calendar, ShieldAlert, Sparkles, Filter, Check } from 'lucide-react';
-import { KpiCard } from './KpiCard.jsx';
-import { Funnel } from './Funnel.jsx';
+import { useEffect, useRef, useState } from 'react';
+import { PieChart, Table2, RefreshCw, X } from 'lucide-react';
 import { useDashboard } from '../hooks/useDashboard.js';
+import { Donut, slicesFrom } from './sales/SalesRecordsChart.jsx';
+import { crmRecordUrl } from '../config/crm.js';
+import '../styles/post-design.css';
+import '../styles/pdi-review.css';
+import { DataFreshness } from '../shared/data/DataFreshness.jsx';
 
-export function PdiDashboard({ onSelectDetail, timeframe = '7d' }) {
-  const [measurementFilter, setMeasurementFilter] = useState('All Measurements');
-  const [applianceFilter, setApplianceFilter] = useState('All Appliances');
-  const [criticalityFilter, setCriticalityFilter] = useState('All Criticality');
-  const [ownerFilter, setOwnerFilter] = useState('All Owners');
-  const [selectedProject, setSelectedProject] = useState(null);
+const COMMON = [['client', 'Client Name'], ['designer', 'Designer Assigned'], ['verification', 'PDI Verification'],
+  ['paymentDone', 'Payment Done'], ['orders', 'Number of Orders'], ['revisions', 'Revision Count'],
+  ['pendingDays', 'Days Pending'], ['firstMeasurement', 'First Measurement'], ['designApproval', 'Design Approval'],
+  ['designerOrders', 'Designer’s Orders'], ['pdiStatus', 'PDI Status'], ['pdiVisitDone', 'PDI Visit Done'],
+  ['pdiExpected', 'Expected PDI'], ['pdiAligned', 'Aligned PDI'], ['product', 'Product'], ['floor', 'Floor'],
+  ['area', 'Cabinet Area (sq ft)'], ['height', 'Ceiling Height (mm)'], ['surveyor', 'Site Surveyor'], ['owner', 'Owner']];
+const show = value => {
+  if (value == null || value === '') return '—';
+  return typeof value === 'string' && /^\d{4}-\d\d-\d\d/.test(value)
+    ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : value;
+};
+const tally = (rows, key) => [...rows.reduce((map, r) => { const v = r[key] || 'Not recorded'; map.set(v, (map.get(v) || 0) + 1); return map; }, new Map())];
 
-  const { data, loading, error } = useDashboard(
-    {
-      measurement: measurementFilter !== 'All Measurements' ? measurementFilter : '',
-      appliance: applianceFilter !== 'All Appliances' ? applianceFilter : '',
-      criticality: criticalityFilter !== 'All Criticality' ? criticalityFilter : '',
-      owner: ownerFilter !== 'All Owners' ? ownerFilter : '',
-      timeframe
-    },
-    '/api/pdi-dashboard'
-  );
-
-  const kpis = data?.kpis ?? [];
-  const risks = data?.risks ?? [];
-  const funnel = data?.funnel ?? [];
-  const criticalCases = data?.criticalCases ?? [];
-  const projects = data?.projects ?? [];
-  const filters = data?.filters ?? {
-    measurementFilters: ['All Measurements', 'Done', 'Pending'],
-    applianceFilters: ['All Appliances', 'Confirmed', 'Specs Missing'],
-    criticalityFilters: ['All Criticality', 'Critical Only', 'High & Critical'],
-    owners: ['All Owners']
-  };
-
-  const handleCardClick = (item) => {
-    if (onSelectDetail) {
-      onSelectDetail(item, projects);
-    }
-  };
-
-  return (
-    <div className="pdi-dashboard-container">
-      {/* Top Filter Bar */}
-      <div className="design-subtabs-bar" style={{ marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-        <div className="subtabs-group">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', fontWeight: 600, color: 'var(--navy-900, #10224c)' }}>
-            <Ruler size={18} />
-            <span>Site Measurement & PDI Review</span>
-          </div>
-        </div>
-
-        <div className="design-filters" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <label className="filter">
-            <span className="sr-only">Measurement Status</span>
-            <select
-              aria-label="Filter by measurement status"
-              value={measurementFilter}
-              onChange={(e) => setMeasurementFilter(e.target.value)}
-            >
-              {filters.measurementFilters.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="filter">
-            <span className="sr-only">Appliance Specs</span>
-            <select
-              aria-label="Filter by appliance specs"
-              value={applianceFilter}
-              onChange={(e) => setApplianceFilter(e.target.value)}
-            >
-              {filters.applianceFilters.map((a) => (
-                <option key={a} value={a}>{a}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="filter">
-            <span className="sr-only">Criticality</span>
-            <select
-              aria-label="Filter by criticality"
-              value={criticalityFilter}
-              onChange={(e) => setCriticalityFilter(e.target.value)}
-            >
-              {filters.criticalityFilters.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="filter">
-            <span className="sr-only">Owner</span>
-            <select
-              aria-label="Filter by site owner"
-              value={ownerFilter}
-              onChange={(e) => setOwnerFilter(e.target.value)}
-            >
-              {filters.owners.map((o) => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </div>
-
-      {loading && <div className="screen-message">Loading live Zoho CRM Site PDI & Measurement data…</div>}
-
-      {error && !data && (
-        <div className="screen-message error">
-          {error}
-          <span>Ensure the Express API is running on port 4010.</span>
-        </div>
-      )}
-
-      {/* Core KPIs */}
-      <section className="metric-grid" aria-label="PDI Core metrics">
-        {kpis.map((item) => (
-          <KpiCard item={item} onSelect={handleCardClick} key={item.label} />
-        ))}
-      </section>
-
-      {/* Risk Indicators */}
-      <section className="risk-grid" aria-label="PDI Risk indicators">
-        {risks.map((item) => (
-          <KpiCard item={item} risk onSelect={handleCardClick} key={item.label} />
-        ))}
-      </section>
-
-      {/* Critical Cases Spotlight Box */}
-      {criticalCases.length > 0 && (
-        <section className="panel lt-critical">
-          <header className="panel-header">
-            <div>
-              <h2 className="lt-critical-title">
-                <ShieldAlert size={18} />
-                Critical Cases & Site Red Flags ({criticalCases.length})
-              </h2>
-              <p>Immediate senior management intervention required — delayed measurements, missing appliance specs & overdue site completions</p>
-            </div>
-          </header>
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Client / Project</th>
-                  <th>Value</th>
-                  <th>Measurement Status</th>
-                  <th>Appliance Specs</th>
-                  <th>Site Completion Target</th>
-                  <th>Critical Issue</th>
-                  <th>Action Required</th>
-                </tr>
-              </thead>
-              <tbody>
-                {criticalCases.map((proj) => (
-                  <tr
-                    key={`crit-${proj.id}`}
-                    onClick={() => handleCardClick({ label: `${proj.client} Critical PDI Case`, value: proj.valueFormatted, subtext: proj.criticalReason })}
-                  >
-                    <th scope="row">
-                      <strong>{proj.client}</strong>
-                      <span>{proj.owner} · {proj.floor}</span>
-                    </th>
-                    <td><strong>{proj.valueFormatted}</strong></td>
-                    <td>
-                      <span className={`status ${proj.isMeasurementDone ? 'success' : 'danger'}`}>
-                        <i />
-                        {proj.measurementStatus} {proj.isMeasurementDone ? `(${proj.totalSqft})` : `(Ageing ${proj.ageing}d)`}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`priority ${proj.applianceStatus === 'Specs Missing' ? 'high' : 'normal'}`}>
-                        {proj.applianceStatus}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`status ${proj.completionTone}`}>
-                        <i />
-                        {proj.siteCompletionDate}
-                        {proj.completionStatus !== 'On Track' ? ` · ${proj.completionStatus}` : ''}
-                      </span>
-                    </td>
-                    <td style={{ color: proj.criticality === 'Critical' ? '#d93025' : '#b06000', fontWeight: 600 }}>
-                      {proj.criticalReason}
-                    </td>
-                    <td>
-                      <span className="badge-action" style={{ background: '#fef3f2', color: '#b42318', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>
-                        {proj.actionRequired}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {/* Main Measurements & Appliance Inspection Table */}
-      <section className="panel" style={{ marginTop: '16px' }}>
-        <header className="panel-header">
-          <div>
-            <h2>Site Measurement & Appliance Inspection Queue</h2>
-            <p>Tracking laser surveys, ceiling heights, appliance cutouts (Hob, Chimney, Oven, Microwave, Fridge) & site delivery readiness</p>
-          </div>
-        </header>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Project / Client</th>
-                <th>Product & Space</th>
-                <th>Measurement Status</th>
-                <th>Ceiling Height & Area</th>
-                <th>Appliance Specs Done</th>
-                <th>Site Completion Date</th>
-                <th>Site Surveyor</th>
-                <th>Risk Level</th>
-              </tr>
-            </thead>
-            <tbody>
-              {projects.length ? (
-                projects.map((proj) => (
-                  <tr
-                    key={proj.id}
-                    onClick={() => handleCardClick({ label: `${proj.client} PDI Details`, value: proj.totalSqft, subtext: proj.siteCompletionDate })}
-                  >
-                    <th scope="row">
-                      <strong>{proj.client}</strong>
-                      <span>{proj.id}</span>
-                    </th>
-                    <td>
-                      <div>{proj.productType}</div>
-                      <span style={{ fontSize: '0.75rem', color: '#667085' }}>{proj.kitchenType} · {proj.floor}</span>
-                    </td>
-                    <td>
-                      <span className={`status ${proj.isMeasurementDone ? 'success' : 'danger'}`}>
-                        <i />
-                        {proj.isMeasurementDone ? 'Done' : `Pending (${proj.ageing}d)`}
-                      </span>
-                    </td>
-                    <td>
-                      <div><strong>{proj.totalSqft}</strong></div>
-                      <span style={{ fontSize: '0.75rem', color: '#667085' }}>Height: {proj.ceilingHeight}</span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <span className={`priority ${proj.applianceStatus === 'Specs Missing' ? 'high' : 'normal'}`} style={{ display: 'inline-block', width: 'fit-content' }}>
-                          {proj.applianceStatus}
-                        </span>
-                        <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', marginTop: '2px' }}>
-                          {proj.appliancesList.slice(0, 4).map((app) => (
-                            <span
-                              key={app.name}
-                              style={{
-                                fontSize: '0.7rem',
-                                padding: '1px 5px',
-                                borderRadius: '3px',
-                                background: app.measured ? '#ecfdf3' : '#fef3f2',
-                                color: app.measured ? '#027a48' : '#b42318',
-                                border: `1px solid ${app.measured ? '#abefc6' : '#fecdca'}`
-                              }}
-                            >
-                              {app.name.split('/')[0].trim()}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div><strong>{proj.siteCompletionDate}</strong></div>
-                      <span className={`status ${proj.completionTone}`} style={{ fontSize: '0.75rem', marginTop: '2px' }}>
-                        <i />
-                        {proj.completionStatus}
-                      </span>
-                    </td>
-                    <td>
-                      <div>{proj.siteSurveyor}</div>
-                      <span style={{ fontSize: '0.75rem', color: '#667085' }}>{proj.owner}</span>
-                    </td>
-                    <td>
-                      <span className={`priority ${proj.criticality.toLowerCase()}`}>
-                        {proj.criticality}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="8" className="empty-leads">
-                    No site projects match the selected filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Conversion Funnel */}
-      <Funnel
-        stages={funnel}
-        onSelect={handleCardClick}
-        title="Site PDI & Execution Conversion Funnel"
-        reportLabel="Total Sites → Measurements Done → Appliance Specs Confirmed → Ready for Delivery"
-      />
+export function PdiDashboard({ timeframe = 'daily' }) {
+  const state = useDashboard({ timeframe }, '/api/pdi-dashboard');
+  const [card, setCard] = useState(null);
+  const [view, setView] = useState('table');
+  const [query, setQuery] = useState('');
+  const [designer, setDesigner] = useState('all');
+  const [filter, setFilter] = useState('all');
+  const dialogRef = useRef(null);
+  useEffect(() => {
+    if (!card || !dialogRef.current) return undefined;
+    const dialog = dialogRef.current, prior = document.activeElement, overflow = document.body.style.overflow;
+    dialog.showModal(); document.body.style.overflow = 'hidden';
+    return () => { dialog.close(); document.body.style.overflow = overflow; prior?.focus(); };
+  }, [card]);
+  const records = state.data?.records ?? [];
+  const all = records.filter(r => designer === 'all' || (r.designer || 'Unassigned') === designer);
+  const verified = all.filter(r => r.verified);
+  const ready = all.filter(r => r.dispatchStatus === 'Ready for Dispatch').length;
+  const pending = all.filter(r => r.dispatchStatus === 'Pending').length;
+  const dispatched = all.filter(r => r.dispatchStatus === 'Dispatched').length;
+  const base = (card === 'verification' ? verified : all).filter(r => `${r.client} ${r.order} ${r.id}`.toLowerCase().includes(query.toLowerCase().trim()));
+  const chartKey = card === 'verification' ? 'paymentDone' : 'dispatchStatus';
+  const breakdown = tally(base, chartKey);
+  const rows = base.filter(r => filter === 'all' || r[chartKey] === filter);
+  const title = card === 'verification' ? 'PDI Verification Done' : 'Ready for Dispatch or Pending';
+  const columns = card === 'dispatch'
+    ? [...COMMON.slice(0, 4), ['dispatchStatus', 'Dispatch Status'], ['dispatchReason', 'Reason Dispatch Is Pending'],
+      ['dispatchExpected', 'Expected Dispatch'], ['dispatchReadyOn', 'Ready on'], ['remarks', 'CRM Remarks'], ...COMMON.slice(4)] : COMMON;
+  const open = (key, status = 'all') => { setCard(key); setFilter(status); setQuery(''); setView('table'); };
+  if (state.loading) return <div className="post-feedback" role="status">Loading PDI verification and dispatch data…</div>;
+  if (state.error && !state.data) return <div className="post-feedback" role="alert"><p>PDI data could not be loaded from Zoho.</p><button onClick={state.refresh}>Try again</button></div>;
+  return <section className="post-board pdi-review" aria-label="PDI and Site Review">
+    <div className="post-toolbar">
+      <label>Designer<select value={designer} onChange={e => setDesigner(e.target.value)}><option value="all">All designers</option>
+        {[...new Set(records.map(r => r.designer || 'Unassigned'))].sort().map(d => <option key={d}>{d}</option>)}</select></label>
+      <span className="post-scope">{all.length} orders · {state.data.meta.reportLabel}</span>
+      <button className="post-refresh" onClick={state.refresh} disabled={state.refreshing}><RefreshCw size={15} />{state.refreshing ? 'Refreshing…' : 'Refresh'}</button>
     </div>
-  );
+    <DataFreshness state={state} />
+    <p className="post-context">{state.data.meta.scope} Select a card to open its table or chart.</p>
+    {state.data.meta.paymentUnavailable && <p className="post-notice" role="status">Payment milestones could not be read. Payment status is marked Unavailable; refresh to retry.</p>}
+    <section className="lf pdi-review-flow" aria-label="PDI review cards">
+      <div className="lf-c"><div className="lf-node has-out">
+        <button className="lf-card lf-lg tone-blue" aria-haspopup="dialog" onClick={() => open('verification')}>
+          <span className="lf-label"><i aria-hidden="true" />PDI Verification Done</span>
+          <span className="lf-figures"><strong>{verified.length}</strong><span className="pd-orders">orders</span></span>
+          <span className="pd-card-note">Verified approval · payment status inside</span>
+        </button><i className="lf-w out-h" aria-hidden="true" /></div></div>
+      <div className="lf-c"><div className="lf-node has-in"><i className="lf-w in-h" aria-hidden="true" />
+        <button className="lf-card lf-lg lf-card-top tone-teal" aria-haspopup="dialog" onClick={() => open('dispatch')}>
+          <span className="lf-label"><i aria-hidden="true" />Ready for Dispatch or Pending</span>
+          <span className="lf-figures"><strong>{ready}</strong><span className="pd-orders">ready · {pending} pending</span></span>
+          <span className="pd-card-note">Readiness and reasons for pending orders</span>
+        </button>
+        <div className="lf-cities"><ul className="lf-cities-row">
+          {[[ready, 'Ready for Dispatch', 'Ready'], [pending, 'Pending', 'Pending'], [dispatched, 'Dispatched', 'Dispatched']].map(([n, status, label]) =>
+            <li key={status}><button className="lf-city" aria-label={`${n} ${status} orders`} onClick={() => open('dispatch', status)}><strong>{n}</strong><b>{label}</b></button></li>)}
+        </ul></div>
+      </div></div>
+    </section>
+    <details className="post-definitions"><summary>How PDI, payment and dispatch are mapped</summary>
+      <p>{state.data.meta.mapping}</p><p>{state.data.meta.dispatch}</p><p>{state.data.meta.counts}</p>
+    </details>
+    {card && <dialog ref={dialogRef} className="lf-detail post-dialog pdi-dialog" aria-labelledby="pdi-dialog-title" onCancel={() => setCard(null)}>
+      <header className="lf-detail-head"><div><h3 id="pdi-dialog-title">{title}<span>{rows.length}</span></h3><p>{state.data.meta.reportLabel} · one row per order</p></div>
+        <button className="lf-detail-close" aria-label="Close details" onClick={() => setCard(null)} autoFocus><X size={16} /></button></header>
+      <div className="pdi-dialog-tools">
+        <div className="pdi-view-switch" aria-label="Record view"><button aria-pressed={view === 'table'} onClick={() => setView('table')}><Table2 size={16} />Table view</button>
+          <button aria-pressed={view === 'chart'} onClick={() => setView('chart')}><PieChart size={16} />Chart view</button></div>
+        <label><span className="sr-only">Search orders</span><input aria-label="Search orders" placeholder="Search client or order" value={query} onChange={e => setQuery(e.target.value)} /></label>
+        <label>{card === 'verification' ? 'Payment' : 'Dispatch'}<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All statuses</option>
+          {[...new Set((card === 'verification' ? verified : all).map(r => r[chartKey]))].sort().map(s => <option key={s}>{s}</option>)}</select></label>
+      </div>
+      <p className="post-notice">{card === 'verification' ? 'Payment Done refers to the PDI Approval milestone, not the full order value.' : 'Pending reasons describe recorded blockers or missing readiness evidence. General CRM remarks are shown separately.'}</p>
+      {view === 'table' ? <div className="post-table-scroll" tabIndex={0} role="region" aria-label={`${title} table`}>
+        <table><caption className="sr-only">{title}</caption><thead><tr>{columns.map(([key, label]) => <th scope="col" key={key}>{label}</th>)}</tr></thead>
+          <tbody>{rows.map(r => <tr key={r.id}>{columns.map(([key]) => key === 'client'
+            ? <th scope="row" key={key}><a href={crmRecordUrl('Deals', r.id)} target="_blank" rel="noreferrer">{r.client}</a><small>{r.order}</small><small>Order …{r.id.slice(-8)}</small></th>
+            : <td key={key} className={key === 'dispatchReason' || key === 'remarks' ? 'pdi-reason' : ''} title={key === 'paymentDone' ? r.paymentBasis : undefined}>{show(r[key])}</td>)}</tr>)}
+            {!rows.length && <tr><td className="post-empty" colSpan={columns.length}><strong>No orders in this view</strong><p>Try another status, designer, or a wider reporting period.</p>
+              {(filter !== 'all' || query) && <button onClick={() => { setFilter('all'); setQuery(''); }}>Clear filters</button>}</td></tr>}
+          </tbody></table>
+      </div> : <div className="pdi-chart-view">
+        {base.length ? <><Donut title={card === 'verification' ? 'PDI payment status' : 'Dispatch readiness'} total={base.length}
+          slices={slicesFrom([['all', 'All', base.length], ...breakdown.map(([label, count]) => [label, label, count])], 'Not recorded')}
+          focus={filter} onPick={value => setFilter(filter === value ? 'all' : value)} />
+          <p>{filter === 'all' ? `${base.length} orders in this chart.` : `${rows.length} orders selected: ${filter}.`} Select a segment, then Table view to inspect its orders.</p></>
+          : <p>No orders to chart. Try another reporting period or clear the search.</p>}
+      </div>}
+      <footer className="post-table-foot">Order counts cover the selected period. A dash means no recorded value.</footer>
+    </dialog>}
+  </section>;
 }

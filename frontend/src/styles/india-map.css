@@ -1,0 +1,535 @@
+/* India demand map — IndiaHeatMap.jsx, shown on both the Sales review and the Pre Sales review.
+
+   Everything here takes its colour from the .ps custom properties (presales.css): --surface, --line,
+   --ink, --ink-2, --muted, --accent, --radius, --ease-out. Nothing hard-codes a board colour. The only
+   fixed hexes are the five steps of the sequential blue ramp, and those live in the component next to
+   the scale that chooses between them, not here — a swatch gets its colour from an inline style.
+
+   Layout
+     .im-body   map | list, side by side; one column under 780px, where the map shrinks and the table
+                carries the detail.
+     .im-figure the SVG plus its legend.
+     .im-side   the readout, the ranked table, and the "not on the map" list.
+
+   Conventions kept: loading dims rather than spinning, 44px touch targets on phones, and every
+   transition is dropped under prefers-reduced-motion.                                              */
+
+.im {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* ---- Header and the two filters -------------------------------------------- */
+
+.im-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+
+.im-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.im-sub {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Two segmented controls: WHAT is measured, and HOW it is drawn. Kept as separate pills so nobody
+   reads "Closures" and "Heat" as four options on one axis. */
+.im-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.im-modes {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--canvas);
+}
+
+/* The view switch is the quieter of the two — it changes the drawing, not the subject. */
+.im-views .im-mode[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.im-mode {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out);
+}
+
+.im-mode:hover:not(:disabled) { color: var(--ink); background: var(--surface); }
+.im-mode[aria-pressed='true'] { background: var(--accent); color: #fff; }
+
+/* A disabled filter has to look unavailable AND say why — the .im-why paragraph below is wired to it
+   through aria-describedby, so the reason reaches a screen reader as well as the eye. */
+.im-mode:disabled { color: var(--muted); opacity: 0.45; cursor: not-allowed; }
+
+.im-why {
+  margin: 0 0 12px;
+  padding: 9px 11px;
+  border: 1px solid var(--warn-line);
+  border-radius: 9px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+/* ---- Body ------------------------------------------------------------------- */
+
+.im-body {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.95fr) minmax(0, 1.05fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.im-figure { margin: 0; }
+
+.im-svg {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  margin: 0 auto;
+}
+
+/* ---- The country ------------------------------------------------------------
+   Land is a recessive backdrop: the dots are the data. Boundaries are a hairline in
+   screen pixels (vector-effect) so they stay one line wide however far the viewBox is
+   scaled down on a phone. */
+.im-land path {
+  fill: var(--line-soft);
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ---- The cities --------------------------------------------------------------
+   Two things keep an overlapping cluster readable, and NCR is a brutal test of both:
+   Gurgaon, Noida, Faridabad and a dozen Delhi colonies all land inside Delhi's own
+   circle.
+
+   1. A thin surface-coloured ring, sized in screen pixels (vector-effect), so each mark
+      keeps its own edge. Deliberately 1.25px, not 2: the long tail is ~100 marks and a
+      fat white ring on each is a fat white ring scrubbed off whatever they sit on.
+   2. A semi-transparent fill. The marks are drawn largest first, so without this the
+      satellites paint over Delhi's middle and the biggest, darkest market in the country
+      reads as smaller than Hyderabad. At 0.78 the dark disc shows through and the cluster
+      reads as dense. The legend swatches carry the same 0.78 over the same tone as the
+      land, so a swatch matches the mark it explains.
+
+   The third measure is not here: IndiaHeatMap's plotAt roll-up folds Delhi's colonies
+   into the city so they are not 30 separate marks inside its circle to begin with. */
+.im-dot {
+  fill-opacity: 0.78;
+  stroke: var(--surface);
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+  transition: stroke 0.15s var(--ease-out);
+}
+
+.im-dot.is-active { stroke: var(--ink); stroke-width: 2.5; }
+
+/* ---- Heat view -----------------------------------------------------------------
+   The density layer itself carries no CSS colour: each band's fill and alpha come
+   from the HEAT ramp in IndiaHeatMap.jsx, next to the maths that chose the band.
+   Pointer events are off so the city handles above it stay reachable. */
+.im-heat { pointer-events: none; }
+
+/* In Heat view a circle stops being the encoding and becomes a handle — a small hollow
+   marker saying "a real city is here". The white casing keeps it legible on a red blob
+   as well as on pale land. */
+.im-pin {
+  fill: var(--surface);
+  fill-opacity: 0.8;
+  stroke: rgba(19, 28, 51, 0.45);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.im-pin.is-active { fill-opacity: 1; stroke: var(--ink); stroke-width: 2.5; }
+
+/* The pin is 3 units across — about a pixel on a phone — so an invisible pad carries the pointer
+   and gives it a target a thumb can actually land on. `pointer-events: all` counts an unpainted
+   fill as hittable, which is the whole trick. */
+.im-hit {
+  fill: none;
+  pointer-events: all;
+  cursor: pointer;
+}
+
+/* The top few centres are named on the map, because a blob that merges Delhi, Gurgaon and
+   Noida has to say whose blob it is. Drawn in viewBox units so the labels shrink with the
+   map on a phone; the white casing keeps them readable over any band. */
+.im-names text {
+  fill: var(--ink);
+  font-family: inherit;
+  font-size: 27px;
+  font-weight: 750;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 6;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.im-callout circle {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The label is drawn inside the viewBox, so it scales with the map; 30 units lands near 11px on a
+   420px-wide map and stays legible when the map shrinks on a phone. */
+.im-callout text {
+  fill: var(--ink);
+  font-family: inherit;
+  font-size: 30px;
+  font-weight: 750;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 6;
+  stroke-linejoin: round;
+}
+
+/* ---- Legend ------------------------------------------------------------------ */
+
+.im-legend {
+  margin: 10px 0 0;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--canvas);
+}
+
+.im-legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.im-legend-cap {
+  color: var(--ink-2);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.im-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.im-swatches li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+/* The swatch is the mark, not an approximation of it: the same colour at the same
+   0.78 over the same tone the land is painted in. */
+.im-swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(19, 28, 51, 0.12);
+  border-radius: 50%;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.im-swatch i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.78;
+}
+
+/* The scale legend the semantic-heat ramp is required to ship with: the ramp itself, both ends
+   named. Without it a multi-hue ramp is unreadable — nobody can tell green from yellow by rank. */
+.im-scale {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.im-scale-bar {
+  flex: 1 1 auto;
+  height: 10px;
+  min-width: 80px;
+  border: 1px solid rgba(19, 28, 51, 0.12);
+  border-radius: 5px;
+}
+
+.im-scale-end {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.im-legend-note {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+.im-legend-note em { font-style: italic; }
+
+/* ---- Readout ------------------------------------------------------------------
+   An aria-live region, so hovering a bubble with a mouse and tabbing a table row both
+   announce the same thing. It keeps a fixed minimum height so the table below does not
+   jump as the pointer crosses the map. */
+.im-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  min-height: 62px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--accent-line);
+  border-radius: 9px;
+  background: var(--accent-soft);
+}
+
+.im-readout-city { flex: 0 0 auto; color: var(--ink); font-size: 0.9rem; font-weight: 750; }
+.im-readout-region { color: var(--muted); font-size: 0.74rem; font-weight: 650; }
+
+.im-readout-figs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  width: 100%;
+  margin: 2px 0 0;
+}
+
+.im-readout-figs div { display: flex; align-items: baseline; gap: 5px; }
+.im-readout-figs dt { color: var(--muted); font-size: 0.72rem; font-weight: 650; }
+.im-readout-figs dd { margin: 0; color: var(--ink); font-size: 0.82rem; font-weight: 750; }
+
+.im-readout-note,
+.im-readout-idle {
+  width: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+/* ---- Ranked table -------------------------------------------------------------
+   The table is the accessible half of the map, not a footnote to it, so it gets real
+   height and its own scroll rather than being cut off. */
+.im-scroll {
+  max-height: 460px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.im-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.im-table caption {
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-align: left;
+}
+
+.im-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.im-table tbody th,
+.im-table tbody td {
+  padding: 0;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink);
+  font-weight: 650;
+  vertical-align: middle;
+}
+
+.im-table tbody td { padding: 6px 10px; }
+.im-table tbody tr:last-child th,
+.im-table tbody tr:last-child td { border-bottom: 0; }
+
+.im-table .im-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.im-table tbody tr.is-active { background: var(--accent-soft); }
+
+/* The row button is the keyboard handle for a bubble. Full-width and block so the whole
+   name cell is the hit area. */
+.im-row {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.im-row:hover { background: var(--line-soft); }
+.im-row[aria-pressed='true'] .im-row-name { color: var(--accent); }
+.im-row-name { font-weight: 700; }
+.im-row-region { display: block; color: var(--muted); font-size: 0.7rem; font-weight: 600; }
+/* Says where a locality's figures land on the map, so a reader never has to guess why there is no
+   separate dot for Pitampura. */
+.im-row-at { display: block; color: var(--accent); font-size: 0.7rem; font-weight: 600; }
+.im-row-note { display: block; color: var(--warn); font-size: 0.7rem; font-weight: 600; line-height: 1.4; }
+
+/* ---- Places with no coordinate -------------------------------------------------
+   Deliberately inside the scroll region, directly under the table, so it is read as
+   part of the same list and cannot be mistaken for a disclaimer. */
+.im-empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.im-off { padding: 12px 10px; border-top: 1px solid var(--line); background: var(--canvas); }
+
+.im-off-h {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.im-off-lead {
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.im-off-list { margin: 0; padding: 0; list-style: none; }
+
+.im-off-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 10px;
+  padding: 5px 0;
+  border-top: 1px solid var(--line-soft);
+  font-size: 0.75rem;
+}
+
+.im-off-name { color: var(--ink); font-weight: 700; }
+.im-off-fig { color: var(--ink-2); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.im-off-why { grid-column: 1 / -1; color: var(--muted); font-size: 0.7rem; font-weight: 600; line-height: 1.4; }
+
+/* ---- Credit --------------------------------------------------------------------
+   The CC BY 4.0 attribution for the outline. It is a licence condition, not decoration:
+   do not remove it, and keep it in the DOM rather than only in a source comment. */
+.im-credit {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+.im-credit em { font-style: italic; }
+
+/* ---- Loading -------------------------------------------------------------------
+   Dim the figures already on screen; never blank the map. The header keeps full contrast
+   so the board does not look broken. */
+.im-loading .im-body,
+.im-loading .im-credit { opacity: 0.55; transition: opacity 0.2s var(--ease-out); }
+.im-loading .im-dot,
+.im-loading .im-row { cursor: progress; }
+
+/* ---- Stacked ---------------------------------------------------------------------
+   At 780px the map sits above the list and shrinks to something a thumb can still point
+   at, while the table carries the real detail. Every control reaches 44px. */
+@media (max-width: 780px) {
+  .im { padding: 12px; }
+  .im-body { grid-template-columns: 1fr; gap: 14px; }
+  .im-svg { max-width: 300px; }
+  .im-head { flex-direction: column; align-items: stretch; }
+  .im-modes { width: 100%; }
+  .im-mode { flex: 1 1 0; min-height: 44px; }
+  .im-row { min-height: 44px; }
+  /* Still scrolls on a phone. The "not on the map" list can run to a couple of hundred one-off
+     spellings; left unbounded it turns the board into a mile of page rather than a panel. */
+  .im-scroll { max-height: 70vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .im-mode,
+  .im-dot,
+  .im-loading .im-body,
+  .im-loading .im-credit { transition: none; }
+}

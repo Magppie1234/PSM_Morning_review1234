@@ -1,4 +1,8 @@
+import { AlertTriangle } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+// The Delhi / Hyderabad / Others cells, shared with the Pre Sales, Lead generation and
+// pre-design funnels so the split reads the same on every card of every board.
+import { CityCells } from '../presales/LeadFlow.jsx';
 
 // Sales performance, drawn as the PSM board's Funnel: one connected line of cards with
 // elbow wires, reusing LeadFlow's own .lf- markup and classes. This single-chain layout
@@ -46,6 +50,9 @@ const TAIL = [
 ];
 
 const pct = (value) => `${(value * 100).toFixed(1)}%`;
+// Short form for the wire label — see shortPct in LeadFlow.jsx for why. The card's
+// aria-label and tooltip keep the full form.
+const shortPct = (value) => pct(value).replace(/\.0%$/, '%');
 
 function usePrefersReducedMotion() {
   const query = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -154,22 +161,21 @@ function Figures({ count, valueLabel, shareText }) {
       ) : null}
       {/* The share normally rides the wire; this copy only shows once the wires are
           hidden at 1180px and below. CSS picks one, never both. */}
-      {count && shareText ? <em className="sp-inline-share">{shareText}</em> : null}
+      {count && shareText ? <em className="lf-inline-share">{shareText}</em> : null}
     </span>
   );
 }
 
 // The four wires LeadFlow draws around every card; the column type decides which show.
 // `onWire` rides the incoming horizontal wire, so the eye reads arrow → figure → card.
-// It is decoration: aria-hidden, with the same figure spelled out in the card's own
-// aria-label. Below 1180px leadflow hides the wires, and the CSS moves this back inside
-// the card so the figure never disappears with them.
+// The treatment itself is shared — see the `lf-wire-share` block in leadflow.css for the
+// contract and the geometry it needs; this section opts in with `lf-wire-labels`.
 function Node({ wires = 'has-in has-out', onWire, children }) {
   return (
     <div className={`lf-node ${wires}`}>
       <i className="lf-w in-h" aria-hidden="true" />
       <i className="lf-w in-v" aria-hidden="true" />
-      {onWire && <b className="sp-wire-share" aria-hidden="true">{onWire}</b>}
+      {onWire && <b className="lf-wire-share" aria-hidden="true">{onWire}</b>}
       {children}
       <i className="lf-w out-h" aria-hidden="true" />
       <i className="lf-w out-v" aria-hidden="true" />
@@ -179,7 +185,9 @@ function Node({ wires = 'has-in has-out', onWire, children }) {
 
 // One card on the line. `hint` is the real Zoho stage name, printed under the label.
 // A card with no records keeps its shape and its place in the tab order but opens nothing.
-function FlowCard({ node, id, label, hint, about, tone, size = 'md', extra = '', share, onOpen }) {
+// `alert` swaps the label's tone dot for a warning triangle — see .lf-card.sp-overdue in
+// sales-performance.css, and the one card that uses it.
+function FlowCard({ node, id, label, hint, about, tone, size = 'md', extra = '', share, alert = false, onOpen }) {
   const count = node?.count ?? 0;
   const empty = count === 0;
   const spoken = [label, hint].filter(Boolean).join(' · ');
@@ -221,7 +229,10 @@ function FlowCard({ node, id, label, hint, about, tone, size = 'md', extra = '',
       aria-label={ariaLabel}
       title={title}
     >
-      <span className="lf-label"><i aria-hidden="true" />{label}</span>
+      <span className="lf-label">
+        {alert ? <AlertTriangle size={13} aria-hidden="true" /> : <i aria-hidden="true" />}
+        {label}
+      </span>
       {hint && <span className="sp-name">{hint}</span>}
       <Figures count={count} valueLabel={node?.valueLabel} shareText={shareText} />
       {!empty && share != null && (
@@ -233,41 +244,9 @@ function FlowCard({ node, id, label, hint, about, tone, size = 'md', extra = '',
   );
 }
 
-// Delhi / Hyderabad / Others, sitting under their card as part of the same block. They
-// are siblings of the card button, not children of it — nested buttons are invalid.
-// `group` is the parent card's own label, so the rows say what they are a breakdown of
-// without this component needing to know what the card currently counts.
-function CityRow({ city, group, groupId, onOpen }) {
-  const count = city?.count ?? 0;
-  const empty = count === 0;
-  const click = useCallback(() => {
-    if (empty) return;
-    onOpen?.({ id: `${groupId}-${city.key}`, label: `${group} · ${city.label}`, ids: city?.ids ?? [] });
-  }, [empty, onOpen, city, group, groupId]);
-
-  return (
-    <li>
-      <button
-        type="button"
-        className={`sp-city${empty ? ' sp-empty' : ''}`}
-        onClick={click}
-        aria-disabled={empty || undefined}
-        aria-label={
-          empty
-            ? `${group} · ${city.label}: no records in this period`
-            : `Open the ${count} ${count === 1 ? 'record' : 'records'} in ${group} · ${city.label}, worth ${city.valueLabel}`
-        }
-        title={empty ? `${city.label}\nNo records in this period` : `${city.label}\nClick to see the records`}
-      >
-        <span className="sp-city-name">{city.label}</span>
-        <strong>{count.toLocaleString('en-IN')}</strong>
-        {empty
-          ? <span className="lf-delta flat">None in this period</span>
-          : <span className="lf-inline-value sp-fade" key={city.valueLabel}>{city.valueLabel}</span>}
-      </button>
-    </li>
-  );
-}
+// A card carrying a Delhi / Hyderabad / Others split squares off its bottom, so the shared
+// .lf-cities strip below it merges into the same shape.
+const topOf = (node) => (node?.byCity?.length ? ' lf-card-top' : '');
 
 /**
  * Sales performance section of the Sales board, drawn as one connected funnel.
@@ -298,7 +277,7 @@ export function SalesPerformance({ data, loading, onOpen }) {
 
   return (
     <section
-      className={`lf sp-lf sp-cols-${columns}${loading ? ' is-stale' : ''}`}
+      className={`lf lf-wire-labels sp-lf sp-cols-${columns}${loading ? ' is-stale' : ''}`}
       aria-labelledby="sp-title"
       aria-busy={loading || undefined}
     >
@@ -306,33 +285,29 @@ export function SalesPerformance({ data, loading, onOpen }) {
 
       {/* 1 · the two period cards, stacked in one column and fanning out together into the
              ladder — the way the PSM board stacks Contacted / Not contacted. */}
-      <div className="lf-c lf-bracket-out sp-c-source">
+      <div className="lf-c lf-bracket-out">
         <Node wires="has-out">
-          <div className="sp-stack">
-            <FlowCard
-              node={estClosure}
-              id="estClosure"
-              label={estLabel}
-              about={
-                'A forecast, not banked revenue, and it spans the FULL period — estimated dates '
-                + 'that have already passed as well as those still to come. Every other card here '
-                + 'counts to date, so the two are not the same window.'
-              }
-              tone="green"
-              size="lg"
-              extra="sp-card-top"
-              onOpen={onOpen}
-            />
-            <ul className="sp-cities" aria-label={`${estLabel} by city`}>
-              {cities.map((city) => (
-                <CityRow city={city} group={estLabel} groupId="estClosure" onOpen={onOpen} key={city.key} />
-              ))}
-            </ul>
-          </div>
+          <FlowCard
+            node={estClosure}
+            id="estClosure"
+            label={estLabel}
+            about={
+              'A forecast, not banked revenue, and it spans the FULL period — estimated dates '
+              + 'that have already passed as well as those still to come. Every other card here '
+              + 'counts to date, so the two are not the same window.'
+            }
+            tone="green"
+            size="lg"
+            extra={topOf(estClosure).trim()}
+            onOpen={onOpen}
+          />
+          <CityCells cities={cities} groupId="estClosure" groupLabel={estLabel} onOpen={onOpen} />
         </Node>
 
-        {/* Overdue sits under the est-closure card in the same column. Rendered only once
-            the API sends the node, so the chain does not break mid-deploy. */}
+        {/* Overdue sits under the est-closure card in the same column, and stays there —
+            it is drawn as a warning rather than as a step (.lf-card.sp-overdue), but it
+            counts exactly what it always counted. Rendered only once the API sends the
+            node, so the chain does not break mid-deploy. */}
         {overdue && (
           <Node wires="has-out">
             <FlowCard
@@ -341,6 +316,14 @@ export function SalesPerformance({ data, loading, onOpen }) {
               label={overdue.label || 'Overdue orders'}
               about="Counts every open deal whose estimated closure date has passed, whichever period is selected."
               tone="amber"
+              alert
+              extra={`sp-overdue${topOf(overdue)}`}
+              onOpen={onOpen}
+            />
+            <CityCells
+              cities={overdue.byCity}
+              groupId="overdue"
+              groupLabel={overdue.label || 'Overdue orders'}
               onOpen={onOpen}
             />
           </Node>
@@ -353,7 +336,7 @@ export function SalesPerformance({ data, loading, onOpen }) {
         {stages.map((stage) => {
           const share = openTotal ? (stage.count ?? 0) / openTotal : null;
           return (
-            <Node onWire={stage.count && share != null ? pct(share) : null} key={stage.key}>
+            <Node onWire={stage.count && share != null ? shortPct(share) : null} key={stage.key}>
               <FlowCard
                 node={stage}
                 id={stage.key}
@@ -361,8 +344,14 @@ export function SalesPerformance({ data, loading, onOpen }) {
                 hint={stage.label}
                 tone="green"
                 size="sm"
-                extra={`sp-stage sp-${(stage.short || stage.key || '').toLowerCase()}`}
+                extra={`sp-stage sp-${(stage.short || stage.key || '').toLowerCase()}${topOf(stage)}`}
                 share={share}
+                onOpen={onOpen}
+              />
+              <CityCells
+                cities={stage.byCity}
+                groupId={stage.key}
+                groupLabel={stage.short || stage.key}
                 onOpen={onOpen}
               />
             </Node>
@@ -381,8 +370,10 @@ export function SalesPerformance({ data, loading, onOpen }) {
               hint={stage ? nodes[prop].label : undefined}
               tone={tone}
               size="md"
+              extra={topOf(nodes[prop]).trim()}
               onOpen={onOpen}
             />
+            <CityCells cities={nodes[prop].byCity} groupId={prop} groupLabel={label} onOpen={onOpen} />
           </Node>
         </div>
       ))}

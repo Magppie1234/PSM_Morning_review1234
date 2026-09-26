@@ -395,6 +395,9 @@
 .ps-pending-chip:hover { border-color: var(--accent); color: var(--accent); }
 
 /* Panels */
+/* One panel now that the decision queue is gone, so the table gets the full width. */
+.ps-split.ps-split-one { grid-template-columns: minmax(0, 1fr); }
+
 .ps-split {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);

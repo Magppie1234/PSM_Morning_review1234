@@ -70,6 +70,25 @@
   outline-offset: 2px;
 }
 
+/* Table / Pie chart switch. `.fs-switch` is already styled by factory.css and is the same control the
+   PSM board's popup uses; it only needs placing at the end of the bar, level with the controls. */
+.sr-view {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+/* The folded "Everything else" legend row is not a value anything can be filtered by, and neither is the
+   Pie chart button on a card with nothing chartable. */
+.lp-legend button:disabled,
+.sr-view button:disabled { cursor: default; }
+.lp-legend button:disabled span { font-style: italic; }
+.sr-view button:disabled { opacity: 0.5; }
+
+/* A breakdown that resolves to a single category is dropped, so a card can end up with one or three
+   donuts rather than two. The last one then spans the row rather than leaving a gap beside it. */
+.lp .lp-chart:last-of-type:nth-of-type(odd) { grid-column: 1 / -1; }
+
 .sr-clear {
   height: 38px;
   padding: 0 14px;
@@ -99,7 +118,10 @@
     padding: 12px;
   }
   .sr-filters .sr-search,
-  .sr-clear { grid-column: 1 / -1; }
+  .sr-clear,
+  .sr-view { grid-column: 1 / -1; }
+  .sr-view { margin-left: 0; display: grid; grid-template-columns: 1fr 1fr; }
+  .sr-view button { justify-content: center; min-height: 44px; }
   .sr-filters .sr-search { min-height: 44px; }
   .sr-filters .sr-search input { font-size: 1rem; }
   .sr-filter select { width: 100%; max-width: none; min-height: 44px; font-size: 0.9rem; }

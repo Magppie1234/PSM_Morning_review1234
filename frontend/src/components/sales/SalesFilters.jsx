@@ -6,9 +6,13 @@ import { useEffect, useRef, useState } from 'react';
 // sits behind the Others menu, which can also be narrowed to a single city.
 const ALL = 'all';
 const OTHER = 'OTHER';
+// Each period carries its own comparison, which is what the trend on every card is measured against.
 const PERIODS = [
-  { value: 'this-week', label: 'This week', hint: 'Monday to today' },
-  { value: 'monthly', label: 'This month', hint: 'The 1st to today' }
+  { value: 'daily', label: 'Yesterday', hint: 'Yesterday, against the day before' },
+  { value: 'this-week', label: 'This week', hint: 'Monday to today, against the same days last week' },
+  { value: 'monthly', label: 'This month', hint: 'The 1st to today, against the same days last month' },
+  { value: 'quarterly', label: 'This quarter', hint: 'This quarter to date, against the same days last quarter' },
+  { value: 'yearly', label: 'This year', hint: '1 January to today, against the same days last year' }
 ];
 
 function OthersMenu({ bucket, city, onCity }) {

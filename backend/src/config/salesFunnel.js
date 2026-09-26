@@ -37,6 +37,19 @@ export function cityBucketOf(city) {
   return CITY_PATTERNS.find((bucket) => bucket.exact.has(value) || bucket.word.test(value))?.key ?? OTHER_CITY_KEY;
 }
 
+/**
+ * The Delhi / Hyderabad / Others rows that sit under a card, in the one shape all three boards send.
+ * `build(records, { key, label })` makes one row, so each board keeps its own card shape and its own
+ * unit — rupees on the Sales and Pre Sales funnels, square feet on pre-design.
+ * All three buckets come back even when one is empty, because the UI draws three numbers whatever the
+ * data holds; and because the rows partition the card's own records they always sum back to its count.
+ * `keyOf` reads the bucket off a record, defaulting to the `cityKey` the mapped records already carry.
+ */
+export function cityRows(records, build, keyOf = (record) => record.cityKey) {
+  const mine = (key) => (records ?? []).filter((record) => keyOf(record) === key);
+  return CITY_KEYS.map((key) => build(mine(key), { key, label: cityLabelOf(key) }));
+}
+
 // The key a single city name is listed under inside "Others", and the label shown for it. Spellings vary
 // in the CRM ("banglore", "Bangalore"), so the key is the normalised name and the label is title case.
 export const CITY_NOT_RECORDED = 'unknown';
@@ -298,6 +311,18 @@ const EST_CLOSURE_PERIOD = {
 // A custom range and the older day windows have no natural name, so they fall back to "this period".
 export const estClosureLabelOf = (kind) => `Est. closure for ${EST_CLOSURE_PERIOD[kind] ?? 'this period'}`;
 export const OVERDUE_LABEL = 'Overdue orders';
+
+// What a trend is measured against, worded for the period on screen. Where the comparison window is a
+// plain calendar span the date range says more than a name would: "1 – 24 Aug" is honest about a
+// month-to-date comparison in a way "last month" would not be, so monthly and custom fall through to it.
+const PREVIOUS_PERIOD = {
+  daily: 'the day before',
+  'this-week': 'last week',
+  weekly: 'the week before',
+  quarterly: 'last quarter',
+  yearly: 'last year'
+};
+export const previousLabelOf = (kind, dateRange) => PREVIOUS_PERIOD[kind] ?? dateRange ?? 'the previous period';
 
 // ---------------------------------------------------------------------------
 // Product

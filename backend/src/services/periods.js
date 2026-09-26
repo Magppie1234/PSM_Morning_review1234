@@ -6,10 +6,11 @@ import { localDayKey } from './timeUtils.js';
 //   weekly     last full week, Mon → Sun    vs the week before it
 //   monthly    this month, 1st → today       vs the same days of last month
 //   quarterly  this quarter, 1st → today     vs the same days of last quarter
+//   yearly     this year, 1 Jan → today      vs the same days of last year
 //   custom     any from → to (≤ 366 days)    vs the equal-length window just before it
 // Encoded as a string so every endpoint takes one `timeframe` query value: "custom:2026-09-01:2026-09-15".
 
-export const PERIODS = ['daily', 'this-week', 'weekly', 'monthly', 'quarterly', 'custom'];
+export const PERIODS = ['daily', 'this-week', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom'];
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_CUSTOM_DAYS = 366;
 
@@ -25,11 +26,14 @@ const monthStart = (iso, shift = 0) => {
   const date = utc(iso);
   return toIso(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + shift, 1)));
 };
+const yearStart = (iso, shift = 0) => `${Number(iso.slice(0, 4)) + shift}-01-01`;
 const minIso = (a, b) => (a < b ? a : b);
 // The Monday of the week `iso` falls in (weeks run Mon → Sun here, unlike JavaScript's Sun → Sat).
 const mondayOf = (iso) => addDays(iso, -((utc(iso).getUTCDay() + 6) % 7));
 
-function label(start, end) {
+// Exported so a board can label a window of its own — the Sales estimate card compares whole calendar
+// months, which is a different span from the period's own previousStart / previousEnd.
+export function label(start, end) {
   const fmt = (iso, withMonth) => utc(iso).toLocaleDateString('en-IN', { timeZone: 'UTC', day: 'numeric', ...(withMonth ? { month: 'short' } : {}) });
   const full = (iso) => utc(iso).toLocaleDateString('en-IN', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
   if (start === end) return full(start);
@@ -69,6 +73,12 @@ export function parsePeriod(timeframe = 'daily', now = new Date()) {
     const start = monthStart(today, -(month % 3));
     const prev = matchingPrevious(start, today, monthStart(start, -3), addDays(start, -1));
     return { kind, start, end: today, ...prev, name: 'Quarter to date', shortLabel: 'This quarter' };
+  }
+  // Built like `monthly`: to-date, compared with the same elapsed days of last year.
+  if (kind === 'yearly') {
+    const start = yearStart(today);
+    const prev = matchingPrevious(start, today, yearStart(today, -1), addDays(start, -1));
+    return { kind, start, end: today, ...prev, name: 'Year to date', shortLabel: 'This year' };
   }
   if (kind === 'custom' && ISO.test(from ?? '') && ISO.test(to ?? '')) {
     const start = from <= to ? from : to;

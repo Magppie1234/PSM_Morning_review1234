@@ -1,13 +1,17 @@
-import { X } from 'lucide-react';
+import { CalendarDays, PieChart, Table2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SortSelect, SortTh, TableSearch, amountOf, timeOf, useTableTools } from '../tableTools.jsx';
+import { Donut, slicesFrom } from './SalesRecordsChart.jsx';
+import { WeeklyView } from './WeeklyView.jsx';
 import { crmRecordUrl } from '../../config/crm.js';
 
 // The records behind a card on the Lead generation / Sales performance sections. Same popup shell as the
-// PSM board (full screen on a phone, Escape closes), and the same search and sortable columns.
+// PSM board (full screen on a phone, Escape closes), the same Table / Pie chart switch opening on the
+// chart, and the same search and sortable columns.
 //
-// The two closure cards get a table of their own — different columns, plus four filters above it — because
-// they are read as an order list rather than a lead list. Every other card keeps the columns it had.
+// The two closure cards get a table of their own — different columns, different filters, different
+// charts — because they are read as an order list rather than a lead list. Every other card keeps the
+// columns it had.
 const PAGE = 25;
 const NA = <span className="lf-na">NA</span>;
 const show = (value) => (value === null || value === undefined || value === '' || value === '—' ? NA : value);
@@ -67,16 +71,57 @@ const CLOSURE_COLUMNS = [
   ['Estimated closure date', (row) => show(stamp(row.estClosureDate)), 'Estimated closure date in Zoho', (row) => timeOf(row.estClosureDate)]
 ];
 
-// Cards whose records read as an order list rather than a lead list: the estimates for this period, the
-// orders already past their estimated date, and the city rows under either of them — those hold the same
-// records as the card above, so they open the same columns.
+// ---- The pre-design cards ----------------------------------------------------------------------
+// The Design board opens its cards in this same popup, and its records are a different animal: `value`
+// there is FLOOR AREA IN SQUARE FEET, not rupees — the Deals module carries no amount at all — so it is
+// never given a ₹ sign.
+const REVISION_LIMIT = 3; // the limit PreDesignFlow measures orders against
+const notRecorded = <span className="lf-na">Not recorded</span>;
+const told = (value) => (value === null || value === undefined || value === '' ? notRecorded : value);
+const designerOf = (row) => text(row.designer);
+const areaOf = (row) => {
+  const area = Number(row?.value);
+  return Number.isFinite(area) && area > 0 ? area : null;
+};
+const areaCell = (row) => {
+  const area = areaOf(row);
+  return area === null ? notRecorded : `${area.toLocaleString('en-IN')} sq ft`;
+};
+const revisionsOf = (row) => (Number.isFinite(Number(row?.revisions)) ? Number(row.revisions) : null);
+const revisionBandOf = (row) => {
+  const count = revisionsOf(row);
+  if (count === null) return 'unknown';
+  if (count <= 0) return 'none';
+  return count > REVISION_LIMIT ? 'over' : 'within';
+};
+
+const DESIGN_COLUMNS = [
+  ['Project / client', (row) => (
+    <a className="lf-record-link" href={crmRecordUrl('Deals', row.id)} target="_blank" rel="noopener noreferrer" title="Open this order in Zoho CRM">
+      {row.name}
+    </a>
+  ), 'Opens the order in Zoho CRM', (row) => row.name],
+  ['Designer', (row) => told(designerOf(row)), 'Designer assigned to the order in Zoho', designerOf],
+  ['Sales person', (row) => told(text(row.owner)), 'Record owner in Zoho', (row) => row.owner],
+  ['Area (sq ft)', areaCell, 'Floor area on the order in Zoho. The Deals module holds no rupee amount, so the design board measures in square feet', areaOf],
+  ['Stage', (row) => told(text(row.stage)), 'Stage of the order in Zoho', (row) => row.stage],
+  ['Revisions', (row) => told(revisionsOf(row)), `Design revisions logged against the order; the limit is ${REVISION_LIMIT}`, revisionsOf],
+  ['Design sent on', (row) => told(stamp(row.designSentOn)), 'When the design was sent to the client (IST)', (row) => timeOf(row.designSentOn)]
+];
+
+// Which table a card gets.
 //
-// SalesPerformance builds a city row's id as `${groupId}-${city.key}`, and calls it today with
-// groupId="estClosure" and the keys DEL / HYD / OTHER. `overdue` carries a byCity list of its own, so rows
-// under it would arrive as `overdue-DEL`. Matching the id or that one separator covers both without
-// catching `closed`, `principal`, `handover` or the S1–S5 stages, which keep the lead columns.
+// Closure cards are the estimates for this period, the orders already past their estimated date, and the
+// city rows under either — those hold the same records as the card above, so they open the same columns.
+// SalesPerformance builds a city row's id as `${groupId}-${city.key}`, so matching the id or that one
+// separator covers both without catching `closed`, `principal` or the S1–S5 stages.
 const CLOSURE_CARDS = ['estClosure', 'overdue'];
 const isClosureCard = (id = '') => CLOSURE_CARDS.some((key) => id === key || id.startsWith(`${key}-`));
+
+// Pre-design cards are `intake`, `firstDesign`, `revisions`, `booked` and `handover` (plus `intake-*` and
+// `revisions-*` sub-rows) — but `handover` is ALSO a card id on Sales performance, so the id alone cannot
+// tell the two boards apart. The records can: only the Design board's carry a `designer` field.
+const isDesignRecords = (records) => records.some((row) => row && row.designer !== undefined);
 
 const sortFieldsOf = (columns) => Object.fromEntries(columns.filter((column) => column[3]).map((column) => [column[0], column[3]]));
 const sortOptionsOf = (columns) => columns.filter((column) => column[3]).map((column) => [column[0], column[0]]);
@@ -121,7 +166,9 @@ const TABLES = {
       list('stage', 'Current stage', 'All stages', stageOf),
       list('source', 'Source', 'All sources', (row) => text(row.source)),
       list('city', 'City', 'All cities', (row) => text(row.city))
-    ]
+    ],
+    // What is actually in a lead card: where the leads have got to, where they came from, who holds them.
+    chart: ['stage', 'source', 'psm']
   },
   // Product, status, salesperson and value each have a control of their own, so the box is left to do one
   // job: find a client.
@@ -137,7 +184,28 @@ const TABLES = {
       ]),
       list('product', 'Product', 'All products', productOf),
       list('person', 'Salesperson', 'All salespeople', personOf)
-    ]
+    ],
+    // What is actually in a closure card: whose orders, what they are for, how big they are.
+    chart: ['person', 'product', 'value']
+  },
+  // The Design board's orders. Measured in square feet throughout — no rupee figure exists for them.
+  design: {
+    columns: DESIGN_COLUMNS,
+    search: (row) => [row.name, row.id, row.designer, row.owner, row.stage, row.city].filter(Boolean).join(' '),
+    placeholder: 'Search project, designer, sales person…',
+    searchLabel: 'Search project, designer, sales person, stage and city',
+    filters: [
+      list('designer', 'Designer', 'All designers', designerOf),
+      list('stage', 'Stage', 'All stages', (row) => text(row.stage)),
+      list('city', 'City', 'All cities', (row) => text(row.city)),
+      band('revisions', 'Revisions', 'Any number of revisions', revisionBandOf, [
+        ['none', 'No revisions yet'],
+        ['within', `1 to ${REVISION_LIMIT}`],
+        ['over', `Over the ${REVISION_LIMIT}-revision limit`],
+        ['unknown', 'Not recorded']
+      ])
+    ],
+    chart: ['stage', 'designer', 'revisions']
   }
 };
 Object.values(TABLES).forEach((entry) => {
@@ -189,12 +257,24 @@ function FilterSelect({ id, label, value, onChange, options }) {
   );
 }
 
-export function SalesRecordsPopup({ card, records = [], onClose }) {
-  const isClosure = isClosureCard(card.id);
-  const table = isClosure ? TABLES.closure : TABLES.lead;
+/**
+ * The records behind a card, as a list, a chart or a week-by-week board.
+ *
+ * @param {object}   props.card     { id, label, ids } from whichever board was clicked
+ * @param {Array}    props.records  that board's flat `records` array
+ * @param {Array}   [props.weeks]   the payload's top-level `weeks`, for the Weekly view. A board that
+ *                                  sends none simply has no Weekly option.
+ * @param {Function} props.onClose  called when the popup should close
+ */
+export function SalesRecordsPopup({ card, records = [], weeks = [], onClose }) {
+  const isDesign = isDesignRecords(records);
+  const isClosure = !isDesign && isClosureCard(card.id);
+  const table = isDesign ? TABLES.design : isClosure ? TABLES.closure : TABLES.lead;
 
   const [shown, setShown] = useState(PAGE);
   const [filters, setFilters] = useState(table.cleared);
+  // Every card opens on its chart; the list is one click away, and a clicked slice opens it filtered.
+  const [view, setView] = useState('chart');
   const closeRef = useRef(null);
 
   const ids = useMemo(() => new Set(card.ids ?? []), [card.ids]);
@@ -214,12 +294,14 @@ export function SalesRecordsPopup({ card, records = [], onClose }) {
     };
   }, [onClose]);
 
-  // A new card starts clean: no filters, and no sort carried over from a table with other columns.
+  // A new card starts clean and on its chart: nothing is remembered between cards, and no sort is
+  // carried over from a table with other columns.
   const { setSort } = tools;
   const cleared = table.cleared;
   useEffect(() => {
     setFilters(cleared);
     setSort(null);
+    setView('chart');
   }, [card.id, cleared, setSort]);
 
   // The search, the filters, or a new card all start again at the first page of rows.
@@ -241,6 +323,34 @@ export function SalesRecordsPopup({ card, records = [], onClose }) {
     tools.setQuery('');
   };
 
+  // One breakdown per chart key, its slices taken straight from that filter's own dropdown options.
+  //
+  // A breakdown with a single category is dropped: a full ring labelled "S1" on the S1 card only repeats
+  // what was clicked to get here, and costs a third of the chart. The remaining breakdowns are what give
+  // the card its shape.
+  const breakdowns = (table.chart ?? []).map((key) => {
+    const filter = table.filters.find((entry) => entry.key === key);
+    const options = optionsOf(filter);
+    // NONE is passed through so the "Not recorded" slice always reads grey rather than taking a hue.
+    return { filter, total: options[0][2], slices: slicesFrom(options, NONE) };
+  }).filter((entry) => entry.total > 0 && entry.slices.length > 1);
+
+  // When nothing on this card can vary there is no chart to show, so it opens on its list instead. This
+  // is per card — the toggle still defaults to the chart everywhere else. Weekly needs the payload's
+  // `weeks`, which only the Sales board sends, so elsewhere that option is simply absent.
+  const canChart = breakdowns.length > 0;
+  const canWeekly = weeks.length > 0;
+  const fallback = canChart ? 'chart' : 'table';
+  const activeView = (view === 'chart' && !canChart) || (view === 'weekly' && !canWeekly) ? fallback : view;
+
+  // Clicking a slice is the same act as choosing that value in the dropdown above it, so the chart is a
+  // way into the list rather than a second, parallel notion of what is selected.
+  const pickSlice = (key) => (sliceKey) => {
+    const already = (filters[key] ?? ALL) === sliceKey;
+    setFilters((current) => ({ ...current, [key]: already ? ALL : sliceKey }));
+    if (!already) setView('table');
+  };
+
   return (
     <div className="lf-modal" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="lf-detail tone-blue" role="dialog" aria-modal="true" aria-label={`${card.label} records`}>
@@ -250,7 +360,11 @@ export function SalesRecordsPopup({ card, records = [], onClose }) {
               <i aria-hidden="true" />
               {card.label} <span>{visible.length === tools.total ? tools.total : `${visible.length} of ${tools.total}`}</span>
             </h3>
-            <p>{isClosure ? 'Orders in Zoho CRM behind this card' : 'Qualified leads in Zoho CRM behind this card'}</p>
+            <p>
+              {isDesign ? 'Orders in Zoho CRM behind this card, measured in square feet'
+                : isClosure ? 'Orders in Zoho CRM behind this card'
+                  : 'Qualified leads in Zoho CRM behind this card'}
+            </p>
           </div>
           <div className="lf-detail-actions">
             <SortSelect tools={tools} options={table.options} className="lf-detail-sort" />
@@ -283,9 +397,47 @@ export function SalesRecordsPopup({ card, records = [], onClose }) {
           {(narrowed || tools.query.trim()) && (
             <button type="button" className="sr-clear" onClick={clearAll}>Clear filters</button>
           )}
+          <div className="fs-switch sr-view" role="group" aria-label="View">
+            <button type="button" aria-pressed={activeView === 'table'} onClick={() => setView('table')}>
+              <Table2 size={13} aria-hidden="true" /> List
+            </button>
+            <button
+              type="button"
+              aria-pressed={activeView === 'chart'}
+              disabled={!canChart}
+              title={canChart ? undefined : 'Nothing on this card varies enough to chart'}
+              onClick={() => setView('chart')}
+            >
+              <PieChart size={13} aria-hidden="true" /> Pie chart
+            </button>
+            {canWeekly && (
+              <button type="button" aria-pressed={activeView === 'weekly'} onClick={() => setView('weekly')}>
+                <CalendarDays size={13} aria-hidden="true" /> Weekly
+              </button>
+            )}
+          </div>
         </div>
 
-        {rows.length === 0 ? (
+        {activeView === 'weekly' ? (
+          // The same records, filed by follow-up week. WeeklyView reads the whole card's set rather than
+          // the filtered one: its own band states what it covers, and filtering it twice would make that
+          // statement wrong.
+          <WeeklyView weeks={weeks} records={inCard} />
+        ) : activeView === 'chart' ? (
+          <div className="lp">
+            {breakdowns.map(({ filter, slices, total }) => (
+              <Donut
+                key={filter.key}
+                title={filter.label}
+                slices={slices}
+                total={total}
+                focus={filters[filter.key] ?? null}
+                onPick={pickSlice(filter.key)}
+              />
+            ))}
+            <p className="lp-hint">Click a slice or a row to see those records in the table.</p>
+          </div>
+        ) : rows.length === 0 ? (
           <p className="lf-detail-empty">
             {tools.total === 0
               ? 'No records in this card for the selected period and city.'
@@ -312,7 +464,7 @@ export function SalesRecordsPopup({ card, records = [], onClose }) {
           </div>
         )}
 
-        {remaining > 0 && (
+        {activeView === 'table' && remaining > 0 && (
           <button type="button" className="dp-more" onClick={() => setShown((count) => count + PAGE)}>
             Show {Math.min(PAGE, remaining)} more of {remaining}
           </button>

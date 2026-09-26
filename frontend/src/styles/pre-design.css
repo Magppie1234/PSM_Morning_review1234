@@ -1,0 +1,207 @@
+/* The pre-design funnel on the Design board.
+
+   The section IS the PSM funnel: PreDesignFlow.jsx renders LeadFlow's own markup and classes
+   (.lf, .lf-c, .lf-node, .lf-w, .lf-card, .lf-label, .lf-figures, .lf-share, .lf-delta, .tone-*), so
+   the cards, the elbow wires, the hover lift, the focus ring, the phone stack and the
+   prefers-reduced-motion handling all come from leadflow.css. Nothing there is forked.
+
+   This file only adds what the funnel does not have:
+     1. five columns instead of six, and a gutter wide enough to carry the share on the wire,
+     2. the revision spread fused under the Revisions card,
+     3. the revision meter and the over-limit colour,
+     4. the square-feet figure line, the per-card note, the dim-on-refresh and the value fade.
+   The Delhi / Hyderabad / Others split used to be drawn with the sub-rows below. It is now the
+   shared .lf-cities strip in leadflow.css, rendered by <CityCells>, so all four funnels show it
+   identically; only the revision spread still uses .pd-rows.
+   Everything new is prefixed pd-. Load this AFTER leadflow.css, so single-class rules here beat
+   single-class rules there — hence the min-width guard on the grid override, which keeps leadflow's
+   own "collapse to one column" at 1180px winning. */
+
+/* ---------- 1 · Columns ----------
+   Sent in for design → First fresh design → Revisions → Booked → Handed over is five, but the
+   component counts its columns and sets the class, so the chain still fills the row if a node is
+   missing from the payload rather than leaving a dead track.
+
+   Only the column count is set here. The GUTTER and the share labels are not: this flow opts into the
+   shared `lf-wire-labels` treatment in leadflow.css, which owns --lf-gap, slides the wire joints to
+   18%/82% and decides which of the two copies of the share is visible. Nothing of that is repeated or
+   overridden here — see the contract at the top of leadflow.css. Scoped .lf.pd-cols-* rather than
+   .pd-cols-*, so the override still beats leadflow's own six-column default if the load order of the
+   two stylesheets is ever changed. */
+@media (min-width: 1181px) {
+  .lf.pd-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .lf.pd-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+/* ---------- The figure line ----------
+   Square feet leads and the order count follows it in brackets, because square feet is the measure
+   this board is about — Deals.Amount is empty on every record in the module, so there is no rupee
+   figure to compete with it. The count keeps the funnel's secondary weight. */
+/* The figure keeps leadflow's own sizes (1.7rem, 2.3rem on the large card) so this funnel reads at the
+   same scale as the Pre Sales and Sales ones. It was shrunk here once to fit "26,747 sq ft" on one line;
+   the unit wraps instead, which costs a line but keeps every board's numbers the same size. */
+.pd-lf .lf-figures { align-items: baseline; flex-wrap: wrap; }
+.pd-orders { color: var(--ink-2); font-size: 0.9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pd-lf .lf-lg .pd-orders { font-size: 0.95rem; }
+
+/* The intake card's bracket carries two figures — everything that arrived, then how much of it was
+   sent in for design. The second is what the square feet and the whole funnel below are about, so it
+   takes the heavier weight and full ink while the arrivals figure stays secondary. The middle dot is
+   a separator, spaced rather than punctuating, so the pair reads as two facts and not as a ratio.
+   The bracket is allowed to wrap onto its own line rather than squeezing the sq ft figure, which is
+   what happens on the narrower desktop widths where five columns are still in play. */
+.pd-orders b { color: var(--ink); font-weight: 800; }
+.pd-orders i { margin: 0 2px; color: var(--muted); font-style: normal; font-weight: 600; }
+.pd-lf .lf-figures { flex-wrap: wrap; }
+
+/* A caveat the API sends with the figure, e.g. how many orders actually record an area. Pushed to the
+   bottom of the card so the notes line up across the row. Muted, but never below 4.5:1 on --surface. */
+.pd-card-note { margin-top: auto; padding-top: 2px; color: var(--muted); font-size: 0.7rem; font-weight: 600; line-height: 1.35; }
+
+.pd-note { grid-column: 1 / -1; margin: 14px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
+.pd-note strong { color: var(--ink-2); font-weight: 700; }
+
+/* A re-read keeps the numbers already on screen and dims them — never a spinner, never an unmount.
+   Nothing moves, so a click still lands where the user aimed. (.lf.is-stale itself is shared with the
+   Sales performance funnel and lives in sales-performance.css; this is only the transition.) */
+.pd-lf { transition: opacity 0.2s var(--ease-out); }
+.lf.is-stale { opacity: 0.55; }
+
+/* An empty card keeps its full shape and its place in the tab order; it just has nothing to open, so
+   it drops the pointer and the funnel's hover lift. */
+.lf-card.pd-empty,
+.pd-row.pd-empty { cursor: default; }
+.lf-card.pd-empty:hover { transform: none; border-color: var(--line); box-shadow: none; }
+.pd-row.pd-empty:hover { background: transparent; }
+
+/* The figure re-fades when it changes */
+.pd-fade { animation: pd-in 0.32s var(--ease-out); }
+@keyframes pd-in { from { opacity: 0; transform: translateY(3px); } }
+
+/* ---------- 2 · The revision spread fused under its card ----------
+   The card and its rows are one visual block: the list tucks straight under the card so the seam
+   reads as a divider inside a single card. (The intake card's city rows used to use this too; they
+   are the shared .lf-cities strip now, which brings its own .lf-card-top.) */
+
+.pd-stack { display: grid; }
+
+.pd-rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+  background: #fcfcfb;
+  list-style: none;
+}
+
+/* Name on its own line, then the figures under it.
+
+   These rows sit inside a funnel card, and a funnel card is narrow: five columns plus the shared
+   wire-label gutter leave 173px at 1440 on this board (the sidebar takes its cut before the grid ever
+   sees the viewport), rising to about 203px at 1700. Measured there, one line cannot hold a bucket
+   name beside its count and its square feet — with the name in a 1fr column and the figures on auto,
+   the auto tracks won a max-content fight and squeezed the name to nothing. Stacking is what actually
+   fits: the name gets the full width, the figures get a clean line under it, and the meter spans a
+   third line of its own. (The same measurement is why the shared city strip shows three-letter tags
+   and moves the money to the tooltip — see .lf-cities in leadflow.css.) */
+.pd-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 3px 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.pd-rows li:first-child .pd-row { border-top: 0; }
+.pd-rows li:last-child .pd-row { border-radius: 0 0 9px 9px; }
+.pd-row:hover { background: var(--line-soft); }
+.pd-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Full width of the row, and allowed to break mid-word: "Others" resolves to a real city name on the
+   city switcher, and some of those are longer than the card. */
+.pd-row-name { grid-column: 1 / -1; color: var(--ink-2); font-size: 0.7rem; font-weight: 750; letter-spacing: 0.02em; line-height: 1.25; overflow-wrap: anywhere; text-transform: uppercase; }
+.pd-row strong { font-size: 1rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+/* The money-column equivalent: whatever trails the count sits hard right, so the three city rows line
+   their sq ft figures up with each other however wide their names ran. */
+.pd-row > .lf-inline-value,
+.pd-row > .lf-delta { justify-self: end; text-align: right; }
+
+/* A city row carries the same pair as the intake card: how many of that city's arrivals were sent to
+   design. "of 54" trails the figure as a quiet denominator so the three rows still visibly add up to
+   both bracket figures above. Revision buckets have no denominator and render the figure alone. */
+.pd-row-count { display: inline-flex; align-items: baseline; gap: 4px; }
+.pd-row-count em { color: var(--muted); font-size: 0.72rem; font-style: normal; font-weight: 650; font-variant-numeric: tabular-nums; }
+.pd-row .lf-inline-value { font-size: 0.82rem; }
+.pd-row .lf-delta.flat { font-size: 0.68rem; }
+
+/* ---------- 3 · The revision spread ----------
+   Each row carries a meter of its share of the orders that record a revision count, so the shape of
+   the distribution reads at a glance without anyone having to divide. The meter spans the full row
+   under the figures, which is why it is its own grid line. */
+.pd-row .pd-meter {
+  grid-column: 1 / -1;
+  display: block;
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 99px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+/* Teal for a row inside the limit and red for the one past it, rather than the card's own amber: the
+   meter is answering "is this within the rule", which is a two-state question, and amber would make
+   every row look like a warning. --lf-teal and --lf-green are declared on .lf in leadflow.css, so they
+   are inherited here; the fallbacks only matter if this block is ever lifted out of the funnel. */
+.pd-row .pd-meter b { display: block; height: 100%; border-radius: inherit; background: var(--lf-teal, #0f8a8a); }
+
+/* Past the three-revision limit. Red is the only colour on this board that means "outside the rule",
+   so it is used here and nowhere else. #c0392b on the rows' #fcfcfb measures 5.29:1, comfortably past
+   AA for the row's figure at its 1rem size. The row NAME keeps --ink-2 rather than going red, because
+   two weights of red read as an error state rather than as one flagged row. */
+.pd-row.pd-over strong { color: #c0392b; }
+.pd-row.pd-over .pd-meter b { background: #c0392b; }
+.pd-row.pd-over.pd-empty strong { color: var(--ink); }
+
+/* The one-line verdict under the revisions block: within the limit, or how many are past it. */
+.pd-limit {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--lf-green, #138a4f);
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--lf-green, #138a4f) 7%, transparent);
+  color: var(--ink-2);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.pd-limit strong { color: var(--ink); font-weight: 800; }
+.pd-limit-over {
+  border-left-color: #c0392b;
+  background: color-mix(in srgb, #c0392b 8%, transparent);
+}
+.pd-limit-over strong { color: #a5321f; }
+
+/* ---------- Phones ----------
+   leadflow.css already stacks the columns and hides the wires at 1180px and below; these are only the
+   bits it has no reason to know about. */
+@media (max-width: 780px) {
+  .pd-row { min-height: 48px; padding: 10px 14px; }
+  /* no hover on touch — the tint would stick after a tap */
+  .pd-row:hover { background: transparent; }
+  .pd-row:active { background: var(--line-soft); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-lf { transition: none; }
+  .pd-row { transition: none; }
+  .pd-fade { animation: none; }
+}

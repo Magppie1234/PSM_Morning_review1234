@@ -1,11 +1,11 @@
 import {
   CITY_BUCKETS, CITY_KEYS, CLOSED_CARD_LABEL, CLOSED_STAGE, HANDOVER_LABEL, HANDOVER_MATCH, LADDER_STAGES,
   OTHER_CITY_KEY, OTHER_SOURCE, OVERDUE_LABEL, PRINCIPAL_STAGE, QUALIFIED_BY, SOURCE_BUCKETS,
-  canonicalCityName, cityBucketOf, cityLabelOf, cityNameKeyOf, cityNameLabelOf, estClosureLabelOf,
-  hasStageSet, isOpenStage, isQualifiedStage, isRealRecord, mergeCityNames, productOf, qualifiedByOf,
+  canonicalCityName, cityBucketOf, cityNameKeyOf, cityNameLabelOf, cityRows, estClosureLabelOf,
+  hasStageSet, isOpenStage, isQualifiedStage, isRealRecord, mergeCityNames, previousLabelOf, productOf, qualifiedByOf,
   sourceBucketOf, stageKeyOf, stageLabelOf, valueOf
 } from '../config/salesFunnel.js';
-import { addDays } from './periods.js';
+import { addDays, label as formatRange } from './periods.js';
 import { localDayKey } from './timeUtils.js';
 
 // The Sales board's "Lead generation" and "Sales performance" sections, both built from Zoho Contacts
@@ -21,6 +21,34 @@ import { localDayKey } from './timeUtils.js';
 //   overdue                     estimate already passed and the deal still open — not period-filtered
 // The last three are NOT part of the intake, so they never enter either split above. estClosure and
 // closed are deliberately different sets: the flow reads expected -> ladder -> actual, not one funnel.
+//
+// THE PAYLOAD, for whoever is building against it:
+//   meta        { reportLabel, start, end, city, comparison: { start, end, label, available }, notice }
+//   filters     { cities: [ { key, label, count, options? } ] }
+//   leadGeneration   { previousLabel, incoming, selfRaw, qualified, qualifiedBy[], bySource[] }
+//   salesPerformance { previousLabel, estClosure, overdue, stages[], principal, closed, handover }
+//   weeks       [ { weekKey, label, start, end, count, ids } ] — every Monday-start week the period
+//               touches, in order, including weeks with nothing in them
+//   buckets     [ { key, label, start, end, count, ids } ] — NOT weeks, and not in date order with them.
+//               Two of them, always sent: 'overdue' (follow-up before the first week on screen) and
+//               'later' (after the last). They exist because `weeks` only covers the period, so these
+//               records would otherwise drop off the board entirely — and the overdue ones are exactly
+//               what the view is for. Render them either side of the weeks, styled as their own thing.
+//   records     [ { id, name, cityRaw, city, cityKey, psm, owner, salesPerson, product, status,
+//                   estClosureDate, followUpDate, followUpOverdue, nextAction, weekKey, source,
+//                   sourceKey, stage, stageKey, qualifiedBy, value, valueLabel, createdAt, closedOn } ]
+// Every card carries { key?, label?, count, value, valueLabel, ids } and, where a comparison is honest,
+// { previous, previousValue }. `overdue` has none, on purpose. A card may carry `note` (a caveat about
+// its data) or its own `previousLabel` when its comparison window differs from the section's.
+// Every card also carries `byCity`: three rows, DEL / HYD / OTHER, always all three even when one is
+// empty, each row a card of the same shape. They partition the card, so they sum back to its `count`
+// and its `value`. A row's `previous` follows the card's — overdue's rows have none either.
+// Records join to weeks and buckets by `ids`, or equivalently to a week by `weekKey` (the Monday of the
+// record's FOLLOW-UP week). Every record that has a follow-up appears in exactly one week or one bucket.
+// The one case the UI still has to place itself:
+//   weekKey null   no follow-up is booked, so the record is in no week and no bucket. Two records in
+//                  three. It needs a column of its own; it must not be filed under a week it has
+//                  nothing to do with, and that column is the data-entry gap made visible.
 
 const CRORE = 1e7;
 const LAKH = 1e5;
@@ -34,11 +62,76 @@ export function inr(value) {
   return `₹${Math.round(amount).toLocaleString('en-IN')}`;
 }
 
+// A date field reduced to its day, whether Zoho sent a date or a datetime. Null when it holds nothing.
+const dayOf = (value) => {
+  const day = String(value ?? '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+};
+const collapse = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
+
+// The Monday of the week a day falls in, which is also the week's key. Null for a missing day, so a
+// record with no date is never filed under a week it has nothing to do with.
+export const weekKeyOf = (day) => (dayOf(day) ? addDays(dayOf(day), -((utc(dayOf(day)).getUTCDay() + 6) % 7)) : null);
+
+// Every Monday-start week the period touches, in order, so the UI draws an empty week rather than
+// skipping it. Weeks are whole, so the first and last may reach a little outside the period.
+const MAX_WEEKS = 120;
+export function weeksCovering(start, end) {
+  const weeks = [];
+  let monday = weekKeyOf(start);
+  if (!monday) return weeks;
+  while (monday <= end && weeks.length < MAX_WEEKS) {
+    const last = addDays(monday, 6);
+    weeks.push({ weekKey: monday, label: formatRange(monday, last), start: monday, end: last });
+    monday = addDays(monday, 7);
+  }
+  return weeks;
+}
+
+/**
+ * The weekly view: the period's weeks, plus the two buckets that catch follow-ups falling outside them.
+ * Without the buckets those records simply disappear from the board, and they are mostly follow-ups
+ * months past their date — the ones the view exists to surface. Weeks and buckets carry the same
+ * { label, start, end, count, ids }, so the UI can iterate both the same way; only a week has a weekKey.
+ * Every record that has a follow-up lands in exactly one of them. Records without one are in neither,
+ * deliberately: they belong in a column of their own, not filed under a week they have nothing to do with.
+ */
+function weeklyView(records, tf) {
+  const weeks = weeksCovering(tf.start, tf.end);
+  const dated = records.filter((record) => record.weekKey);
+  const idsOf = (list) => list.map((record) => record.id);
+  const firstWeek = weeks[0]?.weekKey ?? null;
+  const lastWeek = weeks.at(-1)?.weekKey ?? null;
+  weeks.forEach((week) => {
+    const mine = dated.filter((record) => record.weekKey === week.weekKey);
+    week.count = mine.length;
+    week.ids = idsOf(mine);
+  });
+  const before = firstWeek ? dated.filter((record) => record.weekKey < firstWeek) : [];
+  const after = lastWeek ? dated.filter((record) => record.weekKey > lastWeek) : [];
+  const earliest = before.map((record) => record.followUpDate).sort()[0] ?? null;
+  const latest = after.map((record) => record.followUpDate).sort().at(-1) ?? null;
+  return {
+    weeks,
+    buckets: [
+      // Follow-ups dated before the first week on screen. Almost always long overdue.
+      { key: 'overdue', label: 'Overdue', start: earliest, end: firstWeek ? addDays(firstWeek, -1) : null, count: before.length, ids: idsOf(before) },
+      // Follow-ups booked beyond the last week on screen.
+      { key: 'later', label: 'Later', start: lastWeek ? addDays(lastWeek, 7) : null, end: latest, count: after.length, ids: idsOf(after) }
+    ]
+  };
+}
+
 // One qualified-lead record, flattened so the frontend never has to know Zoho's field names.
-function toRecord(contact) {
+// `today` is the dashboard's own day, so whether a follow-up is overdue is decided in the business's
+// timezone rather than the viewer's browser.
+function toRecord(contact, today) {
   const stageKey = stageKeyOf(contact.Client_Status);
   const value = valueOf(contact);
   const city = canonicalCityName(contact.City);
+  // "Follow Up Date" is the field the team fills (27% of this month's records); the newer datetime field
+  // is filled on about 1%, so it is only a fallback.
+  const followUpDate = dayOf(contact.Next_Follow_UP_Date) ?? dayOf(contact.Next_Follow_Up_Date1);
   return {
     id: String(contact.id ?? ''),
     name: contact.Full_Name ?? 'Unnamed',
@@ -59,6 +152,19 @@ function toRecord(contact) {
     // Contacts.Stage, whose Zoho label is "Status": the process step, a separate column from the ladder.
     status: contact.Stage ?? '',
     estClosureDate: contact.Est_Closoure_Date ?? null,
+    // Null means no follow-up is booked, which is the common case; the UI should show that as a gap
+    // rather than filling it in.
+    followUpDate,
+    // The mock-up shows overdue follow-ups in red. Decided here so every viewer sees the same thing
+    // whatever timezone their browser is in. False when no follow-up is booked — missing is not late.
+    followUpOverdue: Boolean(followUpDate && today && followUpDate < today),
+    // Last_Note, the free text the team writes ("waiting for the architect approval", "rnr - 16-Sep-26").
+    // Description is deliberately NOT a fallback: 80% of it is bulk-import boilerplate, so falling back
+    // would fill this column with "imported parent for 1 explicit ams visit" dressed up as a note.
+    nextAction: collapse(contact.Last_Note),
+    // The Monday-start week this record belongs to, keyed on the FOLLOW-UP date, because the weekly view
+    // is about what needs acting on. Null when no follow-up is booked.
+    weekKey: weekKeyOf(followUpDate),
     source: contact.Lead_Source ?? '',
     sourceKey: sourceBucketOf(contact.Lead_Source),
     stage: stageLabelOf(stageKey),
@@ -81,22 +187,34 @@ const totals = (records) => ({
 
 // A card: the headline numbers plus the ids behind them, so the frontend can open the records.
 // `note` is a caveat about the data behind the card; a card without one omits the field entirely.
-function card(records, extra = {}) {
+// `previous` is the same set one period earlier, which adds `previous` and `previousValue` for the trend.
+// Pass null when there is no honest comparison to make and the card simply goes without.
+function card(records, extra = {}, previous = null) {
   const { note, ...rest } = extra;
   const { count, value, ids } = totals(records);
-  return { ...rest, count, value, valueLabel: inr(value), ids, ...(note ? { note } : {}) };
+  const trend = previous ? { previous: previous.length, previousValue: totals(previous).value } : {};
+  return { ...rest, count, value, valueLabel: inr(value), ids, ...trend, ...(note ? { note } : {}) };
 }
 
-// A card broken down by city bucket. byCity always lists all three, so the three counts add up to `count`.
-function cityCard(records, extra = {}) {
+const sliceOf = (records, test) => (records ? records.filter(test) : null);
+
+// A card broken down by city bucket. byCity always lists all three, so the three counts add up to
+// `count`. Each row carries the comparison too, unless the card itself goes without one (overdue).
+function cityCard(records, extra = {}, previous = null) {
+  const inBucket = (key) => (record) => record.cityKey === key;
   return {
-    ...card(records, extra),
-    byCity: CITY_KEYS.map((key) => card(records.filter((record) => record.cityKey === key), { key, label: cityLabelOf(key) }))
+    ...card(records, extra, previous),
+    byCity: cityRows(records, (mine, row) => card(mine, row, sliceOf(previous, inBucket(row.key))))
   };
 }
 
-const bucketCards = (records, buckets, field) =>
-  buckets.map(({ key, label }) => card(records.filter((record) => record[field] === key), { key, label }));
+// The rows of a breakdown (who qualified it, where it came from) are cards in their own right, so they
+// carry the same three city numbers as the headline cards above them.
+const bucketCards = (records, buckets, field, previous = null) =>
+  buckets.map(({ key, label }) => {
+    const inBucket = (record) => record[field] === key;
+    return cityCard(records.filter(inBucket), { key, label }, sliceOf(previous, inBucket));
+  });
 
 // The city the request asked for. A bucket key (DEL / HYD / OTHER) narrows to that bucket, a city name
 // narrows to that one city, and anything the data does not know about falls back to every city, so a
@@ -169,12 +287,17 @@ const monthEndAfter = (iso, months) => {
 // the deals due between today and the 30th are exactly what a forecast is for, and month-to-date would
 // hide them. Every other card stays to-date, which is why this end is worked out here and not taken
 // from tf.end. Weekly, daily and custom windows are already complete, so they keep theirs.
-export function estimateEndOf(tf) {
-  if (tf.kind === 'monthly') return monthEndAfter(tf.start, 0);
-  if (tf.kind === 'quarterly') return monthEndAfter(tf.start, 2);
-  if (tf.kind === 'this-week') return addDays(tf.start, 6);
-  return tf.end;
+export function estimateEndOf({ kind, start, end }) {
+  if (kind === 'monthly') return monthEndAfter(start, 0);
+  if (kind === 'quarterly') return monthEndAfter(start, 2);
+  if (kind === 'yearly') return monthEndAfter(start, 11);
+  if (kind === 'this-week') return addDays(start, 6);
+  return end;
 }
+
+// The same span one period earlier, so the estimate card compares like with like: a whole month against
+// a whole month, rather than against however much of it had elapsed by today's date.
+const previousEstimateEnd = (tf) => estimateEndOf({ kind: tf.kind, start: tf.previousStart, end: tf.previousEnd });
 
 /**
  * `contacts` are Zoho Contacts created since the period start, `closed` every Closed contact (closures
@@ -182,20 +305,31 @@ export function estimateEndOf(tf) {
  * contact carrying an Est. Closure Date, which can be older still.
  * Pass `notice` when Zoho could not be read: the same shape comes back, with zeros.
  */
-export function buildSalesFunnelBoard({ tf, contacts = [], closed = [], estimates = [], city, notice = null, now = new Date() }) {
-  const real = (list) => (list ?? []).filter(isRealRecord).map(toRecord);
-  const created = real(contacts).filter((record) => inWindow(tf, record.createdAt));
-  const closures = real(closed).filter((record) => inWindow(tf, record.closedOn));
+export function buildSalesFunnelBoard({ tf, contacts = [], closed = [], estimates = [], dataFrom = null, city, notice = null, now = new Date() }) {
+  // The dashboard's own day, used for "is this follow-up late" and for the overdue card below.
+  const today = localDayKey(now);
+  const real = (list) => (list ?? []).filter(isRealRecord).map((contact) => toRecord(contact, today));
+  const allContacts = real(contacts);
+  const allClosures = real(closed);
+  const created = allContacts.filter((record) => inWindow(tf, record.createdAt));
+  const closures = allClosures.filter((record) => inWindow(tf, record.closedOn));
+  // The comparison window the period already defines, counted the same way, so "vs last period" means
+  // the same thing here as it does on the PSM board's funnel.
+  const wasInWindow = (date) => Boolean(date) && tf.previousMatches(date);
+  const createdBefore = allContacts.filter((record) => wasInWindow(record.createdAt));
+  const closuresBefore = allClosures.filter((record) => wasInWindow(record.closedOn));
   // A deal that is Dead or already Closed cannot close again, so it is neither expected nor overdue.
   const openEstimates = real(estimates).filter((record) => record.estClosureDate && isOpenStage(record.stageKey));
   const estimateEnd = estimateEndOf(tf);
-  const expected = openEstimates.filter((record) => record.estClosureDate >= tf.start && record.estClosureDate <= estimateEnd);
+  const between = (from, to) => (record) => record.estClosureDate >= from && record.estClosureDate <= to;
+  const expected = openEstimates.filter(between(tf.start, estimateEnd));
+  const expectedBefore = openEstimates.filter(between(tf.previousStart, previousEstimateEnd(tf)));
   // Overdue follows today, not the reporting period: an estimate that has passed stays passed whichever
   // period is on screen. It is still city-filtered, like every other card.
-  const today = localDayKey(now);
   const overdue = openEstimates.filter((record) => record.estClosureDate < today);
-  // One spelling per city, decided across everything in view before any card is counted.
-  applyCityMerge([created, closures, expected, overdue]);
+  // One spelling per city, decided across everything in view before any card is counted. The comparison
+  // lists are in here too, so their city rows are bucketed the same way as the current ones.
+  applyCityMerge([created, closures, expected, overdue, createdBefore, closuresBefore, expectedBefore]);
   // The same record can reach this list by several routes; one copy of each, so every id a card quotes
   // resolves against `records`.
   const byId = new Map([...created, ...closures, ...expected, ...overdue].map((record) => [record.id, record]));
@@ -206,11 +340,18 @@ export function buildSalesFunnelBoard({ tf, contacts = [], closed = [], estimate
   // Everything created in the period, and the whole of it is the `incoming` card. The cards below cut
   // this one set up; they never re-filter `created`, so they always add back up to it.
   const intake = only(created);
+  const intakeBefore = only(createdBefore);
   // Closures are dated by Actual_Closure_Date rather than by when the lead arrived: a lead takes months
   // to close, so they belong to the period's activity, not to its intake.
   const closedNow = only(closures);
   const open = intake.filter((record) => isOpenStage(record.stageKey));
+  const openBefore = intakeBefore.filter((record) => isOpenStage(record.stageKey));
   const qualified = intake.filter((record) => isQualifiedStage(record.stageKey));
+  const qualifiedBefore = intakeBefore.filter((record) => isQualifiedStage(record.stageKey));
+  const byQualifier = (records, key) => records.filter((record) => record.qualifiedBy === key);
+  const comparisonLabel = previousLabelOf(tf.kind, tf.previousLabel ?? null);
+  // Everything the board will show, once. The weekly view groups these, and they are what `records` sends.
+  const visible = only(universe);
 
   const stageCard = (stage) => {
     const records = open.filter((record) => record.stageKey === stage.key);
@@ -220,7 +361,8 @@ export function buildSalesFunnelBoard({ tf, contacts = [], closed = [], estimate
     const note = stage.key === 'S1' && blank
       ? `${blank} of ${records.length} have no Current Stage set in Zoho`
       : null;
-    return card(records, { key: stage.key, label: stage.label, short: stage.short, note });
+    return cityCard(records, { key: stage.key, label: stage.label, short: stage.short, note },
+      openBefore.filter((record) => record.stageKey === stage.key));
   };
 
   return {
@@ -229,31 +371,61 @@ export function buildSalesFunnelBoard({ tf, contacts = [], closed = [], estimate
       start: tf.start,
       end: tf.end,
       city: selected.key,
+      // What every card's `previous` is measured against. `available` is false when the CRM held nothing
+      // for part of that window — the Contacts module only starts in late 2025, so a year-on-year
+      // comparison has nothing real behind it and a trend arrow would read as infinite growth rather
+      // than "no data". The figures are still returned; this says whether they mean anything.
+      comparison: {
+        start: tf.previousStart ?? null,
+        end: tf.previousEnd ?? null,
+        label: comparisonLabel,
+        available: Boolean(tf.previousStart) && (!dataFrom || dataFrom <= tf.previousStart)
+      },
       notice
     },
     filters: { cities: cityFilters(universe) },
     leadGeneration: {
-      // The whole period's intake. The customer's wording is "Incoming leads from PSM", though the PSM
-      // field names a real PSM on only part of it — `qualifiedBy` below is where that split is shown.
-      incoming: cityCard(intake, { label: 'Incoming leads from PSM' }),
-      // The qualified part of the intake, then cut two ways: by who qualified it and by where it came from.
-      qualified: cityCard(qualified),
-      qualifiedBy: bucketCards(qualified, QUALIFIED_BY, 'qualifiedBy'),
-      bySource: bucketCards(qualified, [...SOURCE_BUCKETS, OTHER_SOURCE], 'sourceKey')
+      // What every trend in this section is measured against, worded for the period on screen. A card
+      // whose comparison window differs from the section's carries its own `previousLabel` instead.
+      previousLabel: comparisonLabel,
+      // The intake, split by who the PSM field names: a real PSM handed it over, or a sales person
+      // brought it in themselves. The two cover the intake exactly.
+      incoming: cityCard(byQualifier(intake, 'psm'), { key: 'incoming', label: 'Incoming leads from PSM' },
+        byQualifier(intakeBefore, 'psm')),
+      selfRaw: cityCard(byQualifier(intake, 'self'), { key: 'selfRaw', label: 'Self-generated raw leads' },
+        byQualifier(intakeBefore, 'self')),
+      // The qualified part of the WHOLE intake, so both cards above feed it, then cut two ways: by who
+      // qualified it and by where it came from.
+      qualified: cityCard(qualified, {}, qualifiedBefore),
+      qualifiedBy: bucketCards(qualified, QUALIFIED_BY, 'qualifiedBy', qualifiedBefore),
+      bySource: bucketCards(qualified, [...SOURCE_BUCKETS, OTHER_SOURCE], 'sourceKey', qualifiedBefore)
     },
     salesPerformance: {
+      previousLabel: comparisonLabel,
       // What the sales team expects to close in the period, and what has already slipped past its
       // estimate. Neither is the same set as `closed` below, which is what actually closed.
-      estClosure: cityCard(only(expected), { key: 'estClosure', label: estClosureLabelOf(tf.kind) }),
+      // Its own `previousLabel`: the estimate card compares whole calendar periods, so its comparison
+      // window is a different span from the section's and must be named separately.
+      estClosure: cityCard(only(expected), {
+        key: 'estClosure',
+        label: estClosureLabelOf(tf.kind),
+        previousLabel: previousLabelOf(tf.kind, formatRange(tf.previousStart, previousEstimateEnd(tf)))
+      }, only(expectedBefore)),
+      // No `previous`: overdue is not period-filtered, it is everything still open with a date in the
+      // past, so any "last period" figure would be invented rather than measured.
       overdue: cityCard(only(overdue), { key: 'overdue', label: OVERDUE_LABEL }),
       stages: LADDER_STAGES.map(stageCard),
       principal: stageCard(PRINCIPAL_STAGE),
       // What actually closed in the period, by Actual_Closure_Date. The flow reads
       // Est. closure → Overdue → S1..S5 → S6 → Order Booked → Handover.
-      closed: card(closedNow, { key: CLOSED_STAGE.key, label: CLOSED_CARD_LABEL }),
-      handover: card(open.filter((record) => record.handover), { key: 'handover', label: HANDOVER_LABEL })
+      closed: cityCard(closedNow, { key: CLOSED_STAGE.key, label: CLOSED_CARD_LABEL }, only(closuresBefore)),
+      handover: cityCard(open.filter((record) => record.handover), { key: 'handover', label: HANDOVER_LABEL },
+        openBefore.filter((record) => record.handover))
     },
+    // The weekly view. `weeks` are the period's Monday-start weeks, sent whether or not anything falls
+    // in them so the UI draws the empty ones; `buckets` catch the follow-ups either side.
+    ...weeklyView(visible, tf),
     // The internal signals the cards were built from are dropped; the frontend gets the flat record only.
-    records: only(universe).map(({ cityNameKey, handover, hasStage, ...record }) => record)
+    records: visible.map(({ cityNameKey, handover, hasStage, ...record }) => record)
   };
 }
