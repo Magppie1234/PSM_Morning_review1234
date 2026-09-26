@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-26T06:41:52.625Z",
+  "title": "Design System: Sales Efficiency margin",
+  "extensions": {
+    "scope": "Feature-local companion to ../DESIGN.md; root design sidecar is preserved.",
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "ink",
+        "tonalRamp": [
+          "oklch(15% 0.03 260)",
+          "oklch(27% 0.03 260)",
+          "oklch(39% 0.03 260)",
+          "oklch(51% 0.03 260)",
+          "oklch(63% 0.03 260)",
+          "oklch(75% 0.03 260)",
+          "oklch(87% 0.03 260)",
+          "oklch(95% 0.03 260)"
+        ],
+        "rampPurpose": "Generated preview ramp only; not an implemented application scale."
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "ink secondary",
+        "tonalRamp": [
+          "oklch(15% 0.04 260)",
+          "oklch(27% 0.04 260)",
+          "oklch(39% 0.04 260)",
+          "oklch(51% 0.04 260)",
+          "oklch(63% 0.04 260)",
+          "oklch(75% 0.04 260)",
+          "oklch(87% 0.04 260)",
+          "oklch(95% 0.04 260)"
+        ],
+        "rampPurpose": "Generated preview ramp only; not an implemented application scale."
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "muted",
+        "tonalRamp": [
+          "oklch(15% 0.03 260)",
+          "oklch(27% 0.03 260)",
+          "oklch(39% 0.03 260)",
+          "oklch(51% 0.03 260)",
+          "oklch(63% 0.03 260)",
+          "oklch(75% 0.03 260)",
+          "oklch(87% 0.03 260)",
+          "oklch(95% 0.03 260)"
+        ],
+        "rampPurpose": "Generated preview ramp only; not an implemented application scale."
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "accent",
+        "tonalRamp": [
+          "oklch(15% 0.17 260)",
+          "oklch(27% 0.17 260)",
+          "oklch(39% 0.17 260)",
+          "oklch(51% 0.17 260)",
+          "oklch(63% 0.17 260)",
+          "oklch(75% 0.17 260)",
+          "oklch(87% 0.17 260)",
+          "oklch(95% 0.17 260)"
+        ],
+        "rampPurpose": "Generated preview ramp only; not an implemented application scale."
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "surface",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(27% 0 0)",
+          "oklch(39% 0 0)",
+          "oklch(51% 0 0)",
+          "oklch(63% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(87% 0 0)",
+          "oklch(95% 0 0)"
+        ],
+        "rampPurpose": "Generated preview ramp only; not an implemented application scale."
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "line",
+        "tonalRamp": [
+          "oklch(15% 0.006 100)",
+          "oklch(27% 0.006 100)",
+          "oklch(39% 0.006 100)",
+          "oklch(51% 0.006 100)",
+          "oklch(63% 0.006 100)",
+          "oklch(75% 0.006 100)",
+          "oklch(87% 0.006 100)",
+          "oklch(95% 0.006 100)"
+        ],
+        "rampPurpose": "Generated preview ramp only; not an implemented application scale."
+      },
+      "line-soft": {
+        "role": "neutral",
+        "displayName": "line soft",
+        "tonalRamp": [
+          "oklch(15% 0.006 100)",
+          "oklch(27% 0.006 100)",
+          "oklch(39% 0.006 100)",
+          "oklch(51% 0.006 100)",
+          "oklch(63% 0.006 100)",
+          "oklch(75% 0.006 100)",
+          "oklch(87% 0.006 100)",
+          "oklch(95% 0.006 100)"
+        ],
+        "rampPurpose": "Generated preview ramp only; not an implemented application scale."
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "warning",
+        "tonalRamp": [
+          "oklch(15% 0.1 75)",
+          "oklch(27% 0.1 75)",
+          "oklch(39% 0.1 75)",
+          "oklch(51% 0.1 75)",
+          "oklch(63% 0.1 75)",
+          "oklch(75% 0.1 75)",
+          "oklch(87% 0.1 75)",
+          "oklch(95% 0.1 75)"
+        ],
+        "rampPurpose": "Generated preview ramp only; not an implemented application scale."
+      },
+      "warning-surface": {
+        "role": "semantic",
+        "displayName": "warning surface",
+        "tonalRamp": [
+          "oklch(15% 0.03 85)",
+          "oklch(27% 0.03 85)",
+          "oklch(39% 0.03 85)",
+          "oklch(51% 0.03 85)",
+          "oklch(63% 0.03 85)",
+          "oklch(75% 0.03 85)",
+          "oklch(87% 0.03 85)",
+          "oklch(95% 0.03 85)"
+        ],
+        "rampPurpose": "Generated preview ramp only; not an implemented application scale."
+      },
+      "warning-line": {
+        "role": "semantic",
+        "displayName": "warning line",
+        "tonalRamp": [
+          "oklch(15% 0.04 85)",
+          "oklch(27% 0.04 85)",
+          "oklch(39% 0.04 85)",
+          "oklch(51% 0.04 85)",
+          "oklch(63% 0.04 85)",
+          "oklch(75% 0.04 85)",
+          "oklch(87% 0.04 85)",
+          "oklch(95% 0.04 85)"
+        ],
+        "rampPurpose": "Generated preview ramp only; not an implemented application scale."
+      }
+    },
+    "typographyMeta": {
+      "metric": {
+        "displayName": "Metric value",
+        "purpose": "Compact tabular figures with subordinate units."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "shared-sales-tab",
+        "value": "background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1)",
+        "purpose": "Existing Sales navigation transition; feature cards introduce no motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "three-metric-columns",
+        "value": "1000px"
+      },
+      {
+        "name": "two-metric-columns-stacked-breakdowns",
+        "value": "740px"
+      },
+      {
+        "name": "one-metric-column",
+        "value": "380px"
+      }
+    ],
+    "focus": {
+      "value": "2px solid var(--accent); outline-offset: 3px"
+    },
+    "backdrop": {
+      "value": "rgb(16 34 76 / .4)"
+    },
+    "verification": {
+      "verdict": "Pass with verification limits",
+      "source": "Coordinating implementation review",
+      "confirmed": [
+        "Desktop and 390px mobile",
+        "Card detail and table interactions",
+        "Escape and return focus",
+        "Clean reload with no browser errors",
+        "Production build",
+        "22 focused tests: 16 backend, 6 frontend"
+      ],
+      "limits": [
+        "No independent browser rerun by documenter",
+        "Not exhaustive viewport, assistive technology, contrast or CRM mapping certification"
+      ]
+    }
+  },
+  "components": [
+    {
+      "name": "Metric card",
+      "kind": "card",
+      "refersTo": "metric-card",
+      "description": "Illustrative metric, comparison and sample hierarchy; values are preview content.",
+      "html": "<button class=\"ds-metric\"><span class=\"ds-label\">Closure time <svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M7 17 17 7M7 7h10v10\"/></svg></span><strong>12.4 <small>days</small></strong><span class=\"ds-context\">Previous: 13.2 days</span><span class=\"ds-sample\">20 valid contact intervals · preview</span></button>",
+      "css": ".ds-metric{font-family:Manrope,ui-sans-serif,system-ui,sans-serif;color:var(--ink, #131c33);background:var(--surface, #fff);border:1px solid var(--line, #e7e7e2);cursor:pointer;display:flex;flex-direction:column;gap:7px;text-align:left;border-radius:12px;padding:13px 14px;width:260px;font-variant-numeric:tabular-nums}.ds-label{display:flex;justify-content:space-between;font-size:.76rem;font-weight:750}.ds-label svg{color:var(--accent, #1d5ce0)}.ds-metric strong{font-size:1.45rem;line-height:1.15;letter-spacing:-.02em}.ds-metric small{font-size:.7rem;color:var(--muted, #626b7d);font-weight:600}.ds-context,.ds-sample{font-size:.71rem;line-height:1.4;color:var(--muted, #626b7d)}.ds-sample{border-top:1px solid var(--line-soft, #f0f0ec);padding-top:6px}.ds-metric:hover{border-color:var(--accent, #1d5ce0);background:var(--line-soft, #f0f0ec)}.ds-metric:focus-visible{outline:2px solid var(--accent, #1d5ce0);outline-offset:3px}"
+    },
+    {
+      "name": "Chart toggle",
+      "kind": "button",
+      "refersTo": "detail-toggle-selected",
+      "description": "Selected detail mode uses the incumbent blue.",
+      "html": "<button class=\"ds-toggle\" aria-pressed=\"true\">Chart</button><button class=\"ds-toggle\" aria-pressed=\"false\">Table</button>",
+      "css": ".ds-toggle{font-family:Manrope,ui-sans-serif,system-ui,sans-serif;color:var(--ink, #131c33);background:var(--surface, #fff);border:1px solid var(--line, #e7e7e2);cursor:pointer;min-height:36px;padding:7px 16px;border-radius:6px;font-size:.82rem;margin-right:4px}.ds-toggle[aria-pressed=true]{background:var(--accent, #1d5ce0);border-color:var(--accent, #1d5ce0);color:var(--surface, #fff)}.ds-toggle:focus-visible{outline:2px solid var(--accent, #1d5ce0);outline-offset:3px}@media(pointer:coarse){.ds-toggle{min-height:44px}}"
+    },
+    {
+      "name": "Measure selector",
+      "kind": "input",
+      "refersTo": "measure-select",
+      "description": "Native monthly chart measure control.",
+      "html": "<label class=\"ds-measure\">Measure <select><option>Contact intake</option><option>Qualified contacts</option><option>Closed contacts</option><option>Closed value (₹)</option></select></label>",
+      "css": ".ds-measure{display:flex;align-items:center;gap:10px;font: .82rem Manrope,system-ui,sans-serif;color:var(--ink, #131c33)}.ds-measure select{font-family:Manrope,ui-sans-serif,system-ui,sans-serif;color:var(--ink, #131c33);background:var(--surface, #fff);border:1px solid var(--line, #e7e7e2);cursor:pointer;font:inherit;min-height:36px;max-width:100%;padding:6px 10px;border-radius:6px}.ds-measure select:focus-visible{outline:2px solid var(--accent, #1d5ce0);outline-offset:3px}@media(pointer:coarse){.ds-measure select{min-height:44px}}"
+    },
+    {
+      "name": "Close details",
+      "kind": "button",
+      "refersTo": "close-button",
+      "description": "Visible modal dismissal target.",
+      "html": "<button class=\"ds-close\" aria-label=\"Close efficiency details\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"m18 6-12 12M6 6l12 12\"/></svg></button>",
+      "css": ".ds-close{font-family:Manrope,ui-sans-serif,system-ui,sans-serif;color:var(--ink, #131c33);background:var(--surface, #fff);border:1px solid var(--line, #e7e7e2);cursor:pointer;display:grid;place-items:center;width:36px;height:36px;border-radius:8px}.ds-close:focus-visible{outline:2px solid var(--accent, #1d5ce0);outline-offset:3px}@media(pointer:coarse){.ds-close{width:44px;min-height:44px}}"
+    },
+    {
+      "name": "Sales navigation",
+      "kind": "nav",
+      "description": "Shared shell primitive, retained outside feature ownership.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Sales sections\"><button>Sales performance</button><button aria-current=\"page\">Efficiency margin</button></nav>",
+      "css": ".ds-nav{display:flex;gap:4px;padding:4px;border:1px solid var(--line, #e7e7e2);border-radius:10px;background:var(--surface, #fff)}.ds-nav button{flex:1;min-height:38px;padding:0 14px;border:0;border-radius:7px;background:transparent;color:var(--muted, #626b7d);font:700 .8rem Manrope,system-ui,sans-serif;cursor:pointer;transition:background .15s cubic-bezier(.16,1,.3,1),color .15s cubic-bezier(.16,1,.3,1)}.ds-nav button:hover{background:#fafaf8;color:var(--ink, #131c33)}.ds-nav button[aria-current=page]{background:var(--accent, #1d5ce0);color:#fff}.ds-nav button:focus-visible{outline:3px solid #76a7ff;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Operate",
+    "overview": "Operate keeps the existing navy-and-white Sales workspace and Manrope typography. Shallow metric cards expose the critical value, comparison and sample; selecting a card reveals the calculation and breakdown. This is a feature extension, not a replacement brand.",
+    "keyCharacteristics": [
+      "Compact summaries with explicit units and sample context.",
+      "Detailed charts and tables on demand.",
+      "Source-aware wording and visible missing-data states."
+    ],
+    "rules": [],
+    "dos": [
+      "Do preserve the incumbent Sales palette and Manrope typography.",
+      "Do keep period, unit, sample and missing-data context attached to values.",
+      "Do keep chart detail paired with a complete table and keyboard dismissal."
+    ],
+    "donts": [
+      "Don't infer conversion, profit or import causes from these activity measures.",
+      "Don't expand the overview into a wall of full charts.",
+      "Don't treat the root standalone design record as a prescription to replace the current Sales shell."
+    ]
+  }
+}
