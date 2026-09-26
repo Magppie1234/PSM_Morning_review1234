@@ -1,0 +1,66 @@
+/* Efficiency feature: shallow overview, details mounted only after a card is selected.
+   Uses the existing Sales/Pre Sales tokens so this view stays part of the same workspace. */
+.em { color: var(--ink); font-variant-numeric: tabular-nums; }
+.em-compact { display: grid; gap: 14px; }
+.em-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.em-heading h2 { margin: 0; font-size: 1rem; font-weight: 750; }
+.em-heading p, .em-heading > span { margin: 4px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.45; }
+.em-heading > span { flex-shrink: 0; }
+.em-warn { display: flex; gap: 8px; align-items: center; margin: 0; padding: 9px 12px; border: 1px solid var(--warn-line); border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: .76rem; }
+.em-warn svg { flex-shrink: 0; }
+.em-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.em-summary-card, .em-breakdown { text-align: left; color: var(--ink); border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 13px 14px; cursor: pointer; min-width: 0; font: inherit; }
+.em-summary-card { display: flex; flex-direction: column; gap: 7px; }
+.em-summary-card:hover, .em-breakdown:hover { border-color: var(--accent); background: var(--line-soft); }
+.em button:focus-visible, .em select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.em-summary-label { display: flex; justify-content: space-between; gap: 8px; align-items: start; font-size: .76rem; line-height: 1.4; font-weight: 750; }
+.em-summary-label svg { flex-shrink: 0; color: var(--accent); }
+.em-summary-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px; font-size: 1.45rem; font-weight: 750; letter-spacing: -.02em; line-height: 1.15; }
+.em-summary-value small { font-size: .7rem; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+.em-summary-value.is-unavailable { font-size: 1.05rem; color: var(--muted); }
+.em-summary-context, .em-summary-sample { display: block; font-size: .71rem; color: var(--muted); line-height: 1.4; }
+.em-summary-sample { border-top: 1px solid var(--line-soft); padding-top: 6px; margin-top: auto; }
+.em-breakdown-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.em-breakdown { display: flex; flex-direction: column; gap: 6px; }
+.em-breakdown-total { font-size: 1.15rem; font-weight: 750; }
+.em-mini-bars { display: grid; gap: 9px; width: 100%; margin-top: 9px; }
+.em-mini-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; font-size: .73rem; line-height: 1.4; }
+.em-mini-label { min-width: 0; overflow-wrap: anywhere; color: var(--ink-2); }
+.em-mini-row strong { font-weight: 700; }
+.em-mini-track { grid-column: 1 / -1; display: block; height: 5px; background: var(--line-soft); }
+.em-mini-track > span { display: block; height: 100%; background: var(--accent); }
+.em-mini-track > .is-secondary { background: var(--muted); }
+.em-summary-empty { color: var(--muted); font-size: .76rem; padding: 12px 0; }
+.em-open-detail { display: block; margin-top: auto; padding-top: 10px; color: var(--accent); font-size: .72rem; font-weight: 700; }
+.em-detail-dialog { width: min(820px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); overflow: auto; }
+.em-detail-dialog::backdrop { background: rgb(16 34 76 / .4); }
+.em-detail-header { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: start; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.em-detail-header h2 { margin: 0; font-size: 1.05rem; }
+.em-detail-header p { margin: 4px 0 0; font-size: .76rem; color: var(--muted); }
+.em-detail-header button { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); cursor: pointer; }
+.em-detail-body { display: grid; gap: 16px; padding: 20px; font-size: .82rem; }
+.em-detail-body > p { margin: 0; line-height: 1.55; }
+.em-detail-number { font-size: 1.6rem; font-weight: 750; }
+.em-detail-number small { color: var(--muted); font-size: .8rem; font-weight: 600; }
+.em-detail-note { color: var(--muted); max-width: 75ch; }
+.em-detail-body .em-mini-bars { margin: 0; gap: 13px; }
+.em-detail-body .em-mini-row { font-size: .8rem; }
+.em-detail-body .em-mini-track { height: 9px; }
+.em-detail-toggle { display: flex; gap: 4px; justify-self: start; }
+.em-detail-toggle button { min-height: 36px; padding: 7px 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+.em-detail-toggle button[aria-pressed='true'] { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.em-measure-control { display: flex; align-items: center; gap: 10px; }
+.em-measure-control select { min-height: 36px; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; color: var(--ink); background: var(--surface); font: inherit; }
+.em-detail-table { overflow-x: auto; }
+.em-detail-table table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+.em-detail-table th, .em-detail-table td { padding: 10px; border-bottom: 1px solid var(--line); text-align: right; }
+.em-detail-table th:first-child { text-align: left; min-width: 140px; }
+.em-detail-table thead { color: var(--muted); }
+.em-detail-table tbody th { font-weight: 650; }
+@media (max-width: 1000px) { .em-metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 740px) { .em-heading { flex-direction: column; gap: 2px; } .em-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .em-breakdown-grid { grid-template-columns: 1fr; } .em-detail-dialog { width: calc(100vw - 20px); } .em-detail-body, .em-detail-header { padding: 14px; } }
+@media (max-width: 380px) { .em-metric-grid { grid-template-columns: 1fr; } }
+@media (pointer: coarse) { .em-detail-toggle button, .em-detail-header button, .em-measure-control select { min-height: 44px; } .em-detail-header button { width: 44px; } }
+.em-trend { min-width: 0; }
+.em-trend-label { fill: var(--muted); font-size: 11px; font-weight: 600; }
+.em-trend-grid { stroke: var(--line); stroke-width: 1; }
