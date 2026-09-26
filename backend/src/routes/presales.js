@@ -17,12 +17,6 @@ presalesRoutes.get('/dashboard', async (request, response) => {
     const timeframe = timeframeOf(request);
     // Fetch back to the start of the comparison period so previous-period figures are complete.
     const window = getTimeframeFilter(timeframe);
-    const leads = await getRecentLeads(window.previousStart ?? window.start);
-    const dealIds = [...new Set(leads.map((lead) => lead.Converted_Deal?.id).filter(Boolean))];
-    const dealStages = await getDealStages(dealIds).catch((error) => {
-      console.error('Converted deal stages unavailable:', error.message);
-      return new Map();
-    });
     // Extra reads run side by side; if one fails the page still loads without it.
     //   contacts       qualified opportunities (mandate bar, Sales qualified)
     //   statusHistory  when each lead entered its current status (time in status)
@@ -32,7 +26,14 @@ presalesRoutes.get('/dashboard', async (request, response) => {
       console.error(`${label} unavailable:`, error.message);
       return fallback;
     });
-    const [contacts, statusHistory, calls, closedContacts] = await Promise.all([
+    // Start the lead-dependent stage lookup alongside independent module reads.
+    const leadRead = getRecentLeads(window.previousStart ?? window.start).then(async (leads) => {
+      const dealIds = [...new Set(leads.map((lead) => lead.Converted_Deal?.id).filter(Boolean))];
+      const dealStages = await optional('Converted deal stages', getDealStages(dealIds), new Map());
+      return { leads, dealStages };
+    });
+    const [{ leads, dealStages }, contacts, statusHistory, calls, closedContacts] = await Promise.all([
+      leadRead,
       optional('Contacts (qualified opportunities)', getRecentContacts(window.previousStart ?? window.start), null),
       optional('Lead status history', getRecentStatusHistory(window.start), []),
       optional('Call logs', getRecentCalls(window.start), []),

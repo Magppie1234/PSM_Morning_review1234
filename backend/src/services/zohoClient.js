@@ -1,6 +1,8 @@
+import { nextReportingDayAt } from '../lib/cache/reportingDay.js';
 import { config } from '../config/env.js';
 import { readJson, removeFile, writeJson } from '../lib/dataStore.js';
 import { LEAD_WINDOW_DAYS } from './timeUtils.js';
+import { ReadCache, readContext, withReadContext, recordSourceRead, recordReadFailure } from '../lib/cache/readCache.js';
 
 const MAX_PAGES = 40;
 
@@ -11,9 +13,8 @@ const TOKEN_FILE = '.zoho_token.json';
 const DEALS_CACHE_FILE = '.deals_cache.json';
 const LEADS_CACHE_FILE = '.leads_cache.json';
 
-// In-memory cache for 60 seconds
-const apiCache = new Map();
-const CACHE_TTL_MS = 60_000;
+// Reuse successful source reads for 30 minutes; concurrent readers share one request.
+const apiCache = new ReadCache({ expiresAtLimit: (timestamp) => nextReportingDayAt(timestamp, config.zoho.timezone) });
 
 function loadTokenFromDisk() {
   const saved = readJson(TOKEN_FILE);
@@ -70,44 +71,37 @@ function forgetToken(staleValue) {
   removeFile(TOKEN_FILE);
 }
 
-// Drops the 60-second copy of every Zoho response, so the next read goes to the CRM. Used by the
-// Refresh button on the boards; the saved token and the on-disk fallback lists are left alone.
-export function clearApiCache() {
-  apiCache.clear();
-}
+// Kept for administrative callers; board refresh uses request-scoped bypass instead.
+export function clearApiCache() { apiCache.clear(); }
 
-export async function zohoGet(path, query = {}, retried = false) {
-  const cacheKey = `${path}?${new URLSearchParams(query).toString()}`;
-  const cached = apiCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
+export async function zohoGet(path, query = {}) {
+  const parameters = new URLSearchParams();
+  Object.entries(query).filter(([, value]) => value !== undefined && value !== '').forEach(([key, value]) => parameters.set(key, value));
+  parameters.sort();
+  const cacheKey = path + '?' + parameters;
+  try {
+    const entry = await apiCache.get(cacheKey, async () => {
+      async function read(retried = false) {
+        const token = await getZohoAccessToken();
+        const url = new URL(path, config.zoho.apiDomain + '/crm/v8/');
+        url.search = parameters.toString();
+        const response = await fetch(url, { headers: { Authorization: 'Zoho-oauthtoken ' + token } });
+        const payload = response.status === 204 ? { data: [], info: { more_records: false } } : await response.json();
+        if (response.status === 401 && payload.code === 'INVALID_TOKEN' && !retried) {
+          forgetToken(token);
+          return read(true);
+        }
+        if (!response.ok) throw new Error('Zoho request failed: ' + (payload.code ?? response.status));
+        return payload;
+      }
+      return read();
+    }, { force: readContext()?.force });
+    recordSourceRead(entry.fetchedAt);
+    return entry.data;
+  } catch (error) {
+    recordReadFailure();
+    throw error;
   }
-
-  const token = await getZohoAccessToken();
-  const url = new URL(path, `${config.zoho.apiDomain}/crm/v8/`);
-  Object.entries(query).filter(([, value]) => value !== undefined && value !== '').forEach(([key, value]) => url.searchParams.set(key, value));
-  
-  const response = await fetch(url, { headers: { Authorization: `Zoho-oauthtoken ${token}` } });
-  const payload = await response.json();
-
-  if (response.status === 401 && payload.code === 'INVALID_TOKEN' && !retried) {
-    forgetToken(token);
-    return zohoGet(path, query, true);
-  }
-  
-  if (!response.ok) {
-    if (cached?.data) {
-      return cached.data;
-    }
-    throw new Error(`Zoho request failed: ${payload.code ?? response.status}`);
-  }
-
-  apiCache.set(cacheKey, {
-    data: payload,
-    expiresAt: Date.now() + CACHE_TTL_MS
-  });
-
-  return payload;
 }
 
 export async function getLeadFieldMetadata() {
@@ -171,11 +165,84 @@ export async function getRecentContacts(since) {
 // City, Owner, Stage ("Status"), Amount ("BD Value"), Est_Closoure_Date ("Est. Closure Date", the CRM's
 // own spelling) and the two product fields are read for the Sales board's lead generation and sales
 // performance sections; the boards that do not need them simply ignore them.
-const CONTACT_FIELDS = 'Full_Name,Sales_Manager,Owner,City,Stage,Amount,Total_Opportunity_Value,Client_Status,Lead_Source,Created_Time,Modified_Time,Modified_By,Actual_Closure_Date,Est_Closoure_Date,Product_Requirement,Product_Type';
+// Created_By is read for the Efficiency section: five bulk imports by the company account account for
+// 46% of the module, and two of them are service entries rather than leads. Identifying them needs the
+// creating account, not the owner, which changes on reassignment. Every other board ignores the field.
+// Next_Follow_UP_Date ("Follow Up Date") is the follow-up the team actually fills; Next_Follow_Up_Date1
+// is a newer datetime field almost nobody uses, so it is read only as a fallback. Last_Note carries the
+// free-text next action. All three feed the weekly view.
+const CONTACT_FIELDS = 'Full_Name,Sales_Manager,Owner,Created_By,City,Stage,Amount,Total_Opportunity_Value,Client_Status,Lead_Source,Created_Time,Modified_Time,Modified_By,Actual_Closure_Date,Est_Closoure_Date,Product_Requirement,Product_Type,Next_Follow_UP_Date,Next_Follow_Up_Date1,Last_Note';
+
+// Same window as getRecordsInWindow, but the first ten pages go out a few at a time instead of one
+// after another. Zoho serves pages 1-10 by page number and only needs the page token beyond that, so
+// those ten requests are independent; measured against the live CRM this takes a 12-month Contacts read
+// from 6.8s to 5.0s, and it is the same set of requests either way.
+// PAGE_BURST is deliberately small: every other board reads Zoho strictly sequentially, and a wide
+// burst here would eat the org's shared concurrency budget and slow those boards down instead.
+// Used by the Efficiency section, whose 12-month trend needs the whole module on every load.
+const PAGE_BURST = 4;
+
+async function getRecordsInWindowFast(module, fields, since, maxPages = 40) {
+  const cutoff = Date.parse(`${since}T00:00:00Z`) - 86_400_000;
+  const base = { fields, per_page: 200, sort_by: 'Created_Time', sort_order: 'desc' };
+  const rows = [];
+  // Newest first, so a page that ends older than the window is the last one worth asking for.
+  const done = (payload) => {
+    const oldest = payload?.data?.at(-1)?.Created_Time;
+    return !payload?.info?.more_records || !oldest || Date.parse(oldest) < cutoff;
+  };
+  let finished = false;
+  let token;
+  for (let start = 1; start <= 10 && !finished; start += PAGE_BURST) {
+    const size = Math.min(PAGE_BURST, 11 - start);
+    const batch = await Promise.all(Array.from({ length: size }, (_, index) => zohoGet(module, { ...base, page: start + index })));
+    batch.forEach((payload) => rows.push(...(payload.data ?? [])));
+    finished = done(batch.at(-1));
+    // Only page 10 carries a usable token; earlier batches set it and are overwritten by the next one.
+    token = batch.at(-1)?.info?.next_page_token;
+  }
+  for (let page = 11; page <= maxPages && !finished && token; page += 1) {
+    const payload = await zohoGet(module, { ...base, page_token: token });
+    rows.push(...(payload.data ?? []));
+    finished = done(payload);
+    token = payload.info?.next_page_token;
+  }
+  // The parallel pages can overlap if a record is created mid-read, so ids are de-duplicated.
+  const seen = new Set();
+  return rows.filter((record) => Date.parse(record.Created_Time) >= cutoff && !seen.has(record.id) && seen.add(record.id));
+}
+
+// Cache assembled windows too: Zoho pagination tokens change between reads.
+async function getCachedWindow(module, fields, since) {
+  const entry = await apiCache.get('window:' + module + ':' + fields + ':' + since, async () => {
+    const state = { force: readContext()?.force, fetchedAt: Date.now(), degraded: false };
+    const records = await withReadContext(state, () => getRecordsInWindowFast(module, fields, since));
+    return { records, fetchedAt: state.fetchedAt };
+  }, { force: readContext()?.force }).catch((error) => { recordReadFailure(); throw error; });
+  entry.expiresAt = Math.min(entry.expiresAt, entry.data.fetchedAt + 30 * 60 * 1000);
+  recordSourceRead(entry.data.fetchedAt);
+  return entry.data.records;
+}
+
+// The two reads behind /api/sales-efficiency. Contacts always go back 12 months because the section's
+// trend series does; Deals only back to the start of the comparison window, which is all they are used for.
+export const getEfficiencyContacts = (since) => getCachedWindow('Contacts', CONTACT_FIELDS, since);
+
+const EFFICIENCY_DEAL_FIELDS = 'Deal_Name,Created_Time,Stage,Product_Type,Number_of_Design_Revisions,Value,Total_Amount,Actual_Closure_Date,city';
+export const getEfficiencyDeals = (since) => getCachedWindow('Deals', EFFICIENCY_DEAL_FIELDS, since);
 
 // Every Contact whose Client Status is Closed (closures are dated by Actual_Closure_Date, not creation).
 export async function getClosedContacts() {
   return getAllRecords('Contacts', CONTACT_FIELDS, { criteria: '(Client_Status:equals:Closed)', maxPages: 10 });
+}
+
+// The day the Contacts module starts. One record, so it costs almost nothing. It lets the boards tell
+// "nothing happened in that period" apart from "the CRM did not hold anything yet", instead of drawing a
+// comparison against an empty window as if it were growth.
+export async function getEarliestContactDate() {
+  const payload = await zohoGet('Contacts', { fields: 'Created_Time', per_page: 1, sort_by: 'Created_Time', sort_order: 'asc' });
+  const earliest = payload.data?.[0]?.Created_Time;
+  return earliest ? String(earliest).slice(0, 10) : null;
 }
 
 // Contacts with an Est. Closure Date in the given range, for the Sales board's estimate and overdue cards.
