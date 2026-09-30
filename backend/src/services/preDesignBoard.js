@@ -3,6 +3,7 @@ import {
   cityNameKeyOf, cityNameLabelOf, cityRows, mergeCityNames, previousLabelOf
 } from '../config/salesFunnel.js';
 import { DEAL_PRE_DESIGN_STEPS, EMPTY_STAGE } from '../config/journey.js';
+import { attachPreDesignFormulas } from '../config/cardFormula.js';
 import { canonicalDesigner, canonicalStage } from '../config/crmNames.js';
 import { inr } from './salesFunnelBoard.js';
 import { managerOf } from './salesManagers.js';
@@ -179,7 +180,18 @@ const isDesignRequest = (deal) =>
 // Staff test orders. The Sales funnel's isRealRecord reads Full_Name, which Deals do not have — theirs
 // is Deal_Name — so it passes every deal through. 66 test orders are in the module; this is the field
 // that actually filters them.
-export const isRealDeal = (deal) => !/\btest\b/i.test(deal?.Deal_Name ?? '');
+// SUNROOOF IS NOT PART OF THIS DASHBOARD. It is a separate product line the team does not review
+// here, so its orders are dropped at the source rather than filtered card by card. The CRM spells it
+// Sunrooof, Sunroof, SUNROOOF and occasionally "Sun Roof", so the pattern is relaxed about the
+// spacing and the number of o's. It is tested against BOTH the order name and the product type:
+// 550 orders carry it in the name and 560 in the type, and those two sets are not the same.
+//
+// This removes 562 of 7,719 orders, about 7%. Every board that reads orders comes through the filter
+// below, which is why this only has to be said once.
+const SUNROOOF = /sun\s*ro+f/i;
+
+export const isRealDeal = (deal) => !/\btest\b/i.test(deal?.Deal_Name ?? '')
+  && !SUNROOOF.test(`${deal?.Deal_Name ?? ''} ${deal?.Product_Type ?? ''}`);
 
 // ---------------------------------------------------------------------------
 // The stage ledger
@@ -228,8 +240,41 @@ function pastOf(entry) {
     leftRevision,
     firstAt: entry.entries[0]?.enteredAt ?? null,
     currentKey: current && !current.movedTo ? current.stageKey : null,
+    // When the order arrived at the stage it is on now. This is what "time in status" measures, and
+    // it exists only on the ledger — the Deal itself records no per-stage entry date.
+    currentSince: current && !current.movedTo ? (current.enteredAt ?? null) : null,
     any: (stages) => [...stages].some((stage) => reached.has(stage))
   };
+}
+
+/** The earliest date the order entered any stage in `stages`, or null. */
+function firstEntryTo(past, stages) {
+  if (!past) return null;
+  const dates = [...stages].map((stage) => past.enteredAt.get(stage)).filter(Boolean).sort();
+  return dates[0] ?? null;
+}
+
+// Whole days from a stamp to NOW. For an elapsed figure that is still running.
+const daysSoFar = (from) => spanDays(from, Date.now());
+
+// Whole days BETWEEN two stamps. Null when either end is missing - which is the point: an order that
+// has not been booked has no time-to-close, and defaulting the missing end to `now` silently turned
+// that into "days since created" on all 318 orders when only 1 was actually booked.
+const daysBetweenStamps = (from, to) => (from && to ? spanDays(from, Date.parse(to)) : null);
+
+function spanDays(from, end) {
+  if (!from) return null;
+  const days = (end - Date.parse(from)) / 86_400_000;
+  return Number.isFinite(days) && days >= 0 ? Math.round(days * 10) / 10 : null;
+}
+
+// WHOLE MINUTES since a stamp. Minutes rather than hours because the tables render time in status as
+// "1 day + 6h 49m", and an hours-only figure cannot produce the minutes - it was showing "1d 6h" and
+// rounding away up to 59 minutes of a number people use to decide what to chase.
+function minutesSince(stamp) {
+  if (!stamp) return null;
+  const minutes = (Date.now() - Date.parse(stamp)) / 60_000;
+  return Number.isFinite(minutes) && minutes >= 0 ? Math.floor(minutes) : null;
 }
 
 // Days from the order's first appearance to the first time it was sent for approval, off the ledger.
@@ -315,6 +360,35 @@ function toRecord(deal, history, managers) {
     designApprovedOn: deal.Design_Approved_Date ?? null,
     handoverOn: deal.Handover_Date ?? null,
     createdAt: deal.Created_Time ?? null,
+    // TIME IN STATUS, in whole hours, from the dated stage ledger. Null rather than 0 where the
+    // ledger holds no history for the order, so "not recorded" never reads as "arrived just now".
+    minutesInStatus: minutesSince(past?.currentSince),
+    statusSince: past?.currentSince ?? null,
+
+    // ---- The per-card columns ------------------------------------------------------------------
+    // Product_Type, which the tables show on every card and the Installation board's split reads.
+    product: clean(deal.Product_Type),
+    // The revision detail. Zoho keeps the SM's reason and the design team's reason in two separate
+    // fields, and until now neither was shown anywhere on this board.
+    revisionType: clean(deal.Revision_Type),
+    reasonSm: clean(deal.Reason_for_Design_Revision1),
+    reasonDesign: clean(deal.Reason_for_Design_Revision2),
+    // Why the order ran late. There is no such field in the CRM, so this is empty on every order
+    // until one is created - the column says so rather than showing a blank with no explanation.
+    delayReason: clean(deal.Delay_Reason),
+
+    // Stage-entry dates. All of them come off the ledger, because the Deal itself records no date
+    // for entering a stage - only Created_Time, Send_For_Approval_Date and a few approvals.
+    assignedOn: firstEntryTo(past, ASSIGNED_STAGES),
+    raisedOn: firstEntryTo(past, QUERY_STAGES),
+    revisionAskedOn: firstEntryTo(past, REVISION_LEDGER_STAGES),
+    bookedOn: firstEntryTo(past, BOOKED_STAGES),
+
+    // Elapsed figures the cards quote. Each is null where its inputs are missing, never 0.
+    daysWaiting: daysSoFar(past?.currentSince ?? deal.Created_Time),
+    daysLate: daysSoFar(deal.Expected_Design_Date),
+    timeToClose: daysBetweenStamps(deal.Created_Time, firstEntryTo(past, BOOKED_STAGES)),
+    turnaroundDays: daysBetweenStamps(firstEntryTo(past, REVISION_LEDGER_STAGES), deal.Send_For_Approval_Date),
     // The card tests. Every one of them is now "is the order ON this stage", so a card can only ever
     // contain the stage it is named after.
     request: isDesignRequest(deal),
@@ -542,7 +616,12 @@ const DEAL_FIELDS = [
   'Designer_Name', 'Design_Required_on', 'Expected_Design_Date', 'Design_Approved_Date',
   'Design_Presentation', 'Send_For_Approval_Date', 'Requirements_For_SM',
   'Number_of_Design_Revisions', 'Revision_Type',
-  'Reason_for_Design_Revision1', 'Reason_for_Design_Revision2', 'Handover_Date'
+  'Reason_for_Design_Revision1', 'Reason_for_Design_Revision2', 'Handover_Date',
+  'Product_Type',
+  // Delay_Reason DOES NOT EXIST IN ZOHO YET. Asked for so the Order booked column is plumbed and
+  // fills itself the day the field is created; Zoho answers an unknown field name by leaving it out
+  // of the row rather than failing the read (probed against the live org).
+  'Delay_Reason'
 ].join(',');
 
 const MAX_PAGES = 45;
@@ -579,7 +658,100 @@ export async function getPreDesignDeals(since) {
  *                partial history read degrades the numbers rather than breaking the board
  * @param notice  set when Zoho could not be read: the same shape comes back, with zeros
  */
-export function buildPreDesignBoard({ tf, deals = [], city, history = null, managers = null, notice = null }) {
+
+// ---------------------------------------------------------------------------------------------
+// "Sent for approval" — the one card on this board that is dated by a STAGE, not by creation
+// ---------------------------------------------------------------------------------------------
+// Every other card here asks "which orders CREATED in this period are sitting on my stage now".
+// This one asks the question the business actually wants, and the one the validated MIS definition
+// uses: "how many designs went out to a client in this month".
+//
+// The difference is not cosmetic:
+//
+//   PERIOD   the month an order FIRST entered "Sent for Approval", read from the stage history.
+//            Not Created_Time - an order created in June and sent in September belongs to
+//            September, and under the old rule it was not counted at all because the board only
+//            fetched orders created inside the window.
+//   BASE     Designer_Name is set. A design cannot be sent by nobody.
+//   STAGE    "Sent for Approval" alone. The old card also counted "Sent to Client (First Design)",
+//            "Price Discussion" and "Design Dis-Approved" - the last two are not a design going
+//            out, they are what happens afterwards.
+//   SOURCE   the ledger's EARLIEST entry, never Send_For_Approval_Date. Measured across the module:
+//            the two disagree on the MONTH for 430 of 2,392 orders (18%), and every disagreement
+//            has the ledger earlier - because the field is overwritten each time a design is
+//            re-sent, so it holds the LATEST send while the card needs the first.
+//
+// WHAT THIS COSTS. The card no longer partitions the requests card, so it carries no share: its
+// orders are dated by a different clock from the cards either side of it and a percentage between
+// the two would be meaningless. That is a real loss and it is why no other card has been moved to
+// this basis without being asked for.
+//
+// If the whole module or the full history cannot be read, the card falls back to the old
+// creation-dated behaviour rather than showing nothing, and says so on its face.
+
+const SENT_STAGE = 'sent for approval';
+
+function sentForApprovalCard({ tf, allDeals, fullHistory, managers, selected, fallback }) {
+  const label = 'Sent for approval';
+
+  // Without the whole module or a full history there is no way to date this card honestly.
+  if (!allDeals?.length || !fullHistory) {
+    return {
+      card: cityCard(fallback.records, {
+        key: 'sentForApproval',
+        label,
+        share: fallback.of(fallback.records),
+        note: 'Dated by creation, not by when the design went out: the full order history could not '
+          + 'be read for this response.'
+      }, fallback.previous),
+      dated: false
+    };
+  }
+
+  const firstSentAt = (record) => {
+    const entry = fullHistory.get(String(record.id));
+    if (!entry?.entries?.length) return null;
+    return entry.entries
+      .filter((step) => clean(canonicalStage(step.stage)).toLowerCase() === SENT_STAGE)
+      .map((step) => step.enteredAt)
+      .filter(Boolean)
+      .sort()[0] ?? null;
+  };
+
+  const universe = allDeals.filter(isRealDeal).map((deal) => toRecord(deal, fullHistory, managers));
+  applyCityMerge([universe]);
+
+  const withDesigner = universe.filter((record) => record.designer);
+  const dated = withDesigner
+    .map((record) => ({ ...record, sentOn: firstSentAt(record) }))
+    .filter((record) => record.sentOn);
+
+  const inPeriod = dated.filter((record) => tf.matches(record.sentOn) && selected.matches(record));
+  const inPrevious = tf.previousStart
+    ? dated.filter((record) => tf.previousMatches(record.sentOn) && selected.matches(record))
+    : null;
+
+  // How many the old rule would have missed: orders sent this period but created before the window.
+  const missedByCreation = inPeriod.filter((record) => !tf.matches(record.createdAt)).length;
+
+  return {
+    card: cityCard(inPeriod, {
+      key: 'sentForApproval',
+      label,
+      // NO SHARE, deliberately: this card is dated by when the design went out and the cards either
+      // side of it by when the order was created, so a percentage between them compares two clocks.
+      note: missedByCreation
+        ? `Counted by the month the design first went out, from the stage history. `
+          + `${missedByCreation.toLocaleString('en-IN')} of these were created before this period and `
+          + 'were missed entirely by the old creation-dated card.'
+        : 'Counted by the month the design first went out, from the stage history, not by when the order was created.'
+    }, inPrevious),
+    dated: true,
+    missedByCreation
+  };
+}
+
+export function buildPreDesignBoard({ tf, deals = [], city, history = null, managers = null, notice = null, allDeals = null, fullHistory = null }) {
   const all = (deals ?? []).filter(isRealDeal).map((deal) => toRecord(deal, history, managers));
   const created = all.filter((record) => record.createdAt && tf.matches(record.createdAt));
   const createdBefore = all.filter((record) => record.createdAt && tf.previousMatches(record.createdAt));
@@ -620,6 +792,9 @@ export function buildPreDesignBoard({ tf, deals = [], city, history = null, mana
   const imported = arrived.filter((record) => !record.request && record.rank >= 4).length;
   const overLimit = asked.filter((record) => record.revisions > REVISION_LIMIT).length;
   const withAmount = booked.filter((record) => record.amount > 0).length;
+  // The dated "Sent for approval" card, built before the rest so its note can be quoted below.
+  const sentApproval = sentForApprovalCard({ tf, allDeals, fullHistory, managers, selected, fallback: { records: approval, previous: approvalBefore, of } });
+
   // How much of the cohort each Pre-efficiency average is actually made of — said on the card, so an
   // average over three orders can never be read as an average over the month.
   const measuredDays = cohort.filter((record) => record.designDays != null).length;
@@ -658,7 +833,10 @@ export function buildPreDesignBoard({ tf, deals = [], city, history = null, mana
       notice
     },
     filters: { cities: cityFilters(created.filter((record) => record.request)) },
-    preDesign: {
+    // Every card ships with the formula that produced it, generated from the same journey config the
+    // counting used - so "Show Formula" cannot fall out of step with the code the way a hand-written
+    // copy would.
+    preDesign: attachPreDesignFormulas({
       previousLabel: comparisonLabel,
       // 1 — the head of the chain: how many requests sales sent to design.
       requests: cityCard(cohort, {
@@ -688,9 +866,9 @@ export function buildPreDesignBoard({ tf, deals = [], city, history = null, mana
         key: 'queryToSm', label: 'Query to SM', share: of(query)
       }, queryBefore),
       // 6 to 10 — the single chain the two pairs feed into.
-      sentForApproval: cityCard(approval, {
-        key: 'sentForApproval', label: 'Sent for approval', share: of(approval)
-      }, approvalBefore),
+      // SENT FOR APPROVAL IS DATED DIFFERENTLY FROM EVERY OTHER CARD HERE, and deliberately.
+      // See sentForApprovalCard() for why, and for what it gives up in exchange.
+      sentForApproval: sentApproval.card,
       revisionRequested: cityCard(asked, {
         key: 'revisionRequested',
         label: 'Revision requested',
@@ -724,7 +902,7 @@ export function buildPreDesignBoard({ tf, deals = [], city, history = null, mana
       handover: cityCard(handover, {
         key: 'handover', label: 'Handover to design', share: of(handover)
       }, handoverBefore)
-    },
+    }, tf, Boolean(history)),
     // The two averages under the funnel. Same cohort, same city buckets, different arithmetic.
     preEfficiency: {
       previousLabel: comparisonLabel,

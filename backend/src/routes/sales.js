@@ -5,6 +5,7 @@ import { timeframeOf } from '../lib/http.js';
 import { buildDesignDashboardFromDeals } from '../services/designMapper.js';
 import { loadPdiReview } from '../services/pdiReview.js';
 import { buildPreDesignBoard, getPreDesignDeals } from '../services/preDesignBoard.js';
+import { getAllDeals } from '../services/dealsModule.js';
 import { buildPostDesignFunnel, getPostDesignQueue } from '../services/postDesignFunnel.js';
 import { ALL_HISTORY, getStageLedger, indexByRecord } from '../services/stageLedger.js';
 import { getSalesManagersByContact } from '../services/salesManagers.js';
@@ -76,7 +77,13 @@ salesRoutes.get('/pre-design-funnel', async (request, response) => {
     // The orders, and the dated stage ledger behind them. The ledger is optional on purpose: if it
     // cannot be read the board still renders from the Stage snapshot, one card at a time, rather
     // than failing — and meta.coverage.stageSource says which of the two it used.
-    const [deals, ledger, managers] = await Promise.all([
+    // FOUR READS, and the last two exist because one card is dated differently from the rest.
+    //
+    // "Sent for approval" counts orders by the month they FIRST entered that stage, not by when they
+    // were created - so it has to see every order in the module, and a stage history deep enough to
+    // find a first entry that may be years old. Both are the warm-cached reads the other boards
+    // already use, so this costs a cache hit rather than a second pass over Zoho.
+    const [deals, ledger, managers, allDeals, fullLedger] = await Promise.all([
       getPreDesignDeals(tf.previousStart ?? tf.start),
       getStageLedger('deals', tf.previousStart ?? tf.start).catch((error) => {
         console.error('Stage ledger unavailable, falling back to the Stage snapshot:', error.message);
@@ -87,10 +94,19 @@ salesRoutes.get('/pre-design-funnel', async (request, response) => {
       getSalesManagersByContact().catch((error) => {
         console.error('Sales managers unavailable:', error.message);
         return null;
+      }),
+      getAllDeals().catch((error) => {
+        console.error('Whole orders module unavailable; the dated cards fall back to the window:', error.message);
+        return null;
+      }),
+      getStageLedger('deals', ALL_HISTORY).catch((error) => {
+        console.error('Full stage ledger unavailable; the dated cards fall back to the window:', error.message);
+        return null;
       })
     ]);
     const history = ledger ? indexByRecord(ledger, 'deals') : null;
-    response.json(buildPreDesignBoard({ tf, deals, city, history, managers }));
+    const fullHistory = fullLedger ? indexByRecord(fullLedger, 'deals') : null;
+    response.json(buildPreDesignBoard({ tf, deals, city, history, managers, allDeals, fullHistory }));
   } catch (error) {
     // Never throw to the client: the same shape comes back with zeros and a notice on it.
     console.error('Error fetching pre-design deals, serving an empty funnel:', error.message);

@@ -21,6 +21,11 @@ const FIELDS = [
   'Designer_Name', 'Product_Type',
   // Post Design
   'Sqaure_Feet', 'Cabinet_Area_Sqft', 'Send_For_Approval_Date', 'Number_of_Design_Revisions',
+  // Pre Design. The "Sent for approval" card is dated by the stage ledger rather than by creation,
+  // so it has to see every order in the module - not only those created inside the window - and
+  // therefore needs the design fields its records table shows.
+  'Backsplash_Area_Sqft', 'Countertop_Area_Sqft', 'Design_Presentation',
+  'Design_Required_on', 'Expected_Design_Date',
   // Dispatch
   'MRP_No', 'Dispatch_Date',
   // Installation. Est_Handover_Date is the only due date the CRM keeps for installation, and it was
