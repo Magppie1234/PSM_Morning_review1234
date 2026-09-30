@@ -73,8 +73,9 @@ const CLOSURE_COLUMNS = [
 
 // ---- The pre-design cards ----------------------------------------------------------------------
 // The Design board opens its cards in this same popup, and its records are a different animal: `value`
-// there is FLOOR AREA IN SQUARE FEET, not rupees — the Deals module carries no amount at all — so it is
-// never given a ₹ sign.
+// there is FLOOR AREA IN SQUARE FEET, so it is never given a ₹ sign. The rupee figure rides separately
+// on `amount` (Deals.Value, the one money field Zoho fills on an order), which is why the two get
+// their own columns rather than sharing one.
 const REVISION_LIMIT = 3; // the limit PreDesignFlow measures orders against
 const notRecorded = <span className="lf-na">Not recorded</span>;
 const told = (value) => (value === null || value === undefined || value === '' ? notRecorded : value);
@@ -83,9 +84,32 @@ const areaOf = (row) => {
   const area = Number(row?.value);
   return Number.isFinite(area) && area > 0 ? area : null;
 };
+// Only the Post_* production fields are ACTUAL area — 88 orders of 7,629. Everything else is an
+// estimate, and the tier is shown beside the figure so a design estimate is never read as a
+// measured one. The rule and the tiers come from the 29 Sep handoff pack.
+const AREA_TIER_LABEL = {
+  actual: 'actual',
+  post: 'actual',
+  revision: 'revision estimate',
+  design: 'design estimate',
+  order: 'order estimate'
+};
 const areaCell = (row) => {
   const area = areaOf(row);
-  return area === null ? notRecorded : `${area.toLocaleString('en-IN')} sq ft`;
+  if (area === null) return notRecorded;
+  const tier = AREA_TIER_LABEL[row?.areaTier];
+  return (
+    <span className="sr-area">
+      {area.toLocaleString('en-IN')} sq ft
+      {tier && <small className={row.areaTier === 'actual' ? 'is-actual' : undefined}>{tier}</small>}
+    </span>
+  );
+};
+// Deals.Value, already worded by the API. It fills as the order is booked, so it is blank on most of
+// the chain — said as "Not recorded" rather than as ₹0, which would read as a free order.
+const orderValueOf = (row) => {
+  const amount = Number(row?.amount);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
 };
 const revisionsOf = (row) => (Number.isFinite(Number(row?.revisions)) ? Number(row.revisions) : null);
 const revisionBandOf = (row) => {
@@ -95,15 +119,21 @@ const revisionBandOf = (row) => {
   return count > REVISION_LIMIT ? 'over' : 'within';
 };
 
+// The SM on the order's qualified lead. Not the order owner — Zoho names a different person in
+// each on 53% of orders — so the two are shown as separate columns and never conflated.
+const smOf = (row) => text(row.sm);
+
 const DESIGN_COLUMNS = [
   ['Project / client', (row) => (
     <a className="lf-record-link" href={crmRecordUrl('Deals', row.id)} target="_blank" rel="noopener noreferrer" title="Open this order in Zoho CRM">
       {row.name}
     </a>
   ), 'Opens the order in Zoho CRM', (row) => row.name],
+  ['SM', (row) => told(smOf(row)), 'Sales Manager on the qualified lead this order came from (Contacts.Sales_Manager). The Orders module has no SM field of its own.', smOf],
   ['Designer', (row) => told(designerOf(row)), 'Designer assigned to the order in Zoho', designerOf],
-  ['Sales person', (row) => told(text(row.owner)), 'Record owner in Zoho', (row) => row.owner],
-  ['Area (sq ft)', areaCell, 'Floor area on the order in Zoho. The Deals module holds no rupee amount, so the design board measures in square feet', areaOf],
+  ['Sales person', (row) => told(text(row.owner)), 'Order Owner in Zoho — a different person from the SM on about half of orders', (row) => row.owner],
+  ['Area (sq ft)', areaCell, 'Floor area. Only the post-production fields are actual — everything else is an estimate, and the tier is shown under the figure.', areaOf],
+  ['Order value', (row) => told(row.amountLabel || null), 'Value on the order in Zoho, in lakhs. It fills as the order is booked, so it is blank earlier in the funnel', orderValueOf],
   ['Stage', (row) => told(text(row.stage)), 'Stage of the order in Zoho', (row) => row.stage],
   ['Revisions', (row) => told(revisionsOf(row)), `Design revisions logged against the order; the limit is ${REVISION_LIMIT}`, revisionsOf],
   ['Design sent on', (row) => told(stamp(row.designSentOn)), 'When the design was sent to the client (IST)', (row) => timeOf(row.designSentOn)]
@@ -188,13 +218,14 @@ const TABLES = {
     // What is actually in a closure card: whose orders, what they are for, how big they are.
     chart: ['person', 'product', 'value']
   },
-  // The Design board's orders. Measured in square feet throughout — no rupee figure exists for them.
+  // The Design board's orders: counted per card, with the floor area and the order value beside each.
   design: {
     columns: DESIGN_COLUMNS,
-    search: (row) => [row.name, row.id, row.designer, row.owner, row.stage, row.city].filter(Boolean).join(' '),
+    search: (row) => [row.name, row.id, row.designer, row.owner, row.stage, row.city, row.amountLabel].filter(Boolean).join(' '),
     placeholder: 'Search project, designer, sales person…',
     searchLabel: 'Search project, designer, sales person, stage and city',
     filters: [
+      list('sm', 'SM', 'All SMs', smOf),
       list('designer', 'Designer', 'All designers', designerOf),
       list('stage', 'Stage', 'All stages', (row) => text(row.stage)),
       list('city', 'City', 'All cities', (row) => text(row.city)),
@@ -205,9 +236,230 @@ const TABLES = {
         ['unknown', 'Not recorded']
       ])
     ],
-    chart: ['stage', 'designer', 'revisions']
+    // SM first: the customer asked for a pie of SMs on every pre-design card, and the pie view
+    // draws one donut per dimension listed here.
+    chart: ['sm', 'stage', 'designer', 'revisions']
   }
 };
+// ---------------------------------------------------------------------------
+// POST-DESIGN — one column set per card, instead of one for the whole board
+// ---------------------------------------------------------------------------
+// Every post-design card used to open TABLES.design: Project, Designer, Sales person, Area, Order
+// value, Stage, Revisions, Design sent on. Two of those columns are pre-design milestones that mean
+// nothing once an order has left design — Revisions is a design metric and Design sent on is the
+// first-design date — and Order value is blank on most of the board. So a Payment pending card
+// listed revision counts and an EP approval card listed floor area, while neither showed the one
+// thing a queue board is for: how long each order has been stuck.
+//
+// These five columns are on EVERY post-design card, because they are what the board is about:
+// which order, where, what stage it is on, when it got there, and how long it has sat.
+const postBase = [
+  ['Project / client', (row) => (
+    <a className="lf-record-link" href={crmRecordUrl('Deals', row.id)} target="_blank" rel="noopener noreferrer" title="Open this order in Zoho CRM">
+      {row.name}
+    </a>
+  ), 'Opens the order in Zoho CRM', (row) => row.name],
+  ['City', (row) => told(text(row.city)), 'City on the order in Zoho', (row) => row.city],
+  ['Stage', (row) => told(text(row.stage)), 'The order’s current stage in Zoho', (row) => row.stage],
+  ['Entered stage', (row) => told(stamp(row.enteredAt)), 'When the order moved onto its current stage, from the Zoho stage history', (row) => timeOf(row.enteredAt)],
+  ['Days here', (row) => (Number.isFinite(Number(row.daysHere))
+    ? <span className={Number(row.daysHere) >= 30 ? 'sr-stale' : undefined}>{Number(row.daysHere).toLocaleString('en-IN')}</span>
+    : notRecorded),
+  'How long it has been on that stage. 30 days or more is marked.', (row) => (Number.isFinite(Number(row.daysHere)) ? Number(row.daysHere) : null)]
+];
+
+// What each card adds on top, and nothing more. The rule: a column earns its place only if the
+// card’s own title is about it.
+const designerCol = ['Designer', (row) => told(designerOf(row)), 'Designer on the order in Zoho', designerOf];
+const ownerCol = ['Sales person', (row) => told(text(row.owner)), 'Record owner in Zoho', (row) => row.owner];
+const areaCol = ['Area (sq ft)', areaCell, 'Floor area on the order: Area (Sqft), falling back to Cabinet Area (Sqft)', areaOf];
+const valueCol = ['Order value', (row) => told(row.amountLabel || null), 'Value on the order in Zoho, in lakhs', orderValueOf];
+
+const smCol = ['SM', (row) => told(smOf(row)), 'Sales Manager on the qualified lead this order came from', smOf];
+
+const POST_EXTRAS = {
+  // Who picked the order up, and who owns it — a handover queue is a question about people.
+  handover: [designerCol, ownerCol],
+  firstVisit: [designerCol],
+  epPrep: [designerCol],
+  epApproval: [designerCol],
+  epMarking: [designerCol],
+  // Production needs to know how much there is to make, and what it is worth.
+  productionPrep: [areaCol, valueCol],
+  pdi: [areaCol],
+  // The one card that is entirely about money.
+  payment: [valueCol, ownerCol],
+  factory: [areaCol, valueCol]
+};
+
+// A city cell is `${cardKey}-DEL`, a sub-card `${cardKey}-done`; both keep the card’s columns.
+const postCardKey = (id = '') => String(id).split('-')[0];
+const isPostDesignRecords = (records) => records.some((row) => row && row.board === 'post-design');
+
+const POST_TABLES = Object.fromEntries(Object.entries(POST_EXTRAS).map(([key, extras]) => [key, {
+  columns: [...postBase, ...extras],
+  search: (row) => [row.name, row.id, row.city, row.stage, row.designer, row.owner].filter(Boolean).join(' '),
+  placeholder: 'Search project, city, stage, designer…',
+  searchLabel: 'Search project, city, stage, designer and sales person',
+  filters: [
+    list('stage', 'Stage', 'All stages', (row) => text(row.stage)),
+    list('city', 'City', 'All cities', (row) => text(row.city)),
+    band('aging', 'Waiting', 'Any time on stage', (row) => {
+      const days = Number(row?.daysHere);
+      if (!Number.isFinite(days)) return 'unknown';
+      if (days >= 30) return 'over30';
+      if (days >= 7) return 'over7';
+      return 'fresh';
+    }, [
+      ['fresh', 'Under a week'],
+      ['over7', '7 days or more'],
+      ['over30', '30 days or more'],
+      ['unknown', 'Not recorded']
+    ])
+  ],
+  chart: ['stage', 'city', 'aging']
+}]));
+
+// ---------------------------------------------------------------------------
+// DISPATCH — orders, and complaints, each with the columns its own board is about
+// ---------------------------------------------------------------------------
+// Two record shapes arrive from /api/dispatch-board and they are nothing like each other: orders
+// carry a stage and an MRP number, complaints carry a status and an age. Both are tagged with
+// `board` so neither falls through to the leads table.
+const DISPATCH_COLUMNS = [
+  ['Order', (row) => (
+    <a className="lf-record-link" href={crmRecordUrl('Deals', row.id)} target="_blank" rel="noopener noreferrer" title="Open this order in Zoho CRM">
+      {row.name}
+    </a>
+  ), 'Opens the order in Zoho CRM', (row) => row.name],
+  // 29% filled, and the number the factory and transport actually quote.
+  ['MRP No', (row) => told(text(row.mrp)), 'MRP number on the order in Zoho', (row) => row.mrp],
+  ['City', (row) => told(text(row.city)), 'City on the order in Zoho', (row) => row.city],
+  ['Stage', (row) => told(text(row.stage)), 'Current stage in Zoho', (row) => row.stage],
+  ['Dispatch date', (row) => told(stamp(row.dispatchOn)), 'Dispatch Date in Zoho. Blank means the order is unassigned.', (row) => timeOf(row.dispatchOn)],
+  ['Designer', (row) => told(text(row.designer)), 'Designer on the order', (row) => row.designer],
+  ['Order value', (row) => told(row.amountLabel || null), 'Value on the order in Zoho, in lakhs', (row) => (Number(row?.amount) > 0 ? Number(row.amount) : null)]
+];
+
+const daysOpenOf = (row) => (Number.isFinite(Number(row?.daysOpen)) ? Number(row.daysOpen) : null);
+
+const COMPLAINT_COLUMNS = [
+  ['Client', (row) => (
+    <a className="lf-record-link" href={crmRecordUrl('AMS_Complaints', row.id)} target="_blank" rel="noopener noreferrer" title="Open this complaint in Zoho CRM">
+      {row.name}
+    </a>
+  ), 'Opens the complaint in Zoho CRM', (row) => row.name],
+  ['Complaint ID', (row) => told(text(row.ref)), 'Complaint ID in Zoho', (row) => row.ref],
+  ['City', (row) => told(text(row.city)), 'Client city on the complaint', (row) => row.city],
+  ['Priority', (row) => told(text(row.priority)), 'Priority in Zoho', (row) => row.priority],
+  ['Status', (row) => told(text(row.status)), 'Status in Zoho. Completed and QA Done count as closed — the completion DATE is filled on one record in the whole module, so status is the only usable signal.', (row) => row.status],
+  ['Stage', (row) => told(text(row.stage)), 'Stage in Zoho', (row) => row.stage],
+  ['Raised on', (row) => told(stamp(row.raisedOn)), 'Complaint Date in Zoho', (row) => timeOf(row.raisedOn)],
+  ['Days open', (row) => (daysOpenOf(row) === null
+    ? notRecorded
+    : <span className={daysOpenOf(row) >= 7 && !row.done ? 'sr-stale' : undefined}>{daysOpenOf(row).toLocaleString('en-IN')}</span>),
+  'Days since it was raised. Seven days or more, still open, is marked.', daysOpenOf],
+  ['Orders', (row) => told(text(row.orders)), 'Orders named on the complaint', (row) => row.orders]
+];
+
+const isDispatchRecords = (records) => records.some((row) => row && row.board === 'dispatch');
+const isComplaintRecords = (records) => records.some((row) => row && row.board === 'complaints');
+
+TABLES.dispatch = {
+  columns: DISPATCH_COLUMNS,
+  search: (row) => [row.name, row.id, row.mrp, row.city, row.stage, row.designer].filter(Boolean).join(' '),
+  placeholder: 'Search order, MRP, city, stage, designer…',
+  searchLabel: 'Search order, MRP number, city, stage and designer',
+  filters: [
+    list('stage', 'Stage', 'All stages', (row) => text(row.stage)),
+    list('city', 'City', 'All cities', (row) => text(row.city)),
+    list('designer', 'Designer', 'All designers', (row) => text(row.designer)),
+    band('dispatch', 'Dispatch date', 'Assigned or not', (row) => (row?.dispatchOn ? 'set' : 'none'), [
+      ['set', 'Dispatch date set'],
+      ['none', 'No dispatch date']
+    ])
+  ],
+  chart: ['stage', 'city', 'designer']
+};
+
+// ---- Installation ------------------------------------------------------------------------------
+// The Installation board had no table of its own, so its records fell through to TABLES.lead and
+// opened with PSM, Source and Lead value — none of which an order at an installation stage has. These
+// are the columns its five cards are actually about.
+const daysOnStageOf = (row) => (Number.isFinite(Number(row?.daysOnStage)) ? Number(row.daysOnStage) : null);
+
+const INSTALLATION_COLUMNS = [
+  ['Project / client', (row) => (
+    <a className="lf-record-link" href={crmRecordUrl('Deals', row.id)} target="_blank" rel="noopener noreferrer" title="Open this order in Zoho CRM">
+      {row.name}
+    </a>
+  ), 'Opens the order in Zoho CRM', (row) => row.name],
+  // THE COLUMN THIS TABLE WAS ASKED FOR. It reads Deals.Site_Not_Ready_Reason, which does not exist
+  // in the CRM yet — so until it is created the column is empty on every row, and its tooltip says
+  // why rather than leaving the reader to wonder whether nobody has filled it in.
+  ['Site not ready reason', (row) => told(text(row.notReadyReason)), 'Why the site was not ready to install. Reads Deals.Site_Not_Ready_Reason — a field that does not exist in Zoho yet, so it is blank on every order until it is created.', (row) => row.notReadyReason],
+  ['Stage', (row) => told(text(row.stage)), 'Stage of the order in Zoho', (row) => row.stage],
+  ['Days on stage', (row) => (daysOnStageOf(row) === null
+    ? notRecorded
+    : <span className={daysOnStageOf(row) >= 5 ? 'sr-stale' : undefined}>{daysOnStageOf(row).toLocaleString('en-IN')}</span>),
+  'How long the order has sat on its current stage, from the dated stage ledger. Five days or more is marked.', daysOnStageOf],
+  ['Installation manager', (row) => told(text(row.manager)), 'Installation Managers on the order. Filled on 276 of 7,645 orders.', (row) => row.manager],
+  ['City', (row) => told(text(row.city)), 'Client city on the order', (row) => row.city],
+  ['Product', (row) => told(text(row.product)), 'Product Type — what the order split filter reads', (row) => row.product],
+  ['Due (est. handover)', (row) => told(stamp(row.dueOn)), 'Est. Handover Date in Zoho. Filled on 129 of 7,645 orders.', (row) => timeOf(row.dueOn)],
+  ['Order value', (row) => told(row.amountLabel || null), 'Value on the order in Zoho, in lakhs', (row) => (Number(row?.amount) > 0 ? Number(row.amount) : null)]
+];
+
+const isInstallationRecords = (records) => records.some((row) => row && row.board === 'installation');
+
+TABLES.installation = {
+  columns: INSTALLATION_COLUMNS,
+  search: (row) => [row.name, row.id, row.city, row.stage, row.manager, row.product, row.notReadyReason].filter(Boolean).join(' '),
+  placeholder: 'Search order, city, stage, manager, reason…',
+  searchLabel: 'Search order, city, stage, installation manager, product and site not ready reason',
+  filters: [
+    list('stage', 'Stage', 'All stages', (row) => text(row.stage)),
+    // Grouping by reason is the whole point of the column: it turns a list of sentences into
+    // "41 waiting on civil work". It only earns its place once the field carries values, so the
+    // dropdown is dropped entirely while every row is blank rather than offering one empty choice.
+    list('reason', 'Site not ready reason', 'All reasons', (row) => text(row.notReadyReason)),
+    list('city', 'City', 'All cities', (row) => text(row.city)),
+    list('manager', 'Installation manager', 'All managers', (row) => text(row.manager)),
+    list('product', 'Product', 'All products', (row) => text(row.product))
+  ],
+  chart: ['reason', 'stage', 'city', 'manager']
+};
+
+TABLES.complaints = {
+  columns: COMPLAINT_COLUMNS,
+  search: (row) => [row.name, row.ref, row.city, row.status, row.stage, row.priority, row.orders].filter(Boolean).join(' '),
+  placeholder: 'Search client, complaint ID, city, status…',
+  searchLabel: 'Search client, complaint ID, city, status, stage and priority',
+  filters: [
+    list('status', 'Status', 'All statuses', (row) => text(row.status)),
+    list('priority', 'Priority', 'All priorities', (row) => text(row.priority)),
+    list('city', 'City', 'All cities', (row) => text(row.city)),
+    band('age', 'Open for', 'Any age', (row) => {
+      const days = daysOpenOf(row);
+      if (days === null) return 'unknown';
+      if (days >= 30) return 'over30';
+      if (days >= 7) return 'over7';
+      return 'fresh';
+    }, [
+      ['fresh', 'Under a week'],
+      ['over7', '7 days or more'],
+      ['over30', '30 days or more'],
+      ['unknown', 'Not recorded']
+    ])
+  ],
+  chart: ['status', 'priority', 'city']
+};
+
+Object.values(POST_TABLES).forEach((entry) => {
+  entry.fields = sortFieldsOf(entry.columns);
+  entry.options = sortOptionsOf(entry.columns);
+  entry.cleared = Object.fromEntries(entry.filters.map((filter) => [filter.key, ALL]));
+});
 Object.values(TABLES).forEach((entry) => {
   entry.fields = sortFieldsOf(entry.columns);
   entry.options = sortOptionsOf(entry.columns);
@@ -267,9 +519,22 @@ function FilterSelect({ id, label, value, onChange, options }) {
  * @param {Function} props.onClose  called when the popup should close
  */
 export function SalesRecordsPopup({ card, records = [], weeks = [], onClose }) {
-  const isDesign = isDesignRecords(records);
-  const isClosure = !isDesign && isClosureCard(card.id);
-  const table = isDesign ? TABLES.design : isClosure ? TABLES.closure : TABLES.lead;
+  // Post-design is asked first: its records carry `board`, so a card id that also exists on the
+  // pre-design board (both have a `handover`) cannot pick up the wrong table.
+  const isPost = isPostDesignRecords(records);
+  const isComplaint = !isPost && isComplaintRecords(records);
+  const isDispatch = !isPost && !isComplaint && isDispatchRecords(records);
+  // Installation is asked before design and lead: its records carry no `designer`, so without this
+  // they fell all the way through to TABLES.lead and opened with PSM and Source columns.
+  const isInstall = !isPost && !isComplaint && !isDispatch && isInstallationRecords(records);
+  const isDesign = !isPost && !isComplaint && !isDispatch && !isInstall && isDesignRecords(records);
+  const isClosure = !isPost && !isComplaint && !isDispatch && !isInstall && !isDesign && isClosureCard(card.id);
+  const table = isPost
+    ? (POST_TABLES[postCardKey(card.id)] ?? POST_TABLES.handover)
+    : isComplaint ? TABLES.complaints
+      : isDispatch ? TABLES.dispatch
+        : isInstall ? TABLES.installation
+          : isDesign ? TABLES.design : isClosure ? TABLES.closure : TABLES.lead;
 
   const [shown, setShown] = useState(PAGE);
   const [filters, setFilters] = useState(table.cleared);
@@ -361,7 +626,10 @@ export function SalesRecordsPopup({ card, records = [], weeks = [], onClose }) {
               {card.label} <span>{visible.length === tools.total ? tools.total : `${visible.length} of ${tools.total}`}</span>
             </h3>
             <p>
-              {isDesign ? 'Orders in Zoho CRM behind this card, measured in square feet'
+              {isComplaint ? 'Complaints in Zoho CRM behind this card'
+                : isDispatch ? 'Orders in Zoho CRM behind this card'
+                : isPost ? 'Orders in Zoho CRM behind this card, with how long each has been on its stage'
+                : isDesign ? 'Orders in Zoho CRM behind this card'
                 : isClosure ? 'Orders in Zoho CRM behind this card'
                   : 'Qualified leads in Zoho CRM behind this card'}
             </p>

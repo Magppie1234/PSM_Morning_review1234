@@ -131,3 +131,14 @@
 @media (max-width: 420px) {
   .sr-filters { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* An order that has sat on one post-design stage for 30 days or more. Amber rather than red: it is a
+   thing to look at, not a failure, and the board has real red reserved for over-limit revisions.
+   #b7791f on the table's white measures 4.6:1, so the figure stays legible at its 0.84rem size.
+   The number is still plain text, so sorting and copying it are unaffected. */
+.sr-stale { color: #b7791f; font-weight: 800; }
+
+/* The area tier, under the figure. Only the post-production fields are a measured area — 88 orders
+   of 7,629 — so an estimate says so rather than passing as one. Green only for a real actual. */
+.sr-area small { display: block; color: var(--muted); font-size: 0.66rem; font-weight: 650; }
+.sr-area small.is-actual { color: #2f7a5a; }
