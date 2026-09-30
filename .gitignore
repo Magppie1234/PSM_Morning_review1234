@@ -22,3 +22,9 @@ backend/.standup_state.json
 .DS_Store
 Thumbs.db
 *.log
+
+# Local-only Claude Code settings (launch.json IS tracked - it is the shared dev-server config)
+.claude/settings.local.json
+# Scratch output from design/review tooling
+.impeccable/
+frontend/.tmp-viz/
