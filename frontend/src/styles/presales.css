@@ -103,10 +103,39 @@
 
 .ps-refreshing svg { animation: ps-spin 1s linear infinite; }
 
+/* The right-hand column of the header: today's date above the control row. */
+.ps-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* TODAY. Sized just under the h1 and set in the ink colour, because it is a heading in its own
+   right rather than a caption - someone glancing at this board should be able to tell which day
+   they are looking at from across a desk. Tabular figures so it does not reflow as the date ticks. */
+.ps-today {
+  margin: 0;
+  font-size: clamp(1.15rem, 1.5vw, 1.45rem);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .ps-controls {
   display: flex;
   gap: 8px;
-  flex-shrink: 0;
+  /* WRAP, and do not refuse to shrink. This row is ~910px of buttons in a ~1,197px header, and with
+     `flex-shrink: 0` and a nowrap header it ran 55px past the header's right edge at 1500px wide -
+     a pre-existing overflow that only became visible once the date above it was right-aligned to
+     the same column. Wrapping keeps every control reachable instead of cutting the last one off. */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .ps-select,

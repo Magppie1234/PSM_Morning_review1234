@@ -1,6 +1,6 @@
 import { RefreshButton } from '../../shared/ui/RefreshButton.jsx';
 import { ChevronDown, Lock, RefreshCw, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { IncentivePolicyCard } from '../IncentivePolicyCard.jsx';
 import { PsmLeadList } from '../PsmLeadList.jsx';
 import { ActionRow } from './ActionRow.jsx';
@@ -41,12 +41,28 @@ const timeOf = (date) => date && [
 ].join(', ');
 
 export { RefreshButton } from '../../shared/ui/RefreshButton.jsx';
+/** Today, as the team writes it: "Tue, 30 Sept 2026". Always IST, whatever the browser is set to. */
+const todayLabel = () => new Date().toLocaleDateString('en-IN', {
+  timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+  // en-IN renders "Wed, 30 Sept, 2026" - the comma before the year is noise, and the team writes it
+  // without. The weekday's own comma is kept.
+}).replace(/,\s*(\d{4})$/, ' $1');
+
+
 export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selectedDetail, onDetail, onOpen }) {
   const { data, error, loading, refreshing, stale, fetchedAt, refresh } = state;
   // The switch itself now lives in the app shell so every board shares it; this board reads it
   // from the context and keeps its own button, which sits in its own header rather than the
   // shared BoardHeader.
   const showFormula = useShowFormula();
+  // TODAY, in the header. Ticked every minute rather than read once, because this board is left open
+  // all day and frequently overnight - a date that silently goes stale is the exact problem the
+  // dated freshness stamp below it was added to solve.
+  const [today, setToday] = useState(() => todayLabel());
+  useEffect(() => {
+    const timer = setInterval(() => setToday(todayLabel()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const toggleFormula = useFormulaToggle();
 
   if (!data) {
@@ -99,7 +115,9 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
           </p>
         </div>
 
-        <div className="ps-controls">
+        <div className="ps-right">
+          <p className="ps-today" aria-label={`Today is ${today}`}>{today}</p>
+          <div className="ps-controls">
           <PeriodFilter value={timeframe} onChange={onTimeframe} />
           <RefreshButton onRefresh={refresh} loading={loading || refreshing} />
           <FormulaButton on={showFormula} onToggle={toggleFormula} />
@@ -119,6 +137,7 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
             <Lock size={13} aria-hidden="true" />
             More filters
           </button>
+        </div>
         </div>
       </header>
 
