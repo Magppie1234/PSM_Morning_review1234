@@ -75,7 +75,10 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.78rem;
+  /* Was 0.78rem, the smallest text in the header. Now that this line carries the DATE the data was
+     read, not just a time, it is the one people check to know whether what they are looking at is
+     current — so it is sized above the caption beside it rather than below it. */
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
