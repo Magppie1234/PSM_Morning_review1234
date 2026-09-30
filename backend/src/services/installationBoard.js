@@ -216,7 +216,14 @@ export function buildInstallationBoard({ deals = [], city, split = 'all', histor
     const entry = history?.get(record.id)?.entries?.at(-1);
     return daysSince(entry?.enteredAt ?? record.startedOn);
   };
-  inView.forEach((record) => { record.daysOnStage = ageOf(record); });
+  inView.forEach((record) => {
+    record.daysOnStage = ageOf(record);
+    // The same elapsed time in whole minutes, so the records table can render "1 day + 6h 49m"
+    // rather than a bare day count. The day buckets above still use daysOnStage.
+    const since = history?.get(String(record.id))?.entries?.at(-1)?.enteredAt ?? record.startedOn;
+    const minutes = since ? (Date.now() - Date.parse(since)) / 60_000 : NaN;
+    record.minutesInStatus = Number.isFinite(minutes) && minutes >= 0 ? Math.floor(minutes) : null;
+  });
 
   const at = (stages) => inView.filter((record) => stages.has(record.stageKey));
   const incoming = at(INCOMING);

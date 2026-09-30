@@ -137,6 +137,17 @@
    #b7791f on the table's white measures 4.6:1, so the figure stays legible at its 0.84rem size.
    The number is still plain text, so sorting and copying it are unaffected. */
 .sr-stale { color: #b7791f; font-weight: 800; }
+/* Past the card's own limit. Weight as well as colour, so the signal survives a greyscale print and
+   does not depend on colour alone to be read. */
+.sr-late { color: #c0392b; font-weight: 800; }
+
+/* A date with its elapsed time under it, as one cell. The date is the fact; the age beneath is what
+   makes the date mean something, so it is smaller and quieter until it goes past the card's limit
+   and turns red - at which point it is the thing the eye should land on. */
+.sr-since { display: inline-flex; flex-direction: column; gap: 1px; line-height: 1.25; }
+.sr-since b { font-weight: 600; }
+.sr-since em { font-style: normal; font-size: 0.82em; color: var(--muted); }
+.sr-since em.sr-late { color: #c0392b; font-weight: 800; }
 
 /* The area tier, under the figure. Only the post-production fields are a measured area — 88 orders
    of 7,629 — so an estimate says so rather than passing as one. Green only for a real actual. */

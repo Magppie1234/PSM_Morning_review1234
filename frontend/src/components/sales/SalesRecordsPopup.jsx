@@ -123,15 +123,63 @@ const revisionBandOf = (row) => {
 // each on 53% of orders — so the two are shown as separate columns and never conflated.
 const smOf = (row) => text(row.sm);
 
+// ---- Time in status ------------------------------------------------------------------------
+// How long the order has sat on the stage it is on now, off the dated stage ledger. Shown in hours
+// below a day and in days above one, because "26h" and "1.1 days" are the same fact and only one of
+// them reads as urgent.
+//
+// THE RED THRESHOLD IS PER CARD, because "late" means a different thing on each. A request that has
+// not been picked up in a day is late; an order under design for a day is not. The threshold is the
+// number of HOURS past which the figure turns red, and a card with no entry here shows the figure
+// plainly — a card that has no agreed limit should not invent one by colouring things.
+const STATUS_RED_HOURS = {
+  requests: 24,     // Total new requests from sales — unclaimed for a day
+  underDesign: 48   // Under design — no movement for two days
+};
+
+const minutesInStatusOf = (row) => (Number.isFinite(Number(row?.minutesInStatus)) ? Number(row.minutesInStatus) : null);
+const hoursInStatusOf = (row) => {
+  const minutes = minutesInStatusOf(row);
+  return minutes === null ? null : minutes / 60;
+};
+
+/**
+ * Elapsed time, written the way the team reads it: "1 day + 6h 49m".
+ *
+ * Days are separated by a "+" rather than run together, because "1d 6h" is read as a single quantity
+ * while the day count is the part that decides whether something is late. Below a day the days are
+ * dropped rather than shown as 0, and below an hour only the minutes are left - a bare "0h 49m"
+ * makes 49 minutes look like an hour of waiting.
+ */
+const elapsedLabel = (minutes) => {
+  if (!Number.isFinite(minutes) || minutes < 0) return null;
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = Math.round(minutes % 60);
+  const clock = hours ? `${hours}h ${mins}m` : `${mins}m`;
+  if (!days) return clock;
+  return `${days} ${days === 1 ? 'day' : 'days'} + ${clock}`;
+};
+
+/** The Time in status cell. `limit` is the card's own red threshold in HOURS, or null for none. */
+const statusCell = (limit) => (row) => {
+  const minutes = minutesInStatusOf(row);
+  if (minutes === null) return notRecorded;
+  const late = limit != null && minutes >= limit * 60;
+  return <span className={late ? 'sr-late' : undefined}>{elapsedLabel(minutes)}</span>;
+};
+
 const DESIGN_COLUMNS = [
   ['Project / client', (row) => (
     <a className="lf-record-link" href={crmRecordUrl('Deals', row.id)} target="_blank" rel="noopener noreferrer" title="Open this order in Zoho CRM">
       {row.name}
     </a>
   ), 'Opens the order in Zoho CRM', (row) => row.name],
-  ['SM', (row) => told(smOf(row)), 'Sales Manager on the qualified lead this order came from (Contacts.Sales_Manager). The Orders module has no SM field of its own.', smOf],
+  // The SM column was here. Removed on request: the board shows one owner, and that is the
+  // salesperson the order is assigned to. `sm` is still on the record and still drives the SM
+  // filter and pie below, so nothing that used it has been lost — it is only off the table.
   ['Designer', (row) => told(designerOf(row)), 'Designer assigned to the order in Zoho', designerOf],
-  ['Sales person', (row) => told(text(row.owner)), 'Order Owner in Zoho — a different person from the SM on about half of orders', (row) => row.owner],
+  ['Sales person assigned', (row) => told(text(row.owner)), 'Order Owner in Zoho — the salesperson the order sits with', (row) => row.owner],
   ['Area (sq ft)', areaCell, 'Floor area. Only the post-production fields are actual — everything else is an estimate, and the tier is shown under the figure.', areaOf],
   ['Order value', (row) => told(row.amountLabel || null), 'Value on the order in Zoho, in lakhs. It fills as the order is booked, so it is blank earlier in the funnel', orderValueOf],
   ['Stage', (row) => told(text(row.stage)), 'Stage of the order in Zoho', (row) => row.stage],
@@ -293,6 +341,147 @@ const POST_EXTRAS = {
 };
 
 // A city cell is `${cardKey}-DEL`, a sub-card `${cardKey}-done`; both keep the card’s columns.
+// ---- Pre-design, one column set per card -------------------------------------------------------
+// Every card used to open the same nine columns, so a Revision card showed Order value and Area
+// while a Query to SM card did not show the query at all. Each card now declares the columns its own
+// title is about; anything a card is not about is left off rather than shown empty.
+//
+// THE SM COLUMN IS NOT HERE. It was removed on request - the board names one owner, and that is the
+// salesperson the order sits with. The single exception is Query to SM, where the SM is the card's
+// subject and a table without it could not say who the query is with. `sm` is still on every record
+// and still drives the SM filter and the SM pie.
+
+const pdProjectCol = ['Project / client', (row) => (
+  <a className="lf-record-link" href={crmRecordUrl('Deals', row.id)} target="_blank" rel="noopener noreferrer" title="Open this order in Zoho CRM">
+    {row.name}
+  </a>
+), 'Opens the order in Zoho CRM', (row) => row.name];
+
+const pdProductCol = ['Product', (row) => told(text(row.product)), 'Product Type in Zoho', (row) => row.product];
+const pdCityCol = ['City', (row) => told(text(row.city)), 'Client city on the order', (row) => row.city];
+const pdOwnerCol = ['Sales person assigned', (row) => told(text(row.owner)), 'Order Owner in Zoho - the salesperson the order sits with', (row) => row.owner];
+const pdDesignerCol = ['Designer', (row) => told(designerOf(row)), 'Designer assigned to the order in Zoho', designerOf];
+const pdAreaCol = ['Area (sq ft)', areaCell, 'Floor area. Only the post-production fields are actual - everything else is an estimate.', areaOf];
+const pdValueCol = ['Order value', (row) => told(row.amountLabel || null), 'Value on the order in Zoho, in lakhs', orderValueOf];
+const pdStageCol = ['Current stage', (row) => told(text(row.stage)), 'Stage of the order in Zoho', (row) => row.stage];
+const pdRevisionsCol = ['Revisions taken', (row) => told(revisionsOf(row)), 'Design revisions logged against the order', revisionsOf];
+const pdRequiredByCol = ['Design required by', (row) => told(stamp(row.designRequiredOn)), 'Design Required on, in Zoho', (row) => timeOf(row.designRequiredOn)];
+
+const pdDayNum = (key) => (row) => (Number.isFinite(Number(row?.[key])) ? Number(row[key]) : null);
+
+/** A plain day count. `late` turns it red once the overrun is positive. */
+const pdDaysCol = (label, key, help, late = false) => [label, (row) => {
+  const days = pdDayNum(key)(row);
+  if (days === null) return notRecorded;
+  return <span className={late && days > 0 ? 'sr-late' : undefined}>{days} {days === 1 ? 'day' : 'days'}</span>;
+}, help, pdDayNum(key)];
+
+// A DATE WITH ITS ELAPSED TIME UNDER IT, as one cell rather than two columns. The date is the fact;
+// the age beneath is what makes the date mean anything, and it reddens past the card's own limit.
+const pdSinceCol = (label, dateKey, help, redHours = null) => [label, (row) => {
+  const when = row?.[dateKey];
+  if (!when) return notRecorded;
+  const minutes = Math.floor((Date.now() - Date.parse(when)) / 60000);
+  const overdue = redHours != null && Number.isFinite(minutes) && minutes >= redHours * 60;
+  const ago = elapsedLabel(minutes);
+  return (
+    <span className="sr-since">
+      <b>{stamp(when)}</b>
+      {ago && <em className={overdue ? 'sr-late' : undefined}>{ago} ago</em>}
+    </span>
+  );
+}, help, (row) => timeOf(row?.[dateKey])];
+
+const pdStatusCol = (limit) => ['Time in status', statusCell(limit),
+  limit == null
+    ? 'How long the order has sat on its current stage, from the dated stage history.'
+    : 'How long the order has sat on its current stage, from the dated stage history. Red past '
+      + (limit / 24) + (limit === 24 ? ' day.' : ' days.'),
+  hoursInStatusOf];
+
+const pdWhyPendingCol = ['Why pending', (row) => told(designerOf(row) ? 'At the pending stage' : 'No designer named in Zoho'),
+  'Two different situations sit on this card: orders genuinely at the Form Filled stage, and orders at a later stage with nobody in Designer_Name.',
+  (row) => (designerOf(row) ? 'At the pending stage' : 'No designer named in Zoho')];
+
+const PRE_COLUMNS = {
+  requests: [pdProductCol, pdOwnerCol, pdCityCol, pdValueCol, pdStageCol, pdStatusCol(24),
+    pdSinceCol('Requested on', 'createdAt', 'Created Time in Zoho')],
+
+  designerAssigned: [pdDesignerCol,
+    pdSinceCol('Assigned on', 'assignedOn', 'When the order entered Designer Assigned, from the dated stage history. Red past a day.', 24),
+    pdProductCol, pdCityCol, pdRequiredByCol, pdAreaCol, pdStatusCol(null)],
+
+  assignmentPending: [pdOwnerCol, pdProductCol, pdCityCol,
+    pdSinceCol('Waiting since', 'statusSince', 'When the order arrived at the stage it is waiting on.'),
+    pdDaysCol('Days waiting', 'daysWaiting', 'How long it has been waiting.'),
+    pdRequiredByCol,
+    pdDaysCol('Days late', 'daysLate', 'Days past Expected Design Date.', true),
+    pdWhyPendingCol, pdStatusCol(null)],
+
+  underDesign: [pdDesignerCol, pdProductCol,
+    ['Expected design date', (row) => told(stamp(row.expectedDesignDate)), 'Expected Design Date in Zoho', (row) => timeOf(row.expectedDesignDate)],
+    pdDaysCol('Days late', 'daysLate', 'Days past Expected Design Date.', true),
+    pdRequiredByCol, pdAreaCol, pdStatusCol(48)],
+
+  queryToSm: [
+    ['The query', (row) => told(text(row.query)), 'Requirements_For_SM in Zoho - the question the order is waiting on', (row) => row.query],
+    ['SM it is with', (row) => told(smOf(row)), 'Sales Manager on the qualified lead this order came from. Kept on this card because the SM is what the card is about.', smOf],
+    pdProductCol,
+    pdSinceCol('Raised on', 'raisedOn', 'When the order entered Query to SM, from the dated stage history.'),
+    pdDesignerCol, pdCityCol, pdStatusCol(null)],
+
+  sentForApproval: [
+    pdSinceCol('Design sent on', 'designSentOn', 'Send For Approval Date in Zoho, with how long the client has had it.'),
+    pdProductCol,
+    ['Presentation', (row) => told(text(row.designPresentation)), 'Design Presentation in Zoho', (row) => row.designPresentation],
+    pdDesignerCol, pdAreaCol, pdValueCol, pdStatusCol(null)],
+
+  revisionRequested: [
+    ['Revision no.', (row) => told(revisionsOf(row)), 'Which revision this is', revisionsOf],
+    ['Revision type', (row) => told(text(row.revisionType)), 'Revision_Type in Zoho', (row) => row.revisionType],
+    ['Reason (SM)', (row) => told(text(row.reasonSm)), 'Reason for Design Revision (SM) in Zoho', (row) => row.reasonSm],
+    ['Reason (design)', (row) => told(text(row.reasonDesign)), 'Reason for Design Revision in Zoho', (row) => row.reasonDesign],
+    pdDesignerCol, pdProductCol,
+    pdSinceCol('Requested on', 'revisionAskedOn', 'When the order entered a revision stage, from the dated stage history.'),
+    pdStatusCol(null)],
+
+  revisionDone: [pdRevisionsCol,
+    ['Revision type', (row) => told(text(row.revisionType)), 'Revision_Type in Zoho', (row) => row.revisionType],
+    ['Reason', (row) => told(text(row.reasonSm) || text(row.reasonDesign)), 'The revision reason recorded in Zoho, SM first', (row) => row.reasonSm || row.reasonDesign],
+    pdDesignerCol, pdProductCol,
+    ['Design re-sent on', (row) => told(stamp(row.designSentOn)), 'Send For Approval Date in Zoho', (row) => timeOf(row.designSentOn)],
+    pdDaysCol('Turnaround days', 'turnaroundDays', 'From entering the revision stage to the design going back out.'),
+    pdStageCol, pdStatusCol(null)],
+
+  orderBooked: [pdValueCol, pdAreaCol, pdProductCol, pdOwnerCol, pdDesignerCol,
+    pdSinceCol('Booked on', 'bookedOn', 'When the order entered Order Booked, from the dated stage history.'),
+    pdRevisionsCol,
+    pdDaysCol('Time to close', 'timeToClose', 'From the order being created to it being booked.'),
+    ['Delay reason', (row) => told(text(row.delayReason)),
+      'Why the order ran late. Reads Deals.Delay_Reason - a field that does not exist in Zoho yet, so it is blank on every order until it is created.',
+      (row) => row.delayReason],
+    pdStatusCol(null)],
+
+  handover: [
+    pdSinceCol('Handed over on', 'handoverOn', 'Handover Date in Zoho'),
+    pdDaysCol('Days in pre-design', 'designDays', 'From the order first appearing to the design going out.'),
+    pdRevisionsCol, pdDesignerCol, pdProductCol, pdValueCol, pdAreaCol, pdStatusCol(null)]
+};
+
+// A pre-design card id, with any city-row suffix stripped: `requests-DEL` is still the requests card.
+const preCardKey = (id = '') => String(id).split('-')[0];
+
+// One design table PER CARD. They differ in exactly one respect — the hours after which Time in
+// status turns red — so each is the shared design table with its own Time in status column appended.
+// A card with no threshold still gets the column; it simply never colours it.
+const designTableFor = (cardId) => {
+  const own = PRE_COLUMNS[preCardKey(cardId)];
+  const columns = own ? [pdProjectCol, ...own] : [...DESIGN_COLUMNS, pdStatusCol(null)];
+  // `cleared` is inherited from the shared table, and must be: the popup compares it by identity to
+  // decide whether to reset the filters, so a fresh object every render would clear them constantly.
+  return { ...TABLES.design, columns, fields: sortFieldsOf(columns), options: sortOptionsOf(columns) };
+};
+
 const postCardKey = (id = '') => String(id).split('-')[0];
 const isPostDesignRecords = (records) => records.some((row) => row && row.board === 'post-design');
 
@@ -399,10 +588,12 @@ const INSTALLATION_COLUMNS = [
   // why rather than leaving the reader to wonder whether nobody has filled it in.
   ['Site not ready reason', (row) => told(text(row.notReadyReason)), 'Why the site was not ready to install. Reads Deals.Site_Not_Ready_Reason — a field that does not exist in Zoho yet, so it is blank on every order until it is created.', (row) => row.notReadyReason],
   ['Stage', (row) => told(text(row.stage)), 'Stage of the order in Zoho', (row) => row.stage],
-  ['Days on stage', (row) => (daysOnStageOf(row) === null
-    ? notRecorded
-    : <span className={daysOnStageOf(row) >= 5 ? 'sr-stale' : undefined}>{daysOnStageOf(row).toLocaleString('en-IN')}</span>),
-  'How long the order has sat on its current stage, from the dated stage ledger. Five days or more is marked.', daysOnStageOf],
+  ['Time in status', (row) => {
+    const minutes = minutesInStatusOf(row);
+    if (minutes === null) return notRecorded;
+    return <span className={minutes >= 5 * 1440 ? 'sr-stale' : undefined}>{elapsedLabel(minutes)}</span>;
+  }, 'How long the order has sat on its current stage, from the dated stage ledger. Five days or more is marked.',
+  (row) => minutesInStatusOf(row) ?? daysOnStageOf(row)],
   ['Installation manager', (row) => told(text(row.manager)), 'Installation Managers on the order. Filled on 276 of 7,645 orders.', (row) => row.manager],
   ['City', (row) => told(text(row.city)), 'Client city on the order', (row) => row.city],
   ['Product', (row) => told(text(row.product)), 'Product Type — what the order split filter reads', (row) => row.product],
@@ -534,7 +725,7 @@ export function SalesRecordsPopup({ card, records = [], weeks = [], onClose }) {
     : isComplaint ? TABLES.complaints
       : isDispatch ? TABLES.dispatch
         : isInstall ? TABLES.installation
-          : isDesign ? TABLES.design : isClosure ? TABLES.closure : TABLES.lead;
+          : isDesign ? designTableFor(card.id) : isClosure ? TABLES.closure : TABLES.lead;
 
   const [shown, setShown] = useState(PAGE);
   const [filters, setFilters] = useState(table.cleared);
