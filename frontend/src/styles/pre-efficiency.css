@@ -1,0 +1,80 @@
+/* Pre-efficiency: the two averages under the pre-design funnel.
+
+   Reuses the funnel's own card (.lf, .lf-card, .lf-label, .lf-figures, .lf-delta, .tone-*) and the
+   shared city strip (.lf-cities), so a card here reads as a sibling of the ones above it rather
+   than as a different kind of panel. Nothing in leadflow.css is forked. Everything new is pe-.
+   Load AFTER leadflow.css.
+
+   Two cards, not eight, so there is no scroller and no density squeeze: these get the room the
+   funnel cards cannot have. They are capped rather than stretched to the full width, because two
+   cards spread across 1300px would put the figure and its base a third of a screen apart. */
+
+.lf.pe-lf { display: block; }
+
+.pe-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 12px; }
+.pe-head .lf-title { margin: 0; }
+.pe-sub { margin: 0; color: var(--muted); font-size: 0.78rem; font-weight: 600; }
+
+.pe-track {
+  display: grid;
+  /* Three cards, each capped so the row sits left rather than sprawling. auto-fit with a floor
+     rather than a fixed three-column rule, so they reflow on their own on a narrow
+     canvas without needing a breakpoint to say so. */
+  grid-template-columns: repeat(auto-fit, minmax(250px, 330px));
+  gap: 16px;
+}
+
+.pe-cell { display: flex; flex-direction: column; min-width: 0; }
+
+/* ---------- The figure ----------
+   The average leads at the funnel's own size, with the unit beside it at the weight the funnel gives
+   a secondary figure. "2.6 days", not "2.6" alone — the unit is half the fact on a time card. */
+.pe-lf .lf-figures { align-items: baseline; flex-wrap: wrap; gap: 6px; }
+.pe-unit { color: var(--ink-2); font-size: 0.9rem; font-weight: 700; }
+/* Nothing to average. An em dash, not a zero: zero is a measurement and this is the absence of one. */
+.pe-none { color: var(--muted); }
+
+/* ---------- The base ----------
+   How many orders the average was actually taken over. On this board the two bases are 224 and 37,
+   so this line is the difference between a figure worth acting on and a figure worth chasing the
+   CRM about — it gets full ink on the count and never drops below 4.5:1 on --surface. */
+.pe-base {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.pe-base strong { color: var(--ink-2); font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* The comparison card's gap: how many revisions are still open. It is the number the card exists to
+   surface, so it is the one part of the base line that takes a colour — amber for an open backlog,
+   green when there is none. #b7791f and #138a4f are the funnel's own --lf-amber and --lf-green,
+   restated rather than inherited because .pe-base sits at 0.72rem where those tones are used at
+   card-label weight; both clear 4.5:1 on --surface at this size. */
+.pe-open { color: #b7791f; font-weight: 800; }
+.pe-clear { color: #138a4f; font-weight: 800; }
+
+/* A card with nothing to average keeps its shape and its place in the tab order; it just has
+   nothing to open, so it drops the pointer and the funnel's hover lift. */
+.lf-card.pe-empty { cursor: default; }
+.lf-card.pe-empty:hover { transform: none; border-color: var(--line); box-shadow: none; }
+
+.pe-fade { animation: pe-in 0.32s var(--ease-out); }
+@keyframes pe-in { from { opacity: 0; transform: translateY(3px); } }
+
+.pe-note { margin: 14px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
+.pe-note strong { color: var(--ink-2); font-weight: 700; }
+
+.pe-lf { transition: opacity 0.2s var(--ease-out); }
+
+@media (max-width: 780px) {
+  /* One card per row, full width — the auto-fit floor above would otherwise leave a 260px card on a
+     375px screen with dead space beside it. */
+  .pe-track { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pe-lf { transition: none; }
+  .pe-fade { animation: none; }
+}

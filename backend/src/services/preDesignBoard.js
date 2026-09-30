@@ -2,34 +2,40 @@ import {
   CITY_BUCKETS, CITY_KEYS, OTHER_CITY_KEY, canonicalCityName, cityBucketOf,
   cityNameKeyOf, cityNameLabelOf, cityRows, mergeCityNames, previousLabelOf
 } from '../config/salesFunnel.js';
+import { DEAL_PRE_DESIGN_STEPS, EMPTY_STAGE } from '../config/journey.js';
+import { canonicalDesigner, canonicalStage } from '../config/crmNames.js';
+import { inr } from './salesFunnelBoard.js';
+import { managerOf } from './salesManagers.js';
 import { zohoGet } from './zohoClient.js';
 
 // The Design board's pre-design funnel, built from Zoho Deals (the Orders module), NOT Contacts.
-// The customer's five steps, in their order:
-//   1 intake       total Area (Sqft) sent in for design, with the order count and DEL / HYD / Others
-//   2 firstDesign  the first design produced for an order
-//   3 revisions    revisions against the three-revision limit, as a distribution
-//   4 booked       the order was booked
-//   5 handover     the order left design for post-design
+// The chain the customer asked for, branch by branch:
+//
+//   Total new requests ─┬─ Designer assigned ──────────┬─ Under design ─┬─ Sent for ─ Revision ─ Revision ─ Order ─ Handover
+//        from sales     └─ Designer assignment pending ┴─ Query to SM ──┘  approval   requested    done     booked  to design
+//
+// Two of the columns are a PAIR, and each pair PARTITIONS the card before it: every request is either
+// assigned or pending, and every request either had a query raised to the sales manager or did not.
+// The two counts in a pair therefore add back to the requests card, which is what the bracket drawn
+// between them means.
+//
+// Every card is a COUNT of orders. Only "Order booked" also carries money, because that is the only
+// point in the chain where a rupee figure is real: Deals.Value fills as the order is booked.
 //
 // ---------------------------------------------------------------------------
 // THE STAGE TABLE — the one place a stage-to-card mapping is corrected
 // ---------------------------------------------------------------------------
-// Deals.Stage is a 60+ value picklist and it is a SNAPSHOT: it says where an order stands now, not
+// Deals.Stage is a 100-value picklist and it is a SNAPSHOT: it says where an order stands now, not
 // where it has been. So each stage is given the furthest milestone it proves the order reached, and a
 // card counts "rank >= its own". Zoho's own picklist sequence numbers were the starting point, but they
 // are not usable directly — the list was extended twice, so "Order Booked" is seq 11 while "Sent for
 // Approval" is seq 16 even though booking follows approval. The ranks below are the real order.
 //
-// Several live values are not in the Deals layout picklist at all (PD Approvals, Complete, Wall
-// cladding, Precourement, Query to SM, Modd Board, Final DWG, Stone Dwg, EP DWG, ...). They come from
-// another layout and are listed here explicitly rather than matched by pattern.
-//
 //   rank 0  OUT      never started, or stopped: no claim is made about it
 //   rank 1  DESIGN   with a designer, being drawn
-//   rank 2  SENT     a design has been produced and gone out          -> card 2
-//   rank 3  BOOKED   the order was booked                             -> card 4
-//   rank 4  POST     the order has left design for post-design        -> card 5
+//   rank 2  SENT     a design has been produced and gone out
+//   rank 3  BOOKED   the order was booked
+//   rank 4  POST     the order has left design for post-design
 //
 // An unlisted stage falls to rank 1 (in design, nothing further claimed), so a new picklist value can
 // never quietly inflate the booked or handed-over cards. Add it below when one appears.
@@ -40,18 +46,25 @@ export const STAGE_RANKS = [
   { rank: 1, name: 'In design', stages: [
     'Designer Assigned', 'Design Discussion', 'Revised Design Discussion', 'Revision Required',
     'Revision For 3D Drawing', 'Design Revision After Site Measurement', 'Query to SM',
-    'Modd Board', 'Modd Board Selection(Client) Request', 'Under Follow Up Design'] },
+    'Modd Board', 'Modd Board Selection(Client) Request', 'Modd Board Selection Approved',
+    'Revision Modd Board', 'Preparation of 3D Drawings', '3D Drawings Approved',
+    'Form Filled', 'Sample Request', 'Under Follow Up Design'] },
   { rank: 2, name: 'Design sent', stages: [
-    'Sent for Approval', 'Design Dis-Approved', 'Price Discussion'] },
+    'Sent for Approval', 'Sent to Client (First Design)', 'Design Dis-Approved', 'Price Discussion'] },
   { rank: 3, name: 'Booked', stages: [
     'Order Booked', 'Closed Won', 'Payment Awaited', 'Payment Approvals'] },
   // Everything from "Assign Post - Designer" onwards. Reaching any of these means design handed the
-  // order on, so each of them also proves booking (card 4 counts rank >= 3).
+  // order on, so each of them also proves booking (the booked card counts rank >= 3).
   { rank: 4, name: 'Handed to post-design', stages: [
-    'Assign Post - Designer', 'PD Approvals', 'Align First Measurement', 'First Measurement Done',
-    'First Measurement Approved', 'First Measurement / EPT /Production Drawing / Mood Board 3D / PDI',
+    'Assign Post - Designer', 'Handover to Post Design', 'PD Approvals', 'Approval from Accounts',
+    'Align First Measurement', 'First Measurement', 'First Measurement Done',
+    'First Measurement Approved', 'Revisit Req-First Measurement',
+    'Design Approved After First Meaurement',
+    'First Measurement / EPT /Production Drawing / Mood Board 3D / PDI',
+    'EPT', 'Production Drawing', 'Mood Board / 3D',
     'Request Appliances from Client', 'Appliances Details', 'Schedule Meeting for Finishes',
     'Preparation of Electrical and Plumbing Drawings', 'EP DWG', 'EP Marking', 'EP Verification',
+    'Request for Electric and Plumbing Marking', 'Align Visit for Electrical / Plumbering',
     'Electric/Plumbing Marking Aligned', 'Electric/Plumbing Marking Done',
     'Electric/Plumbing Checking Done', 'Request for Electric Plumbing Checking',
     'Prep. of Sign-off & Production Drawing', 'Final DWG', 'Stone Dwg', 'Wall cladding',
@@ -60,11 +73,13 @@ export const STAGE_RANKS = [
     'Prepare PDI', 'PDI', 'PDI Done', 'PDI Verifiction', 'Align PDI', 'Request Visit for PDI',
     'Send PDI Drawings to Factory', 'Create Production Set', 'Start Production',
     'Sent for PDI payment Approval', 'PDI Payment Done', 'Site Approved for Dispatch',
-    'Request for Site Visit', 'Site Follow up Done',
-    'First Dipatch Done', 'Full Dispatch', 'Sent for Second Dispatch Approval', 'Second Dispatch Done',
+    'Request for Site Visit', 'Site Follow up', 'Site Follow up Done',
+    'First Dipatch Done', 'Full Dispatch', 'Split Dispatch',
+    'Sent for Second Dispatch Approval', 'Second Dispatch Approved', 'Second Dispatch Done',
     'Start First Installation Process', 'First Installation Done',
     'Start Second Installation Process', 'Second Installation Done',
-    'Handover to Installation Team', 'Final Handover', 'Complete',
+    'Handover to Installation Team', 'Final Handover', 'Complete', 'Added Post Handover Payment',
+    'Complaint Raised', 'Complaint Closed',
     'Raise Final Complaint', 'Complaint Material Dispatched'] }
 ];
 
@@ -74,7 +89,18 @@ const RANK_OF = new Map(STAGE_RANKS.flatMap(({ rank, stages }) =>
 const UNKNOWN_RANK = 1;
 export const rankOf = (stage) => RANK_OF.get(String(stage ?? '').trim().toLowerCase()) ?? UNKNOWN_RANK;
 
-// The limit the business works to. Card 3 shows the spread against it.
+// The stages that mean the order is sitting in a revision RIGHT NOW. An order that once carried a
+// revision and has moved off one of these has had that revision delivered — that is the whole
+// difference between the "Revision requested" and "Revision done" cards.
+const REVISION_STAGES = new Set([
+  'revision required', 'revision for 3d drawing', 'design revision after site measurement',
+  'revised design discussion', 'revision modd board', 'design dis-approved',
+  'revisit req-first measurement'
+]);
+
+const QUERY_STAGE = 'query to sm';
+
+// The limit the business works to. The revision card says how many orders went past it.
 export const REVISION_LIMIT = 3;
 
 const clean = (value) => String(value ?? '').trim();
@@ -83,47 +109,169 @@ const set = (value) => Boolean(clean(value)) && clean(value) !== '-None-';
 const num = (value) => { const n = Number(value); return Number.isFinite(n) ? n : 0; };
 
 // ---------------------------------------------------------------------------
-// Area
+// Area and money
 // ---------------------------------------------------------------------------
 // Sqaure_Feet is the CRM's own misspelling of the field labelled "Area (Sqft)". It is filled on 11% of
-// the module and on NONE of the orders created this month, so on its own the headline card would read
-// zero. Cabinet_Area_Sqft is filled three times as often, and where both exist they are the same
-// number on 283 of 331 orders (and within 10% on 306), so cabinet area is the same measure keyed into
-// a different box rather than a component of it. Hence "else", never "plus": adding the cabinet,
-// backsplash and countertop fields together would double-count the 331.
-const areaOf = (deal) => (num(deal.Sqaure_Feet) > 0 ? num(deal.Sqaure_Feet) : num(deal.Cabinet_Area_Sqft));
+// the module, so Cabinet_Area_Sqft carries it where that box is blank; where both exist they are the
+// same number on 283 of 331 orders, so cabinet area is the same measure keyed into a different box
+// rather than a component of it. Hence "else", never "plus". Area is kept on the record for the
+// popup's own column; no card on this funnel is measured in it.
+// AREA, AND HOW MUCH TO TRUST IT.
+//
+// The handoff is explicit that only the Post_* fields are ACTUAL production area and that
+// everything else is an estimate. Counted live across 7,629 orders: post 88, revision 191, design
+// 2,018, order-level Sqaure_Feet 706, nothing at all 5,227. This board used to print
+// "Sqaure_Feet else Cabinet_Area_Sqft" under a column headed "Area (sq ft)" — 2,344 orders, not
+// one of them an actual. The number is kept, because an estimate is better than a blank, but its
+// tier travels with it so the popup can say which it is.
+const AREA_TIERS = [
+  ['actual', (deal) => num(deal.Post_Cabinet_Area_Sqft) + num(deal.Post_Backsplash_Area_Sqft) + num(deal.Post_Countertop_Area_Sqft)],
+  ['revision', (deal) => num(deal.Revision_Cabinet_Area_Sqft) + num(deal.Revision_Backsplash_Area_Sqft) + num(deal.Revision_Countertop_Area_Sqft)],
+  ['design', (deal) => num(deal.Cabinet_Area_Sqft) + num(deal.Backsplash_Area_Sqft) + num(deal.Countertop_Area_Sqft)],
+  ['order', (deal) => num(deal.Sqaure_Feet)]
+];
 
-const sqft = (value) => `${Math.round(value).toLocaleString('en-IN')} sq ft`;
+function areaWithTier(deal) {
+  for (const [tier, measure] of AREA_TIERS) {
+    const value = measure(deal);
+    if (value > 0) return { area: value, tier };
+  }
+  return { area: 0, tier: 'missing' };
+}
+
+const areaOf = (deal) => areaWithTier(deal).area;
+
+// Deals.Amount is empty on all 7,591 records in the module, which is why this board used to carry no
+// rupee figure at all. "Value" is the one that is filled — on 35% of orders overall and on 125 of the
+// 139 booked in the last quarter — and it is in LAKHS, the same scale the Sales funnel reads
+// Total_Opportunity_Value on (sampled: 25, 8.86, 16.83, 15 against orders of that size). It fills as
+// the order is booked, which is exactly why Order booked is the only card on this chain given money.
+export const LAKH = 1e5;
+const amountOf = (deal) => num(deal.Value) * LAKH;
+
+// Whole and part days between two Zoho stamps, or null when either is missing. A NEGATIVE gap is
+// also null: one order a month carries a Send For Approval Date earlier than its own Created Time,
+// which is a keying error, not a design turned round before it was asked for, and averaging it in
+// would drag the figure down with a number that cannot happen.
+function daysBetween(from, to) {
+  if (!from || !to) return null;
+  const gap = (Date.parse(to) - Date.parse(from)) / 86_400_000;
+  return Number.isFinite(gap) && gap >= 0 ? gap : null;
+}
 
 // ---------------------------------------------------------------------------
 // Which orders this board is about
 // ---------------------------------------------------------------------------
-// "Sent in for design" is read off the design fields, never off Stage. The CRM was loaded with legacy
-// orders that sit at Final Handover carrying no designer, no design date and no design presentation —
-// 1,811 of the orders created in the current quarter. A stage-based test would sweep all of them onto
+// A "new request from sales" is read off the design fields, never off Stage alone. The CRM was loaded
+// with legacy orders that sit at Final Handover carrying no designer, no design date and no design
+// presentation — 1,332 of the 1,991 most recent orders. A stage-based test would sweep all of them onto
 // a design board they never passed through, and would make the funnel widen at the bottom.
 //
-// Every order created in the period is kept and counted (the intake card's first bracket figure); this
-// decides only which of them the funnel is ABOUT.
-const enteredDesign = (deal) =>
+// Design_Required_on and Expected_Design_Date are in the test on purpose: they are what sales fills
+// when it hands the order over, so an order still waiting for a designer counts as a request. Without
+// them the "Designer assignment pending" card could never be anything but empty.
+const isDesignRequest = (deal) =>
   set(deal.Designer_Name) || set(deal.Design_Required_on) || set(deal.Expected_Design_Date)
   || set(deal.Send_For_Approval_Date) || set(deal.Design_Presentation)
-  || set(deal.Design_Approved_Date) || set(deal.Number_of_Design_Revisions);
+  || set(deal.Design_Approved_Date) || set(deal.Number_of_Design_Revisions)
+  || rankOf(deal.Stage) === 1;
 
 // Staff test orders. The Sales funnel's isRealRecord reads Full_Name, which Deals do not have — theirs
 // is Deal_Name — so it passes every deal through. 66 test orders are in the module; this is the field
 // that actually filters them.
 export const isRealDeal = (deal) => !/\btest\b/i.test(deal?.Deal_Name ?? '');
 
+// ---------------------------------------------------------------------------
+// The stage ledger
+// ---------------------------------------------------------------------------
+// Every card below used to read Deals.Stage, a SNAPSHOT of where the order stands now. That loses
+// any order which passed through a stage and moved on: an order that was sent for approval and is
+// now booked stopped counting as "sent for approval". DealHistory fixes it — it holds one dated row
+// per stage the order has ever been in — so each flag below becomes "did this order EVER reach it".
+//
+// The history is applied as a UNION with the old field-and-stage test, never as a replacement. A
+// card can therefore only go UP when the ledger sees something the snapshot missed, and an order
+// whose history has not been loaded still counts exactly as it did before. That is the safe
+// direction: this board must never report fewer orders than it can prove.
+const stagesFor = (key) => new Set(
+  (DEAL_PRE_DESIGN_STEPS.find((step) => step.key === key)?.stages ?? [])
+    .map((stage) => stage.trim().toLowerCase()));
+
+const SENT_STAGES = stagesFor('sentForApproval');
+const REVISION_LEDGER_STAGES = stagesFor('revisionRequested');
+const BOOKED_STAGES = stagesFor('orderBooked');
+const HANDOVER_STAGES = stagesFor('handover');
+const ASSIGNED_STAGES = stagesFor('designerAssigned');
+const QUERY_STAGES = stagesFor('queryToSm');
+const PENDING_STAGES = stagesFor('assignmentPending');
+const UNDER_DESIGN_STAGES = stagesFor('underDesign');
+
+/**
+ * One order's history, reduced to what the cards ask of it.
+ * `null` when the ledger holds nothing for this order, which puts every flag back on the old rule.
+ */
+function pastOf(entry) {
+  if (!entry?.entries?.length) return null;
+  const reached = new Set();
+  const enteredAt = new Map();
+  let leftRevision = false;
+  for (const step of entry.entries) {
+    reached.add(step.stageKey);
+    if (!enteredAt.has(step.stageKey)) enteredAt.set(step.stageKey, step.enteredAt);
+    // A revision the order has actually come out of, rather than one it is still sitting in.
+    if (REVISION_LEDGER_STAGES.has(step.stageKey) && step.movedTo) leftRevision = true;
+  }
+  const current = entry.entries.at(-1);
+  return {
+    reached,
+    enteredAt,
+    leftRevision,
+    firstAt: entry.entries[0]?.enteredAt ?? null,
+    currentKey: current && !current.movedTo ? current.stageKey : null,
+    any: (stages) => [...stages].some((stage) => reached.has(stage))
+  };
+}
+
+// Days from the order's first appearance to the first time it was sent for approval, off the ledger.
+// Replaces Created_Time -> Send_For_Approval_Date, which is only filled on a minority of orders.
+function ledgerDesignDays(past) {
+  if (!past?.firstAt) return null;
+  const sent = [...SENT_STAGES].map((stage) => past.enteredAt.get(stage)).filter(Boolean).sort()[0];
+  if (!sent) return null;
+  const days = (Date.parse(sent) - Date.parse(past.firstAt)) / 86_400_000;
+  return Number.isFinite(days) && days >= 0 ? days : null;
+}
+
 // One order, flattened so the frontend never sees a Zoho field name.
-function toRecord(deal) {
+function toRecord(deal, history, managers) {
   const rank = rankOf(deal.Stage);
   const city = canonicalCityName(deal.city);
+  // Canonicalised first: 20 stages in this org store a value different from their label, and
+  // Deals.Stage does return the stored form for some of them ("PDI" for "PDI Done").
+  const stage = canonicalStage(deal.Stage);
+  const stageKey = stage.toLowerCase();
+  // What this order has ever been through. Null when the ledger has nothing for it.
+  const past = pastOf(history?.get(String(deal.id ?? '')));
+  const ever = (stages) => Boolean(past?.any(stages));
   const area = areaOf(deal);
+  const amount = amountOf(deal);
   const revisions = num(deal.Number_of_Design_Revisions);
   // Handover out of design. Handover_Date is the customer handover at the very end of the pipeline
   // (1,814 of the 1,851 that carry it sit at Final Handover), so it proves the order left design too.
-  const handedOver = rank >= 4 || set(deal.Handover_Date);
+  // STRICT MEMBERSHIP: a card holds the orders sitting at ITS stage right now, and nothing else.
+  // `at()` is the only test the stage cards use.
+  //
+  // The previous rule was "ever reached this stage", off the ledger, which measured flow correctly
+  // but meant a card named after a stage was full of orders that had moved past it — "Designer
+  // assigned" opened 297 rows of which 231 read Sent for Approval. The customer asked for the card
+  // to match its own name, so reaching a stage no longer counts; being on it does.
+  const at = (stages) => stages.has(stageKey);
+  const handedOver = at(HANDOVER_STAGES);
+  const sentForApproval = at(SENT_STAGES);
+  // A revision is being worked right now. The count and reason boxes are NOT part of this any more:
+  // they persist forever once written, so an order revised in June and long since booked would have
+  // stayed on the card. They still drive "Revision done" below, which is what they are evidence of.
+  const revisionAsked = at(REVISION_LEDGER_STAGES);
   return {
     id: String(deal.id ?? ''),
     name: deal.Deal_Name ?? 'Unnamed order',
@@ -131,16 +279,35 @@ function toRecord(deal) {
     city,
     cityKey: cityBucketOf(city),
     cityNameKey: cityNameKeyOf(city),
-    designer: set(deal.Designer_Name) ? clean(deal.Designer_Name) : '',
+    // One person, one name — the CRM holds Atif / Atif Hussain, Rishab / Rishabh / Rishabh
+    // Butar and so on as separate picklist values.
+    designer: canonicalDesigner(deal.Designer_Name),
     owner: deal.Owner?.name ?? '',
-    stage: clean(deal.Stage),
+    // The SM, from the qualified lead this order came from. NOT the order owner — the two name
+    // different people on 53% of orders. Blank where the order has no linked lead.
+    sm: managerOf(deal, managers).name,
+    smSource: managerOf(deal, managers).source,
+    stage,
     rank,
-    // The measure this board counts in. `value` keeps the house card shape; here it is square feet,
-    // never rupees — Deals.Amount is empty on every record in the module.
+    // `value` stays the floor area, which is what the popup's "Area (sq ft)" column reads. `amount` is
+    // the rupee figure, and only the Order booked card totals it.
     value: area,
     hasArea: area > 0,
+    // 'actual' only where the Post_* production fields are filled; everything else is an estimate
+    // and the popup labels it as one.
+    areaTier: areaWithTier(deal).tier,
+    amount,
+    amountLabel: amount > 0 ? inr(amount) : '',
     revisions,
     hasRevisions: set(deal.Number_of_Design_Revisions) && revisions > 0,
+    // The two figures the Pre-efficiency board averages. Both are null where Zoho has nothing to
+    // average, never 0 — a blank revision box means "not recorded", and counting it as no revisions
+    // would halve the average across the 86% of orders that simply never had the box filled.
+    // The ledger's own measurement first, because it is recorded on every order that reached the
+    // stage; the date-field subtraction is the fallback for orders with no history loaded.
+    designDays: ledgerDesignDays(past) ?? daysBetween(deal.Created_Time, deal.Send_For_Approval_Date),
+    revisionsRecorded: set(deal.Number_of_Design_Revisions) ? revisions : null,
+    query: clean(deal.Requirements_For_SM),
     designSentOn: deal.Send_For_Approval_Date ?? null,
     designPresentation: clean(deal.Design_Presentation),
     designRequiredOn: deal.Design_Required_on ?? null,
@@ -148,68 +315,70 @@ function toRecord(deal) {
     designApprovedOn: deal.Design_Approved_Date ?? null,
     handoverOn: deal.Handover_Date ?? null,
     createdAt: deal.Created_Time ?? null,
-    // Whether this order reached design at all. Every order created in the period is counted on the
-    // intake card; only the ones with this flag are what the funnel below it is about.
-    inDesign: enteredDesign(deal),
-    // The three milestones the cards cut on. Booked is implied by handover, so the chain can never
-    // widen: every handed-over order is a booked one.
-    firstDesign: rank >= 2 || set(deal.Send_For_Approval_Date) || set(deal.Design_Presentation),
-    booked: rank >= 3 || handedOver,
+    // The card tests. Every one of them is now "is the order ON this stage", so a card can only ever
+    // contain the stage it is named after.
+    request: isDesignRequest(deal),
+    // THE ASSIGNMENT PAIR, and the one place this board steps outside strict stage membership.
+    //
+    // As a stage, "waiting for a designer" is Form Filled — and that is empty, because 288 of the
+    // 304 requests passed through it and none stayed; orders leave it the same day. But 16 orders
+    // genuinely have no Designer_Name on them, and 13 of those are sitting at a stage called
+    // "Designer Assigned" with nobody actually named. That is the number worth showing, so pending
+    // counts the field as well as the stage.
+    //
+    // The two must stay exclusive or those 13 would appear on both cards, so "assigned" now needs a
+    // real designer as well as the stage. It reads 33 rather than 46 for that reason, and the 13 it
+    // gives up are a CRM gap, not lost work.
+    assignmentPending: at(PENDING_STAGES) || !set(deal.Designer_Name),
+    designerAssigned: at(ASSIGNED_STAGES) && set(deal.Designer_Name),
+    underDesign: at(UNDER_DESIGN_STAGES),
+    queryToSm: at(QUERY_STAGES),
+    sentForApproval,
+    revisionAsked,
+    // The one card with no stage of its own — Zoho has no "revision done" value. It is an order that
+    // CARRIES a revision (the count, type or either reason box, which are written once and kept) and
+    // is not sitting on a revision stage now. Derived, and the card says so.
+    revisionDone: (revisions > 0 || set(deal.Revision_Type)
+        || set(deal.Reason_for_Design_Revision1) || set(deal.Reason_for_Design_Revision2))
+      && !at(REVISION_LEDGER_STAGES),
+    booked: at(BOOKED_STAGES),
     handedOver
   };
 }
 
 // ---------------------------------------------------------------------------
-// Cards — the house shape: { key, label, count, value, valueLabel, ids, byCity, previous?, note? }
-// `byCity` is on every card: three rows, DEL / HYD / OTHER, always all three even when one is empty,
-// each row the same shape and measured in square feet like the card it sits under. The rows partition
-// the card, so they sum back to its count and its value.
+// Cards — the house shape: { key, label, count, ids, byCity, previous?, note? }
+// Money (`value` / `valueLabel`) is added only where `money` is asked for, so a card that is a pure
+// count never carries a rupee figure a tooltip could print as "₹0".
+// `byCity` is on every card: three rows, DEL / HYD / OTHER, always all three even when one is empty.
+// The rows partition the card, so they sum back to its count.
 // ---------------------------------------------------------------------------
-const totals = (records) => ({
-  count: records.length,
-  value: records.reduce((sum, record) => sum + record.value, 0),
-  ids: records.map((record) => record.id)
-});
-
-function card(records, extra = {}, previous = null) {
+function card(records, extra = {}, previous = null, money = false) {
   const { note, ...rest } = extra;
-  const { count, value, ids } = totals(records);
-  const trend = previous ? { previous: previous.length, previousValue: totals(previous).value } : {};
-  return { ...rest, count, value, valueLabel: sqft(value), ids, ...trend, ...(note ? { note } : {}) };
+  const sum = (list) => list.reduce((total, record) => total + record.amount, 0);
+  const trend = previous
+    ? { previous: previous.length, ...(money ? { previousValue: sum(previous) } : {}) }
+    : {};
+  return {
+    ...rest,
+    count: records.length,
+    ids: records.map((record) => record.id),
+    ...(money ? { value: sum(records), valueLabel: inr(sum(records)) } : {}),
+    ...trend,
+    ...(note ? { note } : {})
+  };
 }
 
 const sliceOf = (records, test) => (records ? records.filter(test) : null);
 
 // A card with its Delhi / Hyderabad / Others rows under it. The rows partition the card, so the three
-// counts sum back to its own and the three areas to its `value` — which is square feet here, never
-// rupees, in the rows exactly as in the card.
-function cityCard(records, extra = {}, previous = null) {
+// counts sum back to its own — and the three amounts to its money, on the one card that carries any.
+function cityCard(records, extra = {}, previous = null, money = false) {
   const inBucket = (key) => (record) => record.cityKey === key;
   return {
-    ...card(records, extra, previous),
-    byCity: cityRows(records, (mine, row) => card(mine, row, sliceOf(previous, inBucket(row.key))))
-  };
-}
-
-// The intake card, which is the only one that carries TWO counts: everything that arrived in the
-// period, and how much of that was sent in for design. The customer reads the pair as "what came in,
-// and how much of it actually reached us" — so `total` is every order created in the period and
-// `count` is the design cohort, which is also what `ids`, `value` and every card below this one use.
-// Delhi / Hyderabad / Others come with both figures too, so a city row reconciles the same way.
-function intakeCard(cohort, arrived, cohortBefore, arrivedBefore, extra = {}) {
-  const pair = (mine, all, mineBefore, allBefore, rest) => ({
-    ...card(mine, rest, mineBefore),
-    total: all.length,
-    ...(allBefore ? { previousTotal: allBefore.length } : {})
-  });
-  const inBucket = (key) => (record) => record.cityKey === key;
-  return {
-    ...pair(cohort, arrived, cohortBefore, arrivedBefore, extra),
-    byCity: cityRows(cohort, (mine, row) => pair(
-      mine, arrived.filter(inBucket(row.key)),
-      sliceOf(cohortBefore, inBucket(row.key)), sliceOf(arrivedBefore, inBucket(row.key)),
-      row
-    ))
+    ...card(records, extra, previous, money),
+    byCity: cityRows(records, (mine, row) =>
+      card(mine, row, sliceOf(previous, inBucket(row.key)), money))
   };
 }
 
@@ -267,38 +436,93 @@ function applyCityMerge(lists) {
 const share = (part, whole) => (whole ? part / whole : null);
 
 // ---------------------------------------------------------------------------
-// Card 3 — revisions against the three-revision limit
+// Pre-efficiency — the two averages under the funnel
 // ---------------------------------------------------------------------------
-// A distribution, not a total: one bucket per allowed revision and one for the orders that went past
-// the limit. Number_of_Design_Revisions is filled on 9% of the module, so the card says on how many
-// orders it is recorded and never implies the rest had none.
-const REVISION_BUCKETS = [
-  { key: 'r1', label: '1 revision', test: (record) => record.revisions === 1 },
-  { key: 'r2', label: '2 revisions', test: (record) => record.revisions === 2 },
-  { key: 'r3', label: '3 revisions', test: (record) => record.revisions === 3 },
-  { key: 'over', label: `Over ${REVISION_LIMIT}`, test: (record) => record.revisions > REVISION_LIMIT, pastLimit: true }
-];
-
-function revisionCard(cohort, previousCohort, label) {
-  const withCount = cohort.filter((record) => record.hasRevisions);
-  const before = previousCohort.filter((record) => record.hasRevisions);
-  const note = cohort.length
-    ? `Recorded on ${withCount.length.toLocaleString('en-IN')} of ${cohort.length.toLocaleString('en-IN')} orders in design; the rest are blank in Zoho, not zero`
-    : null;
+// A different shape from the cards above, and deliberately so: those count orders, these AVERAGE a
+// number over the orders that carry one. So the card reports two counts, not one — `count` is how
+// many orders the average is actually made of and `of` is how many were in the period — because an
+// average of 2.5 days means something different over 222 orders than over 3.
+//
+// A record with nothing to average contributes NOTHING; it is not averaged in as a zero. That is the
+// whole reason `designDays` and `revisionsRecorded` are null rather than 0 on the record.
+function metricCard(records, previous, { key, label, unit, of: valueOf, figure, note = null }) {
+  const build = (list, extra = {}) => {
+    const measured = list.filter((record) => valueOf(record) != null);
+    const value = measured.length
+      ? measured.reduce((total, record) => total + valueOf(record), 0) / measured.length
+      : null;
+    return {
+      ...extra,
+      value,
+      // Pre-rounded here so the card, its city cells, its tooltip and its "vs last period" line can
+      // never disagree about the same number by rounding it twice in two places.
+      figure: value == null ? null : figure(value),
+      valueLabel: value == null ? null : `${figure(value)} ${unit}`,
+      count: measured.length,
+      ids: measured.map((record) => record.id)
+    };
+  };
+  const inBucket = (bucket) => (record) => record.cityKey === bucket;
+  const now = build(records);
+  const then = previous ? build(previous) : null;
   return {
-    // The card's own three city numbers count the orders a revision count is recorded on, which is
-    // what the card counts — not the whole cohort behind the note.
-    ...cityCard(withCount, { key: 'revisions', label, note }, before),
-    limit: REVISION_LIMIT,
-    withinLimit: withCount.filter((record) => record.revisions <= REVISION_LIMIT).length,
-    overLimit: withCount.filter((record) => record.revisions > REVISION_LIMIT).length,
-    // `pastLimit` is a flag on the ONE bucket that sits outside the rule; the card's own `overLimit`
-    // above is a count. Two different things, so two different names.
-    buckets: REVISION_BUCKETS.map(({ key, label: bucketLabel, test, pastLimit }) => ({
-      ...cityCard(withCount.filter(test), { key, label: bucketLabel }, sliceOf(before, test)),
-      pastLimit: Boolean(pastLimit),
-      share: share(withCount.filter(test).length, withCount.length)
+    key,
+    label,
+    unit,
+    ...now,
+    of: records.length,
+    ...(then && then.value != null
+      ? { previous: then.value, previousFigure: then.figure, previousCount: then.count }
+      : {}),
+    ...(note ? { note } : {}),
+    byCity: cityRows(records, (mine, row) => ({
+      ...build(mine, row),
+      of: mine.length,
+      ...(previous ? { previous: build(previous.filter(inBucket(row.key))).value } : {})
     }))
+  };
+}
+
+const oneDecimal = (value) => value.toFixed(1);
+
+// ---------------------------------------------------------------------------
+// Revisions requested vs done — the third Pre-efficiency card
+// ---------------------------------------------------------------------------
+// Not an average like the two beside it, and not a count like the funnel cards above: a pair of
+// counts and the share between them. It answers the one question the funnel's two revision cards
+// put side by side but never actually join up — of the revisions asked for, how many have been
+// actioned, and how many are still open.
+//
+// The denominator is REQUESTED, not the cohort, because that is the only honest one here: a revision
+// cannot be done unless it was asked for, so `done` is a strict subset of `asked` and the share is a
+// real proportion. Against the whole cohort it would read as "14% of orders", which is a different
+// fact wearing the same percentage sign.
+function comparisonCard(asked, done, askedBefore, doneBefore, { key, label }) {
+  const build = (requested, finished, extra = {}) => {
+    const open = Math.max(requested.length - finished.length, 0);
+    const value = requested.length ? finished.length / requested.length : null;
+    return {
+      ...extra,
+      requested: requested.length,
+      done: finished.length,
+      open,
+      value,
+      figure: value == null ? null : `${Math.round(value * 100)}%`,
+      // `count` and `ids` keep the house card shape, so a click opens the orders the card is about:
+      // the ones a revision was asked for on.
+      count: requested.length,
+      ids: requested.map((record) => record.id)
+    };
+  };
+  const inBucket = (bucket) => (record) => record.cityKey === bucket;
+  const then = askedBefore ? build(askedBefore, doneBefore ?? []) : null;
+  return {
+    key,
+    label,
+    unit: 'actioned',
+    ...build(asked, done),
+    ...(then && then.value != null ? { previous: then.value, previousFigure: then.figure } : {}),
+    byCity: cityRows(asked, (mine, row) => build(mine, done.filter(inBucket(row.key)), row))
   };
 }
 
@@ -310,10 +534,15 @@ function revisionCard(cohort, previousCohort, label) {
 // zohoClient because getAllRecords stops at Zoho's 2,000-record page-number ceiling and a quarter's
 // comparison window runs to roughly 6,000 orders. zohoGet brings the shared token and 60s cache with it.
 const DEAL_FIELDS = [
-  'Deal_Name', 'Owner', 'Stage', 'city', 'Created_Time',
-  'Sqaure_Feet', 'Cabinet_Area_Sqft',
+  'Deal_Name', 'Owner', 'Opportunity_Name', 'Stage', 'city', 'Created_Time',
+  'Sqaure_Feet', 'Cabinet_Area_Sqft', 'Backsplash_Area_Sqft', 'Countertop_Area_Sqft',
+  'Post_Cabinet_Area_Sqft', 'Post_Backsplash_Area_Sqft', 'Post_Countertop_Area_Sqft',
+  'Revision_Cabinet_Area_Sqft', 'Revision_Backsplash_Area_Sqft', 'Revision_Countertop_Area_Sqft',
+  'Value',
   'Designer_Name', 'Design_Required_on', 'Expected_Design_Date', 'Design_Approved_Date',
-  'Design_Presentation', 'Send_For_Approval_Date', 'Number_of_Design_Revisions', 'Handover_Date'
+  'Design_Presentation', 'Send_For_Approval_Date', 'Requirements_For_SM',
+  'Number_of_Design_Revisions', 'Revision_Type',
+  'Reason_for_Design_Revision1', 'Reason_for_Design_Revision2', 'Handover_Date'
 ].join(',');
 
 const MAX_PAGES = 45;
@@ -345,49 +574,56 @@ export async function getPreDesignDeals(since) {
  * @param tf      the period window from getTimeframeFilter
  * @param deals   Zoho Deals created since the comparison window's start
  * @param city    all | DEL | HYD | OTHER | one city's name
+ * @param history the DealHistory index from indexByRecord(); every card falls back to the old
+ *                field-and-stage rule for an order the ledger has nothing for, so a failed or
+ *                partial history read degrades the numbers rather than breaking the board
  * @param notice  set when Zoho could not be read: the same shape comes back, with zeros
  */
-export function buildPreDesignBoard({ tf, deals = [], city, notice = null }) {
-  // Everything real that arrived, design or not. The cohort is taken out of this a few lines down
-  // rather than filtered away here, because the intake card has to report both figures.
-  const all = (deals ?? []).filter(isRealDeal).map(toRecord);
+export function buildPreDesignBoard({ tf, deals = [], city, history = null, managers = null, notice = null }) {
+  const all = (deals ?? []).filter(isRealDeal).map((deal) => toRecord(deal, history, managers));
   const created = all.filter((record) => record.createdAt && tf.matches(record.createdAt));
   const createdBefore = all.filter((record) => record.createdAt && tf.previousMatches(record.createdAt));
   applyCityMerge([created, createdBefore]);
 
   const selected = resolveCity(city, created);
   const only = (list) => list.filter(selected.matches);
-  // Everything created in the period: the first figure in the intake card's bracket.
   const arrived = only(created);
   const arrivedBefore = only(createdBefore);
-  // The cohort every card cuts: the arrivals that were sent in for design. The cards never re-filter
-  // it, so each one is a subset of the one above it.
-  const cohort = arrived.filter((record) => record.inDesign);
-  const before = arrivedBefore.filter((record) => record.inDesign);
+  // The cohort every card cuts: the orders sales sent to design. The cards never re-filter it, so each
+  // one is a subset of this.
+  // "None" is Zoho's empty stage, not a step in the process, so an order parked on it is not a design
+  // request and is kept off the board entirely rather than swelling the head of the chain.
+  const isStaged = (record) => clean(record.stage).toLowerCase() !== EMPTY_STAGE;
+  const cohort = arrived.filter((record) => record.request && isStaged(record));
+  const before = arrivedBefore.filter((record) => record.request && isStaged(record));
   const cut = (test) => [cohort.filter(test), before.filter(test)];
 
-  const [firstDesign, firstDesignBefore] = cut((record) => record.firstDesign);
+  const [assigned, assignedBefore] = cut((record) => record.designerAssigned);
+  const [pending, pendingBefore] = cut((record) => record.assignmentPending);
+  const [query, queryBefore] = cut((record) => record.queryToSm);
+  const [design, designBefore] = cut((record) => record.underDesign);
+  const [approval, approvalBefore] = cut((record) => record.sentForApproval);
+  const [asked, askedBefore] = cut((record) => record.revisionAsked);
+  const [done, doneBefore] = cut((record) => record.revisionDone);
   const [booked, bookedBefore] = cut((record) => record.booked);
   const [handover, handoverBefore] = cut((record) => record.handedOver);
 
-  const withArea = cohort.filter((record) => record.hasArea);
   const comparisonLabel = previousLabelOf(tf.kind, tf.previousLabel ?? null);
+  // Every share on the chain is of the same denominator: the requests card. Stated once here so no
+  // card can quietly pick a different one.
+  const of = (list) => share(list.length, cohort.length);
 
   // Orders that arrived already past design — imported straight into post-design or Final Handover
-  // with no design field on them. They are part of the gap between the two bracket figures but they
-  // are NOT work that design failed to pick up, so the card says so rather than letting the pair be
-  // read as a conversion rate. Nil in a normal month; 1,800-odd in the quarter the CRM was loaded.
-  const imported = arrived.filter((record) => !record.inDesign && record.rank >= 4).length;
-
-  // Every number on the intake card that a reader could mistake for something else, said out loud.
-  const intakeNote = [
-    cohort.length
-      ? `Area (Sqft) recorded on ${withArea.length.toLocaleString('en-IN')} of ${cohort.length.toLocaleString('en-IN')} orders sent to design — the total covers those only`
-      : null,
-    imported
-      ? `${imported.toLocaleString('en-IN')} of the ${(arrived.length - cohort.length).toLocaleString('en-IN')} not sent to design arrived already past it, as imported orders`
-      : null
-  ].filter(Boolean).join('. ') || null;
+  // with no design field on them. They are not work design failed to pick up, so they are named rather
+  // than left inside the gap between "created" and "requests". Nil in a normal month; 1,300-odd in the
+  // quarter the CRM was loaded.
+  const imported = arrived.filter((record) => !record.request && record.rank >= 4).length;
+  const overLimit = asked.filter((record) => record.revisions > REVISION_LIMIT).length;
+  const withAmount = booked.filter((record) => record.amount > 0).length;
+  // How much of the cohort each Pre-efficiency average is actually made of — said on the card, so an
+  // average over three orders can never be read as an average over the month.
+  const measuredDays = cohort.filter((record) => record.designDays != null).length;
+  const measuredRevisions = cohort.filter((record) => record.revisionsRecorded != null).length;
 
   return {
     meta: {
@@ -397,54 +633,134 @@ export function buildPreDesignBoard({ tf, deals = [], city, notice = null }) {
       city: selected.key,
       comparison: { start: tf.previousStart ?? null, end: tf.previousEnd ?? null, label: comparisonLabel, available: Boolean(tf.previousStart) },
       // What the board could and could not measure, so the caveats are data rather than prose in the
-      // component. `booked` and `handover` are cohort positions: an order created this week has not had
-      // time to reach them, so a short period reads near zero by construction, not by fault.
+      // component. Order booked and Handover are cohort positions: an order created this week has not
+      // had time to reach them, so a short period reads near zero by construction, not by fault.
       coverage: {
-        // `arrived` is every order created in the period; `orders` is the design cohort the funnel is
-        // about. The intake card shows the pair; the gap between them is not all missed design work,
-        // which is what `importedPastDesign` accounts for.
         arrived: arrived.length,
         orders: cohort.length,
         importedPastDesign: imported,
-        withArea: withArea.length,
         withRevisionCount: cohort.filter((record) => record.hasRevisions).length,
-        areaField: 'Deals.Sqaure_Feet ("Area (Sqft)"), falling back to Cabinet_Area_Sqft where it is blank',
-        cohortRule: 'Orders created in the period carrying any design field (designer, design date, design presentation, revision count)',
+        withDesignTime: measuredDays,
+        bookedWithValue: withAmount,
+        moneyField: 'Deals.Value, in lakhs — the only rupee field filled in the module; Amount is empty on every record',
+        cohortRule: 'Orders created in the period carrying a design field (designer, design date, design presentation, revision count) or sitting at a design stage',
+        stageSource: history
+          ? 'DealHistory — each card counts orders that ever reached its stage, not only those sitting there now'
+          : 'Deals.Stage snapshot only — the stage ledger could not be read, so an order that moved past a stage is not counted by it',
+        // Of the cohort this board is about, not of every order fetched across both windows.
+        ordersWithHistory: history ? cohort.filter((record) => history.has(record.id)).length : 0,
+        withSalesManager: cohort.filter((record) => record.sm).length,
+        smSource: 'Contacts.Sales_Manager on the qualified lead the order came from. The Orders module has no sales-manager field; the order owner is a different person on 53% of orders and is not used for this.',
         cohortNote: 'Legacy orders imported straight into Final Handover carry no design field and are left out',
-        tailNote: 'Booked and Handed over are where this period’s intake stands today, so a short period shows few of either'
+        pairNote: 'Assigned / pending and Under design / Query to SM each partition the requests card, so either pair adds back to it',
+        tailNote: 'Order booked and Handover to design are where this period’s requests stand today, so a short period shows few of either'
       },
       notice
     },
-    // The switcher counts the design cohort, because that is what the rows under the card show and
-    // what switching city actually changes on the funnel.
-    filters: { cities: cityFilters(created.filter((record) => record.inDesign)) },
+    filters: { cities: cityFilters(created.filter((record) => record.request)) },
     preDesign: {
       previousLabel: comparisonLabel,
-      // 1 — the headline: square feet, with BOTH counts (everything that arrived, and how much of it
-      // was sent to design), split by city. `count`/`ids`/`value` stay the design cohort, so the ids
-      // the popup opens are design orders and every card below this one is a subset of them.
-      intake: intakeCard(cohort, arrived, before, arrivedBefore, {
-        key: 'intake', label: 'Sent in for design', note: intakeNote
-      }),
-      // 2 — the first design produced for the order.
-      firstDesign: cityCard(firstDesign, {
-        key: 'firstDesign',
-        label: 'First fresh design',
-        share: share(firstDesign.length, cohort.length)
-      }, firstDesignBefore),
-      // 3 — the spread against the three-revision limit.
-      revisions: revisionCard(cohort, before, 'Revisions'),
-      // 4 and 5 — where the cohort stands now.
-      booked: cityCard(booked, { key: 'booked', label: 'Booked', share: share(booked.length, cohort.length) }, bookedBefore),
+      // 1 — the head of the chain: how many requests sales sent to design.
+      requests: cityCard(cohort, {
+        key: 'requests',
+        label: 'Total new requests from sales',
+        note: imported
+          ? `${imported.toLocaleString('en-IN')} more orders created in this period arrived already past design, as imported records, and are not counted here`
+          : null
+      }, before),
+      // 2 and 3 — the first pair, which partitions the requests card.
+      designerAssigned: cityCard(assigned, {
+        key: 'designerAssigned', label: 'Designer assigned', share: of(assigned)
+      }, assignedBefore),
+      assignmentPending: cityCard(pending, {
+        key: 'assignmentPending',
+        label: 'Designer assignment pending',
+        share: of(pending),
+        note: pending.length
+          ? `${pending.filter((record) => record.stage && record.stage !== 'Form Filled').length.toLocaleString('en-IN')} of these sit at a later stage with no designer named in Zoho`
+          : null
+      }, pendingBefore),
+      // 4 and 5 — the second pair, which partitions it again.
+      underDesign: cityCard(design, {
+        key: 'underDesign', label: 'Under design', share: of(design)
+      }, designBefore),
+      queryToSm: cityCard(query, {
+        key: 'queryToSm', label: 'Query to SM', share: of(query)
+      }, queryBefore),
+      // 6 to 10 — the single chain the two pairs feed into.
+      sentForApproval: cityCard(approval, {
+        key: 'sentForApproval', label: 'Sent for approval', share: of(approval)
+      }, approvalBefore),
+      revisionRequested: cityCard(asked, {
+        key: 'revisionRequested',
+        label: 'Revision requested',
+        share: of(asked),
+        note: overLimit
+          ? `${overLimit.toLocaleString('en-IN')} past the ${REVISION_LIMIT}-revision limit`
+          : null
+      }, askedBefore),
+      // This card reads the same as the one before it whenever no order is parked on a revision stage
+      // — which is the truth, not a fault, so it says so rather than leaving two equal figures side by
+      // side with no explanation.
+      revisionDone: cityCard(done, {
+        key: 'revisionDone',
+        label: 'Revision done',
+        share: of(done),
+        note: asked.length
+          ? (asked.length > done.length
+            ? `${(asked.length - done.length).toLocaleString('en-IN')} still open in a revision stage`
+            : 'Every revision asked for in this period has been actioned')
+          : null
+      }, doneBefore),
+      // The one card with money on it.
+      orderBooked: cityCard(booked, {
+        key: 'orderBooked',
+        label: 'Order booked',
+        share: of(booked),
+        note: booked.length && withAmount < booked.length
+          ? `Value recorded on ${withAmount.toLocaleString('en-IN')} of ${booked.length.toLocaleString('en-IN')} booked orders`
+          : null
+      }, bookedBefore, true),
       handover: cityCard(handover, {
-        key: 'handover',
-        label: 'Handed over',
-        share: share(handover.length, cohort.length)
+        key: 'handover', label: 'Handover to design', share: of(handover)
       }, handoverBefore)
     },
-    // The design cohort, which is what every card's `ids` point into — including the intake card,
-    // whose `total` counts wider than its ids on purpose. The internal signals the cards were cut on
-    // are dropped; the frontend gets the flat order only.
-    records: cohort.map(({ cityNameKey, rank, hasArea, hasRevisions, inDesign, firstDesign: _fd, booked: _bk, handedOver, ...record }) => record)
+    // The two averages under the funnel. Same cohort, same city buckets, different arithmetic.
+    preEfficiency: {
+      previousLabel: comparisonLabel,
+      freshDesign: metricCard(cohort, before, {
+        key: 'freshDesign',
+        label: 'Average time to fresh design',
+        unit: 'days',
+        of: (record) => record.designDays,
+        figure: oneDecimal,
+        note: cohort.length
+          ? `Averaged over the ${measuredDays.toLocaleString('en-IN')} of ${cohort.length.toLocaleString('en-IN')} requests that carry a Send For Approval Date`
+          : null
+      }),
+      // The comparison card: of the revisions asked for, how many are actioned and how many are open.
+      revisionTurnaround: comparisonCard(asked, done, askedBefore, doneBefore, {
+        key: 'revisionTurnaround',
+        label: 'Revisions requested vs done'
+      }),
+      revisions: metricCard(cohort, before, {
+        key: 'revisions',
+        label: 'Average revisions per order',
+        unit: 'per order',
+        of: (record) => record.revisionsRecorded,
+        figure: oneDecimal,
+        note: cohort.length
+          ? `Averaged over the ${measuredRevisions.toLocaleString('en-IN')} of ${cohort.length.toLocaleString('en-IN')} requests where the revision box is filled; a blank one is unknown, not zero`
+          : null
+      })
+    },
+    // The design cohort, which is what every card's `ids` point into. The internal signals the cards
+    // were cut on are dropped; the frontend gets the flat order only.
+    records: cohort.map(({
+      cityNameKey, rank, hasArea, hasRevisions, request, designerAssigned: _da, queryToSm: _q,
+      assignmentPending: _ap, underDesign: _ud,
+      sentForApproval: _sa, revisionAsked: _ra, revisionDone: _rd, booked: _bk, handedOver,
+      revisionsRecorded: _rr, ...record
+    }) => record)
   };
 }
