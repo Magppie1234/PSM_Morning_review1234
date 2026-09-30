@@ -6,7 +6,8 @@ import {
 import { inr } from './salesFunnelBoard.js';
 import { isRealDeal, LAKH } from './preDesignBoard.js';
 import { enteredDuring, sittingAt } from './stageLedger.js';
-import { postDesignLifeOf, sqftTierOf, summarise } from './postDesignModel.js';
+import { isTerminalStage, postDesignLifeOf, sqftTierOf, START_STAGE, summarise } from './postDesignModel.js';
+import { attachPostDesignFormulas } from '../config/cardFormula.js';
 import { getAllDeals } from './dealsModule.js';
 
 // The Post Design queue on the Design board: where every order that has left design currently sits.
@@ -325,13 +326,76 @@ export const getPostDesignQueue = getAllDeals;
  *                note at the top of this file
  * @param notice  set when Zoho could not be read: the same shape comes back, with zeros
  */
+
+// ---------------------------------------------------------------------------------------------
+// The blueprint cohort
+// ---------------------------------------------------------------------------------------------
+/**
+ * Orders BETWEEN the blueprint's two post-design markers: they have entered START_STAGE
+ * ("Assign Post - Designer") and have not yet reached END_STAGE ("PDI Payment Done") or anything
+ * past it.
+ *
+ * "Or anything past it" matters: 34 of the orders that have started post design moved straight from
+ * a dispatch or installation stage without the PDI payment stage ever being set, and an exact match
+ * on END_STAGE would hold them in the queue forever.
+ *
+ * With no history the cohort cannot be established, so the old stage-membership rule is used and
+ * meta.coverage says so - a board that silently emptied itself would be worse than one that is
+ * honestly approximate.
+ */
+function postDesignCohort(records, history, { includeCompleted = false } = {}) {
+  if (!history) return records;
+  const startKey = clean(canonicalStage(START_STAGE)).toLowerCase();
+  return records.filter((record) => {
+    const entry = history.get(String(record.id));
+    const steps = entry?.entries ?? [];
+    if (!steps.length) return false;
+    const startedAt = steps
+      .filter((step) => clean(canonicalStage(step.stage)).toLowerCase() === startKey)
+      .map((step) => step.enteredAt)
+      .filter(Boolean)
+      .sort()[0];
+    if (!startedAt) return false;
+    // `includeCompleted` is what separates the board's two figures, and the distinction is real:
+    //
+    //   SITTING  must be in-flight. An order that has finished post design is not in the queue.
+    //   ENTERED  must NOT be. An order that entered Handover in September and finished in September
+    //            genuinely did move through post design that month, and dropping it would undercount
+    //            exactly the orders that moved fastest.
+    if (includeCompleted) return true;
+    const finished = steps.some((step) => isTerminalStage(step.stage)
+      && step.enteredAt && Date.parse(step.enteredAt) >= Date.parse(startedAt));
+    return !finished;
+  });
+}
+
 export function buildPostDesignFunnel({ deals = [], city, tf = null, history = null, notice = null }) {
   const all = (deals ?? []).filter(isRealDeal).map(toRecord);
-  const byId = new Map(all.map((record) => [record.id, record]));
+  // The index the FLOW figures look orders up in. Built from the orders that have STARTED post
+  // design, completed or not - not from every order in the module, which is what let the entered
+  // figures count orders that had never begun post design.
+  const byId = new Map(postDesignCohort(all, history, { includeCompleted: true })
+    .map((record) => [record.id, record]));
   // The queue: everything sitting at one of the nine cards' stages right now.
   // "None" is Zoho's empty stage and maps to no card, so it never reaches the queue — but say it
   // here too, so a future STAGE_MAP entry cannot quietly put it on one.
-  const queue = all.filter((record) => record.card && clean(record.stage).toLowerCase() !== 'none');
+  // THE COHORT IS THE BLUEPRINT'S POST-DESIGN BLOCK, not "anything sitting on a post-design-looking
+  // stage". The Orders blueprint starts post design at "Assign Post - Designer" and ends it at
+  // "PDI Payment Done", so an order belongs here when it has ENTERED the first and not yet reached
+  // the second.
+  //
+  // The old rule was stage membership alone, which counted 494 orders against the 328 that have
+  // actually started post design - 166 of them had never entered "Assign Post - Designer" at all.
+  // They sit on a stage that also appears in post design (Sent for Approval, Order Booked, Designer
+  // Assigned) while still being somewhere else entirely in their life.
+  //
+  // WHY NOT THE SEQUENCE NUMBERS. The picklist numbers those two stages 18 and 35, so "between 18
+  // and 35" looks like the obvious test - and it is wrong. The picklist was extended twice after
+  // that block was numbered, so 34 genuinely post-design stages sit outside it: every EP marking
+  // stage, most of First visit, most of PDI. Taking the numeric range would have emptied those
+  // cards. The dated history is the only thing that can say where an order actually is.
+  const inPostDesign = postDesignCohort(all, history);
+  const queue = inPostDesign.filter((record) => record.card && clean(record.stage).toLowerCase() !== 'none');
   applyCityMerge(queue);
 
   const selected = resolveCity(city, queue);
@@ -417,6 +481,10 @@ export function buildPostDesignFunnel({ deals = [], city, tf = null, history = n
       periodApplies: Boolean(history && tf),
       coverage: {
         queue: inView.length,
+        cohortRule: history
+          ? 'Orders between the two post-design markers on the Orders blueprint: they have entered "Assign Post - Designer" and have not yet reached "PDI Payment Done" or any stage past it.'
+          : 'The stage history could not be read, so the board falls back to stage membership alone and counts orders that may never have started post design.',
+        cohortDated: Boolean(history),
         otherPostDesign: other,
         // The evidence behind the info panel, as data rather than prose in the component.
         source: 'Deals.Stage — the only post-design signal filled in the CRM',
@@ -453,7 +521,9 @@ export function buildPostDesignFunnel({ deals = [], city, tf = null, history = n
       notice
     },
     filters: { cities: cityFilters(queue) },
-    postDesign: { cards },
+    // Every card ships with the formula that produced it, generated from the same
+    // DEAL_POST_DESIGN_STEPS table the counting used.
+    postDesign: { cards: attachPostDesignFormulas(cards, tf, Boolean(history)) },
     // The cohort's own figures, beside the stage cards rather than instead of them.
     model,
     // Every order any card points at — the live queue AND the orders that entered a stage during the

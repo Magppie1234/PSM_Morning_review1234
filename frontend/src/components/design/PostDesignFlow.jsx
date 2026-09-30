@@ -1,4 +1,5 @@
 import { Info, X } from 'lucide-react';
+import { Formula, FormulaPanel } from '../formula/FormulaPanel.jsx';
 import { useCallback, useState } from 'react';
 // The Delhi / Hyderabad / Others cells, shared with the Pre Sales, Sales and pre-design funnels
 // so the split reads the same on every card of every board.
@@ -91,9 +92,12 @@ function FlowCard({ node, share, onOpen }) {
   const unit = node?.unit ?? 'order';
   const flow = node?.basis !== 'sitting';
   const sitting = node?.sitting ?? 0;
-  const shareText = !empty && share != null
-    ? `${pct(share)} of the ${flow ? 'period' : 'queue'}`
-    : null;
+  // How many reached this stage during the selected period. Null where the stage ledger could not be
+  // read, which is not the same as zero and must not be drawn as one.
+  const entered = Number.isFinite(Number(node?.entered)) ? Number(node.entered) : null;
+  // The headline is the sitting figure, so the share is of the QUEUE — never of the period total,
+  // which counts a different population and produced shares above 100% when the two were mixed.
+  const shareText = !empty && share != null ? `${pct(share)} of the queue` : null;
   const click = useCallback(() => {
     if (empty) return;
     onOpen?.({ id: node.key, label: node.label, ids: node?.ids ?? [] });
@@ -114,7 +118,7 @@ function FlowCard({ node, share, onOpen }) {
         // `entered` used to live here, from the period-flow version of this card. The board was
         // then made strictly current-stage, the variable went, and this line kept referencing it —
         // which threw "entered is not defined" and blanked the whole Post Design board on render.
-        sitting !== count ? `${plural(sitting, 'order')} sitting there now` : null,
+        entered !== null ? `${plural(entered, 'order')} entered it during the selected period` : null,
         shareText,
         empty ? 'Nothing on this stage' : 'Click to see the orders'
       ].filter(Boolean).join('\n')}
@@ -127,8 +131,11 @@ function FlowCard({ node, share, onOpen }) {
       {/* Which of the two figures the headline is. Said on every card, because a number that moves
           with the period buttons and one that does not must never look alike. */}
       <em className="po-basis">{flow ? 'entered this period' : 'sitting now'}</em>
-      {sitting !== count && (
-        <span className="po-stock"><b>{sitting.toLocaleString('en-IN')}</b> sitting here now</span>
+      {/* THE PERIOD FIGURE. The API has always sent it and the card never showed it, which is what
+          made the period buttons look broken: pressing Monthly changed this number from 2 to 35 and
+          nothing on screen moved. */}
+      {entered !== null && (
+        <span className="po-stock"><b>{entered.toLocaleString('en-IN')}</b> entered this period</span>
       )}
       {shareText && <em className="po-share">{shareText}</em>}
     </button>
@@ -206,7 +213,11 @@ export function PostDesignFlow({ data, coverage, loading, onOpen }) {
   // The denominator for every share: the period's total movement, summed from the cards themselves
   // so it can never disagree with what is on screen. The queue total is tracked beside it because
   // the header still reports it — they are different numbers and both are wanted.
-  const moved = cards.reduce((total, entry) => total + (entry.count ?? 0), 0);
+  // MOVED is the period figure and QUEUE is the standing one, and they are summed from DIFFERENT
+  // fields. `moved` used to sum `count`, which on this board is the sitting figure - so the header
+  // printed the same number twice ("494 moved ... 494 sitting") and did not change when the period
+  // buttons were pressed. `entered` is the field that actually responds to the period.
+  const moved = cards.reduce((total, entry) => total + (entry.entered ?? 0), 0);
   const queue = cards.reduce((total, entry) => total + (entry.sitting ?? 0), 0);
 
   return (
@@ -236,6 +247,13 @@ export function PostDesignFlow({ data, coverage, loading, onOpen }) {
 
         {info && <InfoPanel coverage={coverage} onClose={() => setInfo(false)} />}
 
+        {/* Show Formula. Each card's entry is sent by the API, generated from the same post-design
+            stage table the counting used, so it cannot describe a rule the numbers did not follow. */}
+        <FormulaPanel title="Post-design queue">
+          {cards.filter((node) => node?.formula)
+            .map((node) => <Formula entry={node.formula} compact key={node.key} />)}
+        </FormulaPanel>
+
         {/* Nine columns, all on screen. Affordable here because this board carries no wire labels,
             so the gutter only has to hold a plain elbow — see post-design-queue.css. */}
         <div className="po-track">
@@ -244,7 +262,7 @@ export function PostDesignFlow({ data, coverage, loading, onOpen }) {
               <div className={`lf-node ${index === 0 ? 'has-out' : index === cards.length - 1 ? 'has-in' : 'has-in has-out'}`}>
                 <i className="lf-w in-h" aria-hidden="true" />
                 <i className="lf-w in-v" aria-hidden="true" />
-                <FlowCard node={node} share={moved ? node.count / moved : null} onOpen={onOpen} />
+                <FlowCard node={node} share={queue ? (node.sitting ?? node.count) / queue : null} onOpen={onOpen} />
                 {node.subs?.length > 0 && (
                   <ul className="po-rows" aria-label={`${node.label} broken down`}>
                     {node.subs.map((row) => (
@@ -266,16 +284,6 @@ export function PostDesignFlow({ data, coverage, loading, onOpen }) {
           ))}
         </div>
 
-        <p className="po-note">
-          The big figure on each card is how many orders <strong>entered</strong> that stage in the
-          selected period; the figure under it is how many are <strong>sitting there right now</strong>,
-          whatever period is chosen. The two are different questions and rarely match — 35 orders
-          reached Handover this period while 303 are parked there. Each order is credited to the
-          furthest sub-card it reached, so the sub-cards add back to their card and the nine cards add
-          back to the {moved.toLocaleString('en-IN')} that moved. Nothing converts into anything, which
-          is why there are no percentages on the arrows. Press <strong>i</strong> above for where the
-          numbers come from and what Zoho is still not recording.
-        </p>
       </section>
     </>
   );
