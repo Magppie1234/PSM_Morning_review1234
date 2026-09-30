@@ -354,12 +354,6 @@ export function DispatchReview({ timeframe }) {
           />
         ))}
 
-      <p className="dr-note">
-        Click any card to see its orders. The <strong>Due</strong> strip reads Zoho&rsquo;s dispatch
-        date and shows zero because every date the CRM holds is historical — press <strong>i</strong>{' '}
-        above for which fields are filled and which are not. The board covers{' '}
-        <strong>booked orders only</strong>.
-      </p>
     </section>
   );
 }

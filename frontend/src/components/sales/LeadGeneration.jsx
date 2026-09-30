@@ -218,7 +218,6 @@ function FlowCard({ id, label, node, tone, size, wires, share, shareSuffix, with
         )}
         <Delta trend={trend} />
         {/* The API may attach a caveat to any card — e.g. why a count reads lower than expected. */}
-        {node?.note && <small className="lg-note">{node.note}</small>}
       </button>
       <CityCells cities={cities} groupId={id} groupLabel={label} unit="lead" onOpen={onOpen} />
       <i className="lf-w out-h" aria-hidden="true" />

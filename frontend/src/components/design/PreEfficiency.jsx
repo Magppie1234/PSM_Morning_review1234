@@ -254,12 +254,6 @@ export function PreEfficiency({ data, previousLabel, loading, onOpen }) {
         })}
       </div>
 
-      <p className="pe-note">
-        Both figures are <strong>averages</strong>, not counts, and each card says how many orders it
-        was taken over. An order with nothing recorded is left out rather than averaged in as a zero
-        — so the revision figure is the average <strong>where a number was written down</strong>, not
-        across every request. Click a card, or a city cell, to see the orders behind it.
-      </p>
     </section>
   );
 }

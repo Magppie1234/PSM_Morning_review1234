@@ -239,7 +239,6 @@ function FlowCard({ node, id, label, hint, about, tone, size = 'md', extra = '',
         <span className="lf-share" aria-hidden="true"><b style={{ width: `${Math.max(share * 100, 2)}%` }} /></span>
       )}
       {empty && <span className="lf-delta flat">None in this period</span>}
-      {note && <span className="sp-card-note">{note}</span>}
     </button>
   );
 }

@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 // The Delhi / Hyderabad / Others cells, shared with the Pre Sales and the two Sales funnels
 // so the split reads the same on every card of every board.
 import { CityCells } from '../presales/LeadFlow.jsx';
+import { Formula, FormulaPanel } from '../formula/FormulaPanel.jsx';
 
 // The Design board's pre-design funnel, drawn as the PSM board's Funnel: one connected line of cards
 // with elbow wires, rendering LeadFlow's own .lf- markup and classes exactly as the Sales board's
@@ -185,7 +186,6 @@ function FlowCard({ node, id, label, tone, better, size = 'md', extra = '', prev
         <span className="lf-share" aria-hidden="true"><b style={{ width: `${Math.max(node.share * 100, 2)}%` }} /></span>
       )}
       <Delta node={node} better={better} previousLabel={previousLabel} />
-      {note && <span className="pd-card-note">{note}</span>}
     </button>
   );
 }
@@ -243,6 +243,14 @@ export function PreDesignFlow({ data, previousLabel, loading, onOpen }) {
     >
       <h2 id="pd-title" className="lf-title">Pre-design funnel</h2>
 
+      {/* Show Formula. Each card's formula is sent by the API, generated from the same stage config
+          the counting used, so this panel cannot describe a rule the numbers did not follow. */}
+      <FormulaPanel title="Pre-design funnel">
+        {Object.values(data)
+          .filter((node) => node && node.formula)
+          .map((node) => <Formula entry={node.formula} compact key={node.key} />)}
+      </FormulaPanel>
+
       {/* Eight columns, all on screen: the width comes out of the gutter and the card padding, not
           out of a scrollbar. The measurements are in pre-design.css. */}
       <div className="pd-track">
@@ -270,17 +278,6 @@ export function PreDesignFlow({ data, previousLabel, loading, onOpen }) {
         <div className="lf-c">{cell('handover', 'has-in')}</div>
       </div>
 
-      <p className="pd-note">
-        Every card counts <strong>orders</strong>, and every share is of the{' '}
-        <strong>new requests</strong> card at the head of the chain. The two stacked pairs each split
-        that card in two: a request is either <strong>assigned</strong> to a designer or waiting for
-        one, and either sits with <strong>design</strong> or has gone back to the sales manager as a{' '}
-        <strong>query</strong>. Only <strong>Order booked</strong> carries a rupee figure, because
-        Value is the one money field Zoho fills on an order and it fills at booking. Every card counts
-        orders <strong>created</strong> in the selected period and shows where they stand today, so{' '}
-        <strong>Order booked</strong> and <strong>Handover to design</strong> stay low on a short
-        period — a new request has not reached them yet.
-      </p>
     </section>
   );
 }

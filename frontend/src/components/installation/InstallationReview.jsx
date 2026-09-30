@@ -88,8 +88,6 @@ function Card({ card, largest, isFirst, onOpen }) {
           </div>
         </>
       )}
-      {/* A caveat the API sends with the figure — what the card could not measure and why. */}
-      {card.note && <span className="dm-why">{card.note}</span>}
     </div>
   );
 }
@@ -207,14 +205,6 @@ export function InstallationReview({ timeframe }) {
         <SalesRecordsPopup card={card} records={data.records ?? []} onClose={() => setCard(null)} />
       )}
 
-      <p className="dr-note">
-        Click a card, or one of its three figures, to see the orders. The <strong>order split</strong>{' '}
-        above narrows every card at once. Each card is a <strong>separate stage</strong> and an order
-        sits at one of them, so the cards do not add up to each other and carry no percentage — the
-        bar is scale only. <strong>Installation started</strong> is broken down by how
-        long each job has been running, from the dated stage history; <strong>Installation due</strong>{' '}
-        by Est. Handover Date, which only 129 orders carry; and <strong>Handover</strong> by city.
-      </p>
     </section>
   );
 }
