@@ -378,4 +378,14 @@ export function valueOf(contact) {
 
 // Records whose name contains the word "test" are staff experiments, left out here exactly as
 // services/contactStages.js leaves them out of the Pre Sales funnel.
-export const isRealRecord = (contact) => !/\btest\b/i.test(contact?.Full_Name ?? '');
+// Sunrooof is left out of this dashboard entirely, the same way its orders are in
+// services/preDesignBoard.js. On a contact the product sits in Product_Type or in the
+// Product_Requirement multiselect, so both are tested.
+export const isSunrooof = (record) => SUNROOOF.test(
+  `${record?.Product_Type ?? ''} ${Array.isArray(record?.Product_Requirement)
+    ? record.Product_Requirement.join(' ')
+    : (record?.Product_Requirement ?? '')}`
+);
+
+export const isRealRecord = (contact) => !/\btest\b/i.test(contact?.Full_Name ?? '')
+  && !isSunrooof(contact);

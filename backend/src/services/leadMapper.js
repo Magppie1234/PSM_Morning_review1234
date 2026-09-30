@@ -2,7 +2,7 @@ import { buildContactStages } from './contactStages.js';
 import { buildLeadFlow, isQualifiedStatus } from './leadFlow.js';
 import { buildMandate } from './mandate.js';
 import { PSM_NAMES } from '../config/roster.js';
-import { OTHER_CITY_KEY, canonicalCityName, cityBucketOf, cityRows, mergeCityNames } from '../config/salesFunnel.js';
+import { OTHER_CITY_KEY, canonicalCityName, cityBucketOf, cityRows, isSunrooof, mergeCityNames } from '../config/salesFunnel.js';
 import { withAllPsms } from './teamRows.js';
 import { dayOffset, getTimeframeFilter, localDayKey } from './timeUtils.js';
 
@@ -159,8 +159,10 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
   const reportLabel = tf.reportLabel;
   const todayKey = localDayKey(new Date());
 
-  // PSM-owned leads (including converted ones) created in the selected window
-  const magppie = leads.filter(isPsmLead);
+  // PSM-owned leads (including converted ones) created in the selected window, minus Sunrooof —
+  // which is out of this dashboard at every stage, so it is dropped here as well as on the Sales
+  // funnel and the order boards. A raw lead carries its product in Product_Requirement.
+  const magppie = leads.filter((lead) => isPsmLead(lead) && !isSunrooof(lead));
   const items = magppie
     .filter((lead) => tf.matches(lead.Created_Time))
     .map((lead) => classify(lead, dealStages, todayKey));

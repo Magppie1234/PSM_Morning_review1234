@@ -3,9 +3,13 @@
 //   Sales qualified  Contacts created in the period whose Sales_Manager (the PSM) is in scope
 //   Closed           Contacts with Client Status "Closed", dated by Actual_Closure_Date
 // Test records (a name containing the word "test") are left out, as there.
+import { isSunrooof } from '../config/salesFunnel.js';
+
 const LAKH = 1e5;
 const psmOf = (contact) => contact.Sales_Manager?.name ?? '';
-const isRealRecord = (contact) => !/\btest\b/i.test(contact.Full_Name ?? '');
+// Sunrooof is out of this dashboard, so the Pre Sales funnel drops it exactly as the Sales funnel
+// and the order boards do. The predicate is shared rather than restated, so the three cannot drift.
+const isRealRecord = (contact) => !/\btest\b/i.test(contact.Full_Name ?? '') && !isSunrooof(contact);
 const valueOf = (contact) => (Number(contact.Total_Opportunity_Value) || 0) * LAKH;
 const closedOn = (contact) => contact.Actual_Closure_Date ?? null;
 
