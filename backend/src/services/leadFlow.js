@@ -17,6 +17,18 @@ const DROPPED = /junk|not interested|lost lead|not qualified/i;
 const NOT_RESPONDING = /no response|not responding|attempted to contact|call back later|\bcold\b/i;
 const NOT_CONTACTED = /not contacted/i;
 
+/**
+ * Does this Lead_Status value mean the lead was qualified?
+ *
+ * Exported because the PSM qualified card is no longer answered from the CURRENT status alone — see
+ * `everQualified` below — and leadMapper.js has to ask the same question of every status a lead has
+ * ever held, out of Lead_Status_History.
+ */
+export const isQualifiedStatus = (status) => {
+  const value = String(status ?? '');
+  return AWAITING_DRAWINGS.test(value) || QUALIFIED.test(value);
+};
+
 export function flowBucket(lead) {
   const status = String(lead.Lead_Status ?? '');
   // A converted lead became an opportunity, so it is qualified even if its old status was never updated.
@@ -57,7 +69,16 @@ function node(leads, previous, raw, { valueOf, labelOf, cityKeyOf }) {
  * Sales qualified and Closed are added by contactStages.js.
  */
 export function buildLeadFlow(current, previous, previousLabel, options = {}) {
-  const shape = { valueOf: () => 0, labelOf: () => '—', cityKeyOf: () => OTHER_CITY_KEY, ...options };
+  const shape = {
+    valueOf: () => 0,
+    labelOf: () => '—',
+    cityKeyOf: () => OTHER_CITY_KEY,
+    // Did this lead EVER reach a qualified status, per Lead_Status_History? Defaults to "no history
+    // available", which falls the card back to its old current-status-only behaviour rather than
+    // silently reporting a smaller number.
+    everQualified: () => false,
+    ...options
+  };
   const pick = (list, keys) => list.filter((lead) => keys.includes(flowBucket(lead)));
   const raw = current.length;
   const add = (key, keys, filter = () => true) => {
@@ -68,7 +89,25 @@ export function buildLeadFlow(current, previous, previousLabel, options = {}) {
   add('contacted', CONTACTED_LEAVES);
   add('notContacted', ['notContacted']);
   CONTACTED_LEAVES.forEach((key) => add(key, [key]));
-  add('qualifiedTotal', QUALIFIED_LEAVES);
+
+  // PSM QUALIFIED — the one card on this funnel that is NOT a snapshot of where leads sit now.
+  //
+  // The four outcome cards above are a partition: a lead is in exactly one of them, and they sum
+  // back to Contacted, which is what the bracket between them means. That partition is correct and
+  // is left alone.
+  //
+  // "PSM qualified" is a different question — how many leads the PSM got as far as qualifying — and
+  // asking it of the current status undercounts, because a lead that qualified and later went to
+  // "Not Interested" now sits in `dropped` and disappears from it. Measured on September's 1,192
+  // leads: 255 by current status, 278 by history. Twenty-three qualified leads were not being
+  // credited, fourteen of them because the client later went cold, which does not un-qualify the
+  // work the PSM did.
+  //
+  // So this card is the union of "sitting at a qualified status now" and "ever entered one", from
+  // Lead_Status_History. It is deliberately NOT part of the partition above and may overlap it.
+  const everQualified = (list) => list.filter((lead) =>
+    QUALIFIED_LEAVES.includes(flowBucket(lead)) || shape.everQualified(lead));
+  nodes.qualifiedTotal = node(everQualified(current), everQualified(previous), raw, shape);
 
   const statuses = {};
   current.forEach((lead) => {

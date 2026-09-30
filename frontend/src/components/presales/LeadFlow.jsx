@@ -81,10 +81,16 @@ const cellFigure = (count) => (count < 10000 ? String(count) : `${Math.round(cou
  * @param {string}   props.groupLabel  the parent card's label, so a cell says what it is a split of
  * @param {string}   [props.unit]      what a record is called here — lead, order, record
  * @param {Function} [props.onOpen]    the funnel's own onOpen({ id, label, ids }) contract
+ * @param {Function} [props.figureOf]  what the cell PRINTS, when that is not the record count —
+ *                                     the Pre-efficiency board shows an average here ("2.6"), and
+ *                                     printing its `count` would show how many orders the average
+ *                                     was taken over instead of the average itself
+ * @param {Function} [props.saidOf]    what the cell is SPOKEN as, paired with figureOf; without it
+ *                                     a screen reader would hear "2.6" read as a record count
  *
  * Renders nothing at all when the card arrives without a `byCity`, rather than three zeros.
  */
-export function CityCells({ cities, groupId, groupLabel, unit = 'record', onOpen }) {
+export function CityCells({ cities, groupId, groupLabel, unit = 'record', onOpen, figureOf, saidOf }) {
   if (!Array.isArray(cities) || cities.length === 0) return null;
   return (
     <div className="lf-cities">
@@ -92,11 +98,11 @@ export function CityCells({ cities, groupId, groupLabel, unit = 'record', onOpen
       <ul className="lf-cities-row" aria-label={`${groupLabel} by city`}>
         {cities.map((city) => {
           const count = city.count ?? 0;
-          const figure = cellFigure(count);
+          const figure = figureOf ? figureOf(city) : cellFigure(count);
           const label = `${groupLabel} · ${city.label}`;
           // The money (or square feet) and the count are spoken even though the cell shows
           // only the figure, so a screen reader is never told less than the board knows.
-          const said = [
+          const said = saidOf ? saidOf(city) : [
             count ? `${count.toLocaleString('en-IN')} ${unit}${count === 1 ? '' : 's'}` : `no ${unit}s`,
             city.valueLabel
           ].filter(Boolean).join(', ');

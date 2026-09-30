@@ -239,10 +239,15 @@ export const qualifiedByOf = (psmName) => (PSM_NAMES.has(clean(psmName)) ? 'psm'
 // ---------------------------------------------------------------------------
 // The S1 to S6 ladder
 // ---------------------------------------------------------------------------
-// THE CUSTOMER STILL HAS TO CONFIRM THIS MAPPING. They asked for stages "S1 to S5 plus S6 = principal",
-// but no S1..S6 field exists anywhere in their Zoho (every module, field label and picklist was checked).
-// Contacts.Client_Status (UI label "Current Stage") is the only ladder that fits, and its sixth step is
-// literally "Principally Closed". Change the rows below and every card on the board follows.
+// CONFIRMED BY THE CUSTOMER, 29 September 2026. There is no S1..S6 field in their Zoho — every module,
+// field label and picklist was checked — and the ladder is Contacts.Client_Status, the column the CRM
+// labels "Current Stage" on Qualified Leads. The customer confirmed the rungs read bottom-to-top off
+// that picklist: S1 Not Yet Validated, S2 Only Validated, S3 Validated But Design Open, S4 Design Open
+// + Price Open, S5 Design Closed + Price Open, S6 Principally Closed. That is exactly the table below.
+//
+// Client_Status is NOT tracked by any history module, so these six cards cannot be dated the way the
+// rest of the boards now are — see the note in config/journey.js. Change a row here and every card on
+// the Sales board follows.
 export const STAGES = [
   // Most of S1 is records with no Current Stage at all rather than one actively marked "Not Yet
   // Validated", so the label says both and the card carries a note with the split for the current filter.

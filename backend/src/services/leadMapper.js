@@ -1,5 +1,5 @@
 import { buildContactStages } from './contactStages.js';
-import { buildLeadFlow } from './leadFlow.js';
+import { buildLeadFlow, isQualifiedStatus } from './leadFlow.js';
 import { buildMandate } from './mandate.js';
 import { PSM_NAMES } from '../config/roster.js';
 import { OTHER_CITY_KEY, canonicalCityName, cityBucketOf, cityRows, mergeCityNames } from '../config/salesFunnel.js';
@@ -145,10 +145,16 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
   });
   // Latest time each lead moved into each status, from Lead Status History.
   const enteredStatus = new Map();
+  // Every lead that has EVER held a qualified status, from the same rows. The PSM qualified card is
+  // built from this rather than from the current status, so a lead that qualified and later went
+  // cold is still credited — see the note on that card in leadFlow.js. The history is the same read
+  // that already fills the "status since" column; nothing extra is fetched for it.
+  const everQualified = new Set();
   statusHistory.forEach((entry) => {
     const key = `${entry.Full_Name?.id}|${entry.Lead_Status}`;
     const at = entry.Modified_Time ?? entry.Created_Time;
     if (at && (!enteredStatus.has(key) || enteredStatus.get(key) < at)) enteredStatus.set(key, at);
+    if (entry.Full_Name?.id && isQualifiedStatus(entry.Lead_Status)) everQualified.add(String(entry.Full_Name.id));
   });
   const reportLabel = tf.reportLabel;
   const todayKey = localDayKey(new Date());
@@ -191,6 +197,13 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
   // Raw leads include junk and not-interested ones, so the flow cards can show where every lead went.
   const ownedBy = (lead) => !isSpecificPsm || (lead.Owner?.name ?? 'Unassigned') === selectedPsm;
   const rawItems = items.filter((item) => ownedBy(item.lead));
+
+  // WALK-INS, off Lead Source. Its own cut so the mapping sits in one place when it changes.
+  // "Walk In" is a live value in this CRM — 22 leads since 1 August, against 1,236 Adglobal New —
+  // so the card carries real data now; change this one line if walk-ins should be identified
+  // differently. Scoped to rawItems so it follows the PSM filter like every other figure here.
+  const WALK_IN_SOURCE = /walk\s*-?\s*in/i;
+  const walkIns = rawItems.filter((item) => WALK_IN_SOURCE.test(String(item.lead.Lead_Source ?? '')));
   // One city pass for the whole board: every lead and every contact in view, bucketed together before
   // a single card is counted, so the lead-side and contact-side stages agree on where a city belongs.
   const cityOf = cityLookup([...magppie, ...(contacts ?? []), ...(closedContacts ?? [])]);
@@ -198,7 +211,14 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
     rawItems.map((item) => item.lead),
     magppie.filter((lead) => tf.previousMatches(lead.Created_Time) && ownedBy(lead)),
     tf.previousLabel,
-    { valueOf: leadValue, labelOf: money, cityKeyOf: cityOf }
+    {
+      valueOf: leadValue,
+      labelOf: money,
+      cityKeyOf: cityOf,
+      // Empty when the history read failed, which falls the card back to current-status counting
+      // rather than reporting a number smaller than the truth.
+      everQualified: (lead) => everQualified.has(String(lead.id))
+    }
   );
   // Sales qualified and Closed come from Contacts (qualified opportunities), not from lead statuses.
   const contactStages = buildContactStages({
@@ -290,7 +310,15 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
       { label: 'Overdue follow-ups', value: String(overdue.length), tone: 'warning', icon: 'clock', recordIds: idsOf(overdue) },
       { label: 'Hot leads pending', value: String(hotPending.length), tone: 'danger', icon: 'flame', recordIds: idsOf(hotPending) },
       { label: 'Qualified 7+ days', value: String(qualifiedStale.length), tone: 'warning', icon: 'clock', recordIds: idsOf(qualifiedStale) },
-      { label: 'Drawings delayed', value: String(drawingRisk.length), tone: 'warning', icon: 'file', recordIds: idsOf(drawingRisk) }
+      { label: 'Drawings delayed', value: String(drawingRisk.length), tone: 'warning', icon: 'file', recordIds: idsOf(drawingRisk) },
+      // WALK-INS. Not an escalation like the rest of this row — it is the count of people who came
+      // into a showroom — but it sits here because that is where it was asked for, and the row is
+      // the one place on the board that lists a figure with its leads one click away.
+      //
+      // Mapped to Lead_Source = "Walk In", which is a live value in this CRM (22 leads since 1 Aug
+      // against 1,236 Adglobal New). If walk-ins should be identified some other way, this is the
+      // one line to change.
+      { label: 'Walk-ins', value: String(walkIns.length), tone: 'blue', icon: 'users', recordIds: idsOf(walkIns) }
     ],
     performance: performanceRows.map((row) => ({
       ...row,
