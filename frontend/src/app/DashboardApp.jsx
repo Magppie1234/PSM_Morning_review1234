@@ -1,13 +1,14 @@
 import { lazy, Suspense, useState } from 'react';
 const AmsBoard = lazy(() => import('../components/ams/AmsBoard.jsx').then(module => ({ default: module.AmsBoard })));
 const DecisionQueueBoard = lazy(() => import('../components/decision/DecisionQueueBoard.jsx').then(module => ({ default: module.DecisionQueueBoard })));
-const PostDesignBoard = lazy(() => import('../components/design/PostDesignBoard.jsx').then(module => ({ default: module.PostDesignBoard })));
-const DispatchBoard = lazy(() => import('../components/dispatch/DispatchBoard.jsx').then(module => ({ default: module.DispatchBoard })));
+const DispatchReview = lazy(() => import('../components/dispatch/DispatchReview.jsx').then(module => ({ default: module.DispatchReview })));
 const FactoryStandup = lazy(() => import('../components/factory/FactoryStandup.jsx').then(module => ({ default: module.FactoryStandup })));
-const InstallationBoard = lazy(() => import('../components/installation/InstallationBoard.jsx').then(module => ({ default: module.InstallationBoard })));
+const InstallationReview = lazy(() => import('../components/installation/InstallationReview.jsx').then(module => ({ default: module.InstallationReview })));
 const MetricDetailModal = lazy(() => import('../components/MetricDetailModal.jsx').then(module => ({ default: module.MetricDetailModal })));
 const PdiDashboard = lazy(() => import('../components/PdiDashboard.jsx').then(module => ({ default: module.PdiDashboard })));
 const PreDesignFlow = lazy(() => import('../components/design/PreDesignFlow.jsx').then(module => ({ default: module.PreDesignFlow })));
+const PostDesignFlow = lazy(() => import('../components/design/PostDesignFlow.jsx').then(module => ({ default: module.PostDesignFlow })));
+const PreEfficiency = lazy(() => import('../components/design/PreEfficiency.jsx').then(module => ({ default: module.PreEfficiency })));
 const SalesRecordsPopup = lazy(() => import('../components/sales/SalesRecordsPopup.jsx').then(module => ({ default: module.SalesRecordsPopup })));
 const PreSalesBoard = lazy(() => import('../components/presales/PreSalesBoard.jsx').then(module => ({ default: module.PreSalesBoard })));
 const SalesBoard = lazy(() => import('../components/sales/SalesBoard.jsx').then(module => ({ default: module.SalesBoard })));
@@ -53,6 +54,9 @@ export default function App() {
   const salesState = useDashboard({ timeframe, owner: salesOwner }, '/api/sales-dashboard', currentTab === 'decision-queue');
   // The pre-design funnel reads the Deals module on its own terms, so it only fetches on that board.
   const preDesignState = useDashboard({ timeframe }, '/api/pre-design-funnel', currentTab === 'design' && designSection === 'pre');
+  // The post-design queue is a live snapshot rather than a period report — every post-design date
+  // field in Zoho is empty — so `timeframe` rides along only to label the header, never to filter.
+  const postDesignState = useDashboard({ timeframe }, '/api/post-design-funnel', currentTab === 'design' && designSection === 'post');
   const data = preSalesState.data;
 
   const handleTabChange = (tabId) => {
@@ -88,13 +92,35 @@ export default function App() {
           <button aria-pressed={designSection === 'pre'} onClick={() => { setDesignSection('pre'); setDesignCard(null); }}>Pre Design</button>
           <button aria-pressed={designSection === 'post'} onClick={() => { setDesignSection('post'); setDesignCard(null); }}>Post Design</button>
         </nav>
-        {designSection === 'post' ? <PostDesignBoard timeframe={timeframe} /> : <PreDesignFlow
-          data={preDesignState.data?.preDesign}
-          loading={preDesignState.loading}
-          onOpen={(card) => setDesignCard(card)}
-        />}
+        {designSection === 'post' ? (
+          <PostDesignFlow
+            data={postDesignState.data?.postDesign}
+            coverage={postDesignState.data?.meta?.coverage}
+            loading={postDesignState.loading}
+            onOpen={(card) => setDesignCard(card)}
+          />
+        ) : (
+          <>
+            <PreDesignFlow
+              data={preDesignState.data?.preDesign}
+              loading={preDesignState.loading}
+              onOpen={(card) => setDesignCard(card)}
+            />
+            {/* The two averages, under the funnel and fed by the same read. */}
+            <PreEfficiency
+              data={preDesignState.data?.preEfficiency}
+              loading={preDesignState.loading}
+              onOpen={(card) => setDesignCard(card)}
+            />
+          </>
+        )}
         {designCard && (
-          <SalesRecordsPopup card={designCard} records={preDesignState.data?.records ?? []} onClose={() => setDesignCard(null)} />
+          // Each section's own records, so a card opened on one board never lists the other's orders.
+          <SalesRecordsPopup
+            card={designCard}
+            records={(designSection === 'post' ? postDesignState.data?.records : preDesignState.data?.records) ?? []}
+            onClose={() => setDesignCard(null)}
+          />
         )}
       </div>
     ),
@@ -105,8 +131,20 @@ export default function App() {
       </div>
     ),
     factory: () => <FactoryStandup timeframe={timeframe} onTimeframe={setTimeframe} />,
-    dispatch: () => <DispatchBoard />,
-    installation: () => <InstallationBoard timeframe={timeframe} onTimeframe={setTimeframe} />,
+    dispatch: () => (
+      <div className="ps">
+        <BoardHeader title="Dispatch Review" subtitle="Planner, scheduler, tracker and complaints" timeframe={timeframe} onTimeframe={setTimeframe} />
+        {/* DispatchReview owns its own fetch, so it opens its own popup — the orders and the
+            complaints are two different record sets and only it knows which tab is showing. */}
+        <DispatchReview timeframe={timeframe} />
+      </div>
+    ),
+    installation: () => (
+      <div className="ps">
+        <BoardHeader title="Installation Review" subtitle="Incoming projects through to handover" timeframe={timeframe} onTimeframe={setTimeframe} />
+        <InstallationReview timeframe={timeframe} />
+      </div>
+    ),
     ams: () => <AmsBoard timeframe={timeframe} onTimeframe={setTimeframe} />,
     'decision-queue': () => <DecisionQueueBoard preSales={preSalesState} sales={salesState} onOpen={handleCardClick} />
   };

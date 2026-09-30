@@ -12,6 +12,13 @@ import './styles/incentive.css';
 import './styles/ams.css';
 import './styles/leadflow.css';
 import './styles/pre-design.css';
+// The Pre Design / Post Design sub-tabs live in here. It used to arrive with PostDesignBoard,
+// which no longer renders, so it is loaded globally rather than by whichever board happens to
+// import it — without it those two buttons fall back to raw browser chrome.
+import './styles/post-design.css';
+import './styles/post-design-queue.css';
+import './styles/pre-efficiency.css';
+import './styles/dispatch-review.css';
 import './styles/formula.css';
 import './styles/period-filter.css';
 import './styles/table-tools.css';

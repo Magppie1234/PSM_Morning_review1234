@@ -5,6 +5,9 @@ import { timeframeOf } from '../lib/http.js';
 import { buildDesignDashboardFromDeals } from '../services/designMapper.js';
 import { loadPdiReview } from '../services/pdiReview.js';
 import { buildPreDesignBoard, getPreDesignDeals } from '../services/preDesignBoard.js';
+import { buildPostDesignFunnel, getPostDesignQueue } from '../services/postDesignFunnel.js';
+import { ALL_HISTORY, getStageLedger, indexByRecord } from '../services/stageLedger.js';
+import { getSalesManagersByContact } from '../services/salesManagers.js';
 import { buildPostDesignBoard, getPostDesignDeals } from '../services/postDesignBoard.js';
 import { buildSalesEfficiency } from '../services/salesEfficiency.js';
 import { buildSalesFunnelBoard, estimateEndOf } from '../services/salesFunnelBoard.js';
@@ -59,8 +62,9 @@ salesRoutes.get('/design-dashboard', async (request, response) => {
   }
 });
 
-// The Design board's pre-design funnel, built from Zoho Deals (Orders): square feet sent in for design
-// → first fresh design → revisions against the three-revision limit → booked → handed over.
+// The Design board's pre-design funnel, built from Zoho Deals (Orders): new requests from sales →
+// designer assigned / assignment pending → under design / query to SM → sent for approval → revision
+// requested → revision done → order booked (the one card with money on it) → handover to design.
 // Same query contract as /sales-funnel: ?timeframe= any reporting period,
 // ?city= all | DEL | HYD | OTHER | one city's name.
 salesRoutes.get('/pre-design-funnel', async (request, response) => {
@@ -69,13 +73,57 @@ salesRoutes.get('/pre-design-funnel', async (request, response) => {
   try {
     // Back to the start of the comparison window, not the period's own start, so every card's
     // "vs last period" figure is counted from a complete window.
-    const deals = await getPreDesignDeals(tf.previousStart ?? tf.start);
-    response.json(buildPreDesignBoard({ tf, deals, city }));
+    // The orders, and the dated stage ledger behind them. The ledger is optional on purpose: if it
+    // cannot be read the board still renders from the Stage snapshot, one card at a time, rather
+    // than failing — and meta.coverage.stageSource says which of the two it used.
+    const [deals, ledger, managers] = await Promise.all([
+      getPreDesignDeals(tf.previousStart ?? tf.start),
+      getStageLedger('deals', tf.previousStart ?? tf.start).catch((error) => {
+        console.error('Stage ledger unavailable, falling back to the Stage snapshot:', error.message);
+        return null;
+      }),
+      // The SM comes from the qualified lead, one hop from the order. Optional: losing it costs the
+      // SM column and its chart, not the board.
+      getSalesManagersByContact().catch((error) => {
+        console.error('Sales managers unavailable:', error.message);
+        return null;
+      })
+    ]);
+    const history = ledger ? indexByRecord(ledger, 'deals') : null;
+    response.json(buildPreDesignBoard({ tf, deals, city, history, managers }));
   } catch (error) {
     // Never throw to the client: the same shape comes back with zeros and a notice on it.
     console.error('Error fetching pre-design deals, serving an empty funnel:', error.message);
     const notice = `Orders (Zoho Deals) could not be read: ${error.message}. Refresh to try again.`;
     response.json(buildPreDesignBoard({ tf, deals: [], city, notice }));
+  }
+});
+
+// The Design board's post-design queue: handover → first visit → EP prep → EP approval → EP marking
+// visits → production prep → PDI → payment pending → sent to factory, each with its own
+// requested / planned / done split read off Deals.Stage.
+//
+// Period-aware via DealHistory: each card leads with how many orders ENTERED its stage in the window
+// and keeps the live queue figure beside it. ?timeframe= and ?city= both filter.
+salesRoutes.get('/post-design-funnel', async (request, response) => {
+  const tf = getTimeframeFilter(timeframeOf(request));
+  const city = cityOf(request);
+  try {
+    const [deals, ledger] = await Promise.all([
+      getPostDesignQueue(),
+      // FULL history, not the period window: the cohort is every order that has ever entered
+      // post-design, so an order last touched in March still belongs to it.
+      getStageLedger('deals', ALL_HISTORY).catch((error) => {
+        console.error('Stage ledger unavailable, post-design falls back to the live queue:', error.message);
+        return null;
+      })
+    ]);
+    const history = ledger ? indexByRecord(ledger, 'deals') : null;
+    response.json(buildPostDesignFunnel({ deals, city, tf, history }));
+  } catch (error) {
+    console.error('Error fetching the post-design queue, serving an empty board:', error.message);
+    const notice = `Orders (Zoho Deals) could not be read: ${error.message}. Refresh to try again.`;
+    response.json(buildPostDesignFunnel({ deals: [], city, tf, notice }));
   }
 });
 

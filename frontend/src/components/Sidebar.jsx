@@ -33,7 +33,7 @@ export function Sidebar({ currentTab, onTabChange }) {
     },
     {
       id: 'pdi',
-      label: 'PDI & Site Review',
+      label: 'Measurements',
       sublabel: 'Measurements & Appliances',
       icon: ClipboardCheck
     },
