@@ -1,0 +1,222 @@
+/* The post-design queue on the Design board.
+
+   Like the pre-design funnel, the section IS the PSM funnel: PostDesignFlow.jsx renders LeadFlow's
+   own markup and classes (.lf, .lf-c, .lf-node, .lf-w, .lf-card, .lf-label, .lf-figures, .tone-*,
+   .lf-cities), so the cards, the elbow wires, the hover lift, the focus ring and the
+   prefers-reduced-motion handling all come from leadflow.css. Nothing there is forked.
+
+   This file adds the nine-column scroller, the sub-card rows, the share line, the info panel and
+   the phone stack. Everything new is prefixed po-. Load AFTER leadflow.css.
+
+   ---------- Columns ----------
+   Nine columns, and they all have to fit: no horizontal scroller. The board's canvas is about
+   1255px at a 1440-1600px viewport once the sidebar has taken its cut, so the width has to come out
+   of the gutter and the card padding rather than out of the row.
+
+   There are NO wire labels here, which is what makes nine columns affordable at all. This chain is
+   a partition, not a funnel — a percentage on an arrow would read as a conversion rate between two
+   cards that nothing flows between — so the gutter only has to carry a plain elbow. At the 14px
+   floor that is 1255 - 8x14 = 1143px of cards, about 127px each, which holds a two-line label, a
+   four-digit figure and the three city cells. The gutter opens up again on wider screens. */
+
+.lf.po-lf { display: block; }
+
+.po-lf { --lf-gap: clamp(14px, 1.4vw, 30px); }
+
+.po-track {
+  display: grid;
+  /* minmax(0, 1fr), not a pixel floor: a floor is what forces a scrollbar. Nine equal tracks that
+     are allowed to shrink always fit, whatever the canvas. */
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  column-gap: var(--lf-gap);
+  align-items: start;
+}
+
+/* align-items:start, not center: these columns differ in height by a whole sub-card list, and
+   centring them would leave the wires meeting cards at different heights down the row. Starting
+   them lines every card's top edge up, and the wires with them. */
+
+/* ---------- The header row ---------- */
+.po-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 12px; }
+.po-head .lf-title { margin: 0; }
+.po-sub { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 0.78rem; font-weight: 600; }
+
+/* The "i". A 28px target is under the 44px touch floor, so it grows on coarse pointers below. */
+.po-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.po-info-btn:hover { border-color: var(--ink-2); color: var(--ink); }
+.po-info-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.po-info-btn.is-on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); }
+
+/* ---------- The info panel ----------
+   Deliberately plain and dense: this is the panel that gets shown to whoever owns CRM hygiene, so it
+   reads as evidence rather than as a dashboard flourish. */
+.po-info {
+  position: relative;
+  margin: 0 0 16px;
+  padding: 14px 40px 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  background: #fbfbfa;
+  color: var(--ink-2);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.po-info h3 { margin: 0 0 8px; color: var(--ink); font-size: 0.86rem; font-weight: 750; }
+.po-info p { margin: 0 0 8px; }
+.po-info strong { color: var(--ink); font-weight: 700; }
+.po-info code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--line-soft);
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.po-info-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 4px 16px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.po-info-partial { color: var(--muted); }
+.po-info-points { margin: 4px 0 0; padding-left: 18px; }
+.po-info-points li { margin-bottom: 5px; }
+.po-info-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.po-info-close:hover { border-color: var(--line); color: var(--ink); }
+.po-info-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Density ----------
+   At ~127px a card the funnel's own padding and type sizes no longer fit. These are scoped to this
+   board only, so the Pre Sales, Sales and pre-design funnels keep leadflow's sizes exactly. */
+.po-track .lf-card { min-height: 0; padding: 9px 10px; gap: 4px; }
+.po-track .lf-label { font-size: 0.6rem; letter-spacing: 0.01em; line-height: 1.25; overflow-wrap: anywhere; }
+.po-track .lf-figures strong { font-size: 1.45rem; }
+.po-track .lf-cities { padding: 5px 5px 6px; }
+.po-track .lf-cities-h { margin-bottom: 4px; font-size: 0.58rem; }
+.po-track .lf-city { padding: 3px 2px; }
+
+/* ---------- The card figure ---------- */
+.po-lf .lf-figures { align-items: baseline; flex-wrap: wrap; }
+.po-unit { color: var(--ink-2); font-size: 0.78rem; font-weight: 700; }
+/* Which figure the headline is. Sits immediately under the big number, because its whole job is to
+   stop a period-driven figure being read as a live one. */
+.po-basis { color: var(--ink-2); font-size: 0.6rem; font-style: normal; font-weight: 750; letter-spacing: 0.02em; text-transform: uppercase; }
+
+/* The second figure: how many are sitting at this stage right now. Quieter than the headline but at
+   full ink on its number, because on the backlog-heavy cards it is the larger and more alarming of
+   the two and must not read as a footnote. */
+.po-stock { color: var(--muted); font-size: 0.68rem; font-weight: 600; line-height: 1.3; }
+.po-stock b { color: var(--ink-2); font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* The share of the period, inside the card rather than on the arrow — see the note at the top of
+   PostDesignFlow.jsx for why this board puts no figure on its wires. */
+.po-share { color: var(--muted); font-size: 0.68rem; font-style: normal; font-weight: 650; }
+.po-fade { animation: po-in 0.32s var(--ease-out); }
+@keyframes po-in { from { opacity: 0; transform: translateY(3px); } }
+
+/* ---------- Sub-cards ----------
+   Fused straight under the card, so the seam reads as a divider inside one block rather than as two
+   cards. The card carries .lf-card-top, which drops its bottom corners and lends its border as the
+   seam — the same treatment the shared city strip uses. */
+.po-rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border-right: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  background: #fcfcfb;
+  list-style: none;
+}
+
+.po-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.po-rows li:first-child .po-row { border-top: 0; }
+.po-row:hover { background: var(--line-soft); }
+.po-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.po-row-name { color: var(--ink-2); font-size: 0.62rem; font-weight: 750; letter-spacing: 0.02em; text-transform: uppercase; }
+.po-row strong { font-size: 0.88rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* A sub-card or card with nothing in it keeps its shape and its place in the tab order; it just has
+   nothing to open, so it drops the pointer and the hover treatment. An empty row is common on this
+   board and must not look broken — it is muted, not hidden. */
+.po-row.po-empty { cursor: default; }
+.po-row.po-empty:hover { background: transparent; }
+.po-row.po-empty strong { color: var(--muted); font-weight: 700; }
+.lf-card.po-empty { cursor: default; }
+.lf-card.po-empty:hover { transform: none; border-color: var(--line); box-shadow: none; }
+
+.po-note { margin: 14px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
+.po-note strong { color: var(--ink-2); font-weight: 700; }
+
+.po-lf { transition: opacity 0.2s var(--ease-out); }
+
+/* ---------- Narrow screens ----------
+   leadflow.css folds .lf into one column at 1180px and hides the wires, and drops the down-arrow
+   between consecutive .lf-c blocks. The grid lives on .po-track here, so that fold is repeated for
+   it — and the scroller switched off, or the stack would carry a dead horizontal scrollbar. */
+@media (max-width: 1180px) {
+  .po-track { grid-template-columns: 1fr; row-gap: 22px; }
+  /* Full width again, so the density squeeze above is undone with it. */
+  .po-track .lf-card { padding: 12px 14px; }
+  .po-track .lf-label { font-size: 0.68rem; }
+}
+
+@media (max-width: 780px) {
+  .po-info-btn { width: 32px; height: 32px; }
+  .po-row { min-height: 44px; padding: 8px 10px; }
+  .po-row:hover { background: transparent; }
+  .po-row:not(.po-empty):active { background: var(--line-soft); }
+  .po-info-fields { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .po-lf,
+  .po-row,
+  .po-info-btn { transition: none; }
+  .po-fade { animation: none; }
+}
