@@ -1,0 +1,396 @@
+/* The Dispatch board — Planner, Scheduler, Tracker, Complaints.
+
+   Ported from the :5520 mockup into the app's own shell: the mockup's sidebar, fonts and colour
+   tokens are dropped and the app's are used, so this board sits beside the others instead of looking
+   like a different product. The sub-tabs reuse .design-sections from post-design.css, which the
+   Design board already uses, rather than a second tab treatment.
+
+   Cards are a responsive grid, not a connected funnel: these four views are sets of states, not a
+   chain that orders flow along, so elbow wires would imply a progression that is not there. That is
+   also why there are no percentages between cards. Everything here is prefixed dr-. */
+
+.dr { display: block; }
+.dr.is-stale { opacity: 0.55; transition: opacity 0.2s var(--ease-out); }
+
+/* ---------- Header ---------- */
+.dr-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0 14px; }
+.dr-title { margin: 0; color: var(--ink); font-size: 1rem; font-weight: 750; }
+.dr-desc { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+
+.dr-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.dr-info-btn:hover { border-color: var(--ink-2); color: var(--ink); }
+.dr-info-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dr-info-btn.is-on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); }
+
+/* ---------- The funnels, ported from docs/mockups/index.html ----------
+   These rules are the mockup's own (.stat, .k, .v, .bar, .cmp, .wins, .win, .flow, .fcol, .cell,
+   .conn), renamed dm- and with its raw palette swapped for the app's tokens where one exists. The
+   geometry, sizes and weights are left exactly as they were, because "the same design" means the
+   same numbers, not an impression of them.
+
+   Columns are a flex row with an SVG connector between each pair, not a CSS grid with elbow wires.
+   That is what lets a branch column fan properly: the connector is drawn from the real number of
+   cards on each side. */
+
+.dm-flow {
+  display: flex;
+  align-items: stretch;
+  justify-content: safe center;
+  gap: 0;
+  padding: 4px 2px 6px;
+  overflow-x: auto;
+}
+.dm-fcol { display: flex; flex-direction: column; flex: none; gap: 0; }
+.dm-cell { flex: 1; display: flex; align-items: center; padding: 6px 0; }
+.dm-conn { flex: 1 1 40px; min-width: 40px; max-width: 130px; align-self: stretch; }
+.dm-conn svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+.dm-stat {
+  box-sizing: border-box;
+  width: 222px;
+  padding: 14px 14px 12px;
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--ct, var(--surface));
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.dm-stat:hover { border-color: var(--line2, #d3d9e6); box-shadow: 0 4px 14px rgba(22, 32, 58, 0.06); }
+.dm-stat:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The mockup's large first card. */
+.dm-stat.big { width: 290px; padding: 18px 18px 16px; gap: 9px; }
+.dm-stat.big .dm-v b { font-size: 40px; }
+.dm-stat.big .dm-k { font-size: 12.5px; }
+/* Nothing to open, so it drops the pointer and the lift but keeps its shape on the chain. */
+.dm-stat.is-empty { cursor: default; }
+.dm-stat.is-empty:hover { border-color: var(--line); box-shadow: none; }
+
+.dm-k { display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+.dm-k i { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--c); }
+.dm-note2 { margin-top: -4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.dm-v { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.dm-v b { font-size: 30px; font-weight: 700; line-height: 1.1; color: var(--ink); }
+.dm-v span { font-size: 12.5px; color: var(--muted); }
+.dm-bar { height: 5px; border-radius: 3px; background: var(--line); }
+.dm-bar i { display: block; height: 100%; min-width: 3px; border-radius: 3px; background: var(--c); }
+.dm-cmp { font-size: 12px; font-weight: 500; color: var(--muted); }
+.dm-cmp.good { color: #2f7a5a; }
+.dm-cmp.bad { color: #b03b30; }
+
+/* ---------- The DUE strip ----------
+   Three chips under every card. "This week" carries the mockup's red treatment because it is the
+   one that means act now. On live Zoho all three read zero — the CRM keeps no planned dispatch
+   date — which the card note and the info panel both say. */
+.dm-wins-l { margin-top: 2px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.dm-wins { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin-top: 3px; padding: 3px; border-radius: 12px; background: rgba(22, 32, 58, 0.045); }
+.dm-win { padding: 5px 2px 4px; border-radius: 9px; line-height: 1.2; text-align: center; }
+.dm-win b { display: block; font-size: 15px; font-weight: 600; color: var(--ink); }
+.dm-win span { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.dm-win.wk { background: #fdeeec; box-shadow: inset 0 0 0 1px #f0b9b3; }
+.dm-win.wk b, .dm-win.wk span { color: #b03b30; }
+.dm-win.wk span { font-weight: 700; }
+
+/* A card the CRM cannot answer: same footprint, dashed, muted, and it states why. */
+.dm-stat.is-missing { border-style: dashed; background: #fbfbfa; cursor: default; }
+.dm-stat.is-missing:hover { border-color: var(--line); box-shadow: none; }
+.dm-stat.is-missing .dm-k { color: var(--muted); }
+.dm-stat.is-missing .dm-k i { background: var(--muted); }
+.dm-none { font-size: 1.05rem; font-weight: 750; color: var(--muted); }
+.dm-why { font-size: 0.68rem; font-weight: 600; line-height: 1.4; color: var(--muted); }
+
+/* The complaints view is a set of cards rather than a chain, so it wraps instead of connecting. */
+.dm-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+
+/* ---------- Complaint breakdowns ---------- */
+.dr-splits { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 18px; }
+.dr-split { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.dr-split h4 { margin: 0 0 10px; color: var(--ink); font-size: 0.8rem; font-weight: 750; }
+.dr-split ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.dr-split li { display: grid; grid-template-columns: minmax(0, 1fr) 62px auto; align-items: center; gap: 10px; }
+.dr-split-name { color: var(--ink-2); font-size: 0.76rem; font-weight: 600; overflow-wrap: anywhere; }
+.dr-split-bar { height: 5px; border-radius: 99px; background: var(--line-soft); overflow: hidden; }
+.dr-split-bar b { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.dr-split strong { font-size: 0.86rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* ---------- The info panel ----------
+   Plain and dense on purpose: this is the panel that gets shown to whoever owns CRM hygiene. */
+.dr-info {
+  position: relative;
+  margin: 0 0 16px;
+  padding: 14px 40px 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  background: #fbfbfa;
+  color: var(--ink-2);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.dr-info h3 { margin: 0 0 8px; color: var(--ink); font-size: 0.86rem; font-weight: 750; }
+.dr-info p { margin: 0 0 8px; }
+.dr-info strong { color: var(--ink); font-weight: 700; }
+.dr-info code { padding: 1px 5px; border-radius: 4px; background: var(--line-soft); color: var(--ink); font-size: 0.72rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.dr-info-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 4px 16px; margin: 0 0 10px; padding: 0; list-style: none; }
+.dr-info-points { margin: 4px 0 10px; padding-left: 18px; }
+.dr-info-points li { margin-bottom: 5px; }
+.dr-info-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.dr-info-close:hover { border-color: var(--line); color: var(--ink); }
+.dr-info-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.dr-note { margin: 16px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
+.dr-note strong { color: var(--ink-2); font-weight: 700; }
+
+@media (max-width: 780px) {
+  .dr-grid { grid-template-columns: 1fr; }
+  .dr-info-btn { width: 32px; height: 32px; }
+  .dr-card:hover { transform: none; }
+  .dr-info-fields { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dr.is-stale, .dr-card, .dr-info-btn { transition: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   The dispatch detail table — ported from the :5520 mockup's drawer
+   ---------------------------------------------------------------------------
+   The mockup's own layout and treatments (stats row, due-window pills, sortable headings, the
+   green-tick gates, the mono identifier columns, the "Past due" pill, the footer summary), redrawn
+   in the app's tokens rather than its own palette so it belongs to this product. Everything is
+   prefixed dx-. */
+
+.dx-back {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: start center;
+  padding: 3vh 16px 6vh;
+  background: rgba(16, 32, 58, 0.34);
+  overflow-y: auto;
+  animation: dx-fade 0.16s var(--ease-out);
+}
+@keyframes dx-fade { from { opacity: 0; } }
+
+.dx {
+  width: min(1480px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 24px 60px -24px rgba(16, 32, 58, 0.45);
+  overflow: hidden;
+}
+
+.dx-head { display: flex; align-items: flex-start; gap: 16px; padding: 16px 20px 12px; }
+.dx-title h3 { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--ink); font-size: 1.05rem; font-weight: 750; }
+.dx-title h3 i { width: 8px; height: 8px; border-radius: 99px; background: var(--accent); flex: none; }
+.dx-title p { margin: 3px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.45; }
+.dx-x {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.dx-x:hover { border-color: var(--ink-2); color: var(--ink); }
+.dx-x:focus-visible, .dx-tabs button:focus-visible, .dx-sortable button:focus-visible, .dx-lnk:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Stats and the due-window pills ---------- */
+.dx-bar { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: space-between; padding: 0 20px 14px; }
+.dx-stats { display: flex; gap: 26px; }
+.dx-stats span { display: flex; flex-direction: column; gap: 1px; }
+.dx-stats strong { color: var(--ink); font-size: 1.35rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.dx-stats small { color: var(--muted); font-size: 0.7rem; font-weight: 650; }
+/* Past due is the number the board exists to surface, so it is the one stat that takes a colour. */
+.dx-stats .is-late strong { color: #b03b30; }
+
+.dx-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 12px; background: rgba(22, 32, 58, 0.045); }
+.dx-tabs button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dx-tabs button:hover { background: rgba(255, 255, 255, 0.7); }
+.dx-tabs button.on { background: var(--surface); box-shadow: 0 1px 3px rgba(22, 32, 58, 0.12); color: var(--accent); font-weight: 700; }
+.dx-tabs button .n { margin-left: 5px; color: var(--muted); font-weight: 700; }
+.dx-tabs button.on .n { color: var(--accent); }
+
+.dx-sortnote { margin: 0; padding: 8px 20px; border-top: 1px solid var(--line); background: #fbfbfa; color: var(--muted); font-size: 0.74rem; }
+.dx-sortnote b { color: var(--ink); }
+.dx-lnk { margin-left: 8px; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; }
+
+/* ---------- The table ---------- */
+.dx-tbl { max-height: 62vh; overflow: auto; border-top: 1px solid var(--line); }
+.dx-tbl table { width: 100%; border-collapse: collapse; }
+.dx-tbl thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 0.7rem;
+  font-weight: 750;
+  text-align: left;
+  white-space: nowrap;
+}
+.dx-sortable { padding: 0; }
+.dx-sortable button {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dx-sortable button:hover { background: var(--line-soft); }
+.dx-sortable button small { display: block; margin-top: 2px; color: var(--muted); font-size: 0.62rem; font-weight: 600; }
+.dx-ar { flex: none; font-size: 0.6rem; line-height: 1.6; }
+.dx-ar b { color: var(--accent); }
+.dx-ar0 { color: var(--line2, var(--line)); letter-spacing: -2px; }
+.dx-sortable button:hover .dx-ar0 { color: var(--muted); }
+
+.dx-tbl tbody td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; vertical-align: top; }
+.dx-tbl tbody tr:hover { background: #fbfbfa; }
+.dx-who strong { display: block; color: var(--ink); font-size: 0.82rem; font-weight: 700; line-height: 1.3; }
+.dx-who small { display: block; margin-top: 2px; color: var(--muted); font-size: 0.7rem; }
+/* Identifier columns in mono, the way the factory and transport read them. */
+.dx-idc { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.74rem; }
+.dx-due span { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.76rem; }
+.dx-due small { display: block; color: var(--muted); font-size: 0.66rem; }
+
+/* A gate: passed with a date, or still pending. */
+.dx-yn { font-size: 0.76rem; font-weight: 650; }
+.dx-yn.y { color: #2f7a5a; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.dx-yn.n { color: var(--muted); }
+/* An identifier Zoho does not hold. Red because these are numbers the factory quotes, so a blank
+   one is a real gap and not a cosmetic one. #b03b30 on white measures 5.6:1. */
+.dx-miss { color: #b03b30; font-family: inherit; font-size: 0.72rem; font-weight: 700; }
+
+.dx-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--line-soft); color: var(--ink-2); font-size: 0.7rem; font-weight: 650; white-space: nowrap; }
+.dx-pill.neg { background: #fdeeec; color: #b03b30; }
+.dx-pill.cau { background: #fdf4e5; color: #9a6b1f; }
+.dx-pill.ind { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+
+.dx-empty { margin: 0; padding: 26px 20px; color: var(--muted); font-size: 0.82rem; text-align: center; }
+.dx-foot { padding: 10px 20px; border-top: 1px solid var(--line); background: #fbfbfa; color: var(--muted); font-size: 0.74rem; }
+
+@media (max-width: 780px) {
+  .dx-back { padding: 0; }
+  .dx { width: 100%; border-radius: 0; min-height: 100vh; }
+  .dx-bar { gap: 12px; }
+  .dx-stats { gap: 18px; }
+  .dx-tbl { max-height: none; }
+}
+
+@media (prefers-reduced-motion: reduce) { .dx-back { animation: none; } }
+
+/* ---------- The order split, above the Installation funnel ----------
+   A filter on the whole board, not a stage, so it sits outside the chain. Same chip treatment as
+   the due strip inside the cards, at a size that reads as a control rather than a figure. */
+/* THE INSTALLATION FUNNEL FITS; IT DOES NOT SCROLL.
+   Five cards at their natural width (290 + 4x222) plus four connectors come to ~1,342px against a
+   ~1,212px column, so the row overflowed by just enough to hide the right edge of Handover behind a
+   scrollbar. Rather than shorten the chain, the cards and the connectors are allowed to give: the
+   connectors squeeze first (they carry no information), and only then do the cards narrow, down to
+   a floor that still fits a four-digit count. Scoped to `.in-flow` so the Dispatch board, whose card
+   width was matched to a mockup, is not touched. */
+.dm-flow.in-flow { overflow-x: clip; }
+/* Equal columns, not content-sized ones. `flex: 1 1 0` with a zero basis divides the row evenly, so
+   the long caveat under Site readiness cannot push that column to 345px while its neighbour sits at
+   168. `min-width: 0` on every level is what actually lets a flex item shrink below its content. */
+.dm-flow.in-flow .dm-fcol { flex: 1 1 0; min-width: 0; }
+.dm-flow.in-flow .dm-cell { min-width: 0; }
+.dm-flow.in-flow .dm-conn { flex: 0 0 20px; min-width: 20px; }
+.dm-flow.in-flow .dm-stat,
+.dm-flow.in-flow .dm-stat.big { width: 100%; min-width: 0; }
+/* The real floor was here: the sub-card labels are `white-space: nowrap` on the Dispatch board, so
+   "3 to 5 days" and "Hyderabad" held each card open from the inside however narrow the column got.
+   They wrap on this board instead. */
+.dm-flow.in-flow .dm-win span { white-space: normal; hyphens: auto; }
+.dm-flow.in-flow .dm-wins { gap: 1px; padding: 2px; }
+.dm-flow.in-flow .dm-v b { font-size: 30px; }
+.dm-flow.in-flow .dm-stat.big .dm-v b { font-size: 34px; }
+
+.in-split { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 0 0 16px; }
+.in-split-label { color: var(--ink-2); font-size: 0.68rem; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; }
+.in-split-buttons { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 12px; background: rgba(22, 32, 58, 0.045); }
+.in-split-buttons button {
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.in-split-buttons button:hover { background: rgba(255, 255, 255, 0.7); }
+.in-split-buttons button.on { background: var(--surface); box-shadow: 0 1px 3px rgba(22, 32, 58, 0.12); color: var(--accent); font-weight: 750; }
+.in-split-buttons button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The count each split holds, so its weight is visible before it is chosen. */
+.in-split-buttons .n { margin-left: 7px; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+.in-split-buttons button.on .n { color: var(--accent); }
+
+/* The three-up strip is clickable on this board, so it needs the affordance the dispatch one does
+   not have. */
+.dm-win[role="button"] { cursor: pointer; }
+.dm-win[role="button"]:hover { background: rgba(255, 255, 255, 0.85); }
+.dm-win[role="button"]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+@media (max-width: 780px) {
+  .in-split-buttons { width: 100%; }
+  .in-split-buttons button { flex: 1; text-align: center; }
+}
