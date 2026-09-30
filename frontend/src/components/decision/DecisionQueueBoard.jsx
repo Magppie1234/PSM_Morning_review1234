@@ -1,4 +1,5 @@
 import { BoardSkeleton } from '../presales/BoardSkeleton.jsx';
+import { FormulaButton, useFormulaToggle, useShowFormula } from '../formula/FormulaPanel.jsx';
 import { GroupedQueue } from '../presales/GroupedQueue.jsx';
 import { SummaryStrip } from '../presales/SummaryStrip.jsx';
 
@@ -6,6 +7,17 @@ import { SummaryStrip } from '../presales/SummaryStrip.jsx';
 const TOP_LEVEL = /^(raw leads|contacted|qualified)/i;
 
 // Senior decisions from both Pre Sales and Sales, grouped by the issue behind them.
+
+/**
+ * The Show Formula button, reading the one switch the app shell owns. Boards that draw their own
+ * header use this rather than threading the switch down through props.
+ */
+function FormulaToggle() {
+  const on = useShowFormula();
+  const toggle = useFormulaToggle();
+  return <FormulaButton on={on} onToggle={toggle} />;
+}
+
 export function DecisionQueueBoard({ preSales, sales, onOpen }) {
   if (!preSales.data && !sales.data) {
     if (preSales.loading || sales.loading) return <BoardSkeleton />;
@@ -29,6 +41,10 @@ export function DecisionQueueBoard({ preSales, sales, onOpen }) {
             <span>{total} leads and orders need a senior decision</span>
             <span className="ps-source live"><i aria-hidden="true" />Live from Zoho CRM</span>
           </p>
+        </div>
+        {/* This board has no period filter, so the controls row exists only for the button. */}
+        <div className="ps-controls">
+          <FormulaToggle />
         </div>
       </header>
 

@@ -5,6 +5,7 @@ import {
   hasStageSet, isOpenStage, isQualifiedStage, isRealRecord, mergeCityNames, previousLabelOf, productOf, qualifiedByOf,
   sourceBucketOf, stageKeyOf, stageLabelOf, valueOf
 } from '../config/salesFunnel.js';
+import { attachSalesFormulas } from '../config/cardFormula.js';
 import { addDays, label as formatRange } from './periods.js';
 import { localDayKey } from './timeUtils.js';
 
@@ -305,7 +306,12 @@ const previousEstimateEnd = (tf) => estimateEndOf({ kind: tf.kind, start: tf.pre
  * contact carrying an Est. Closure Date, which can be older still.
  * Pass `notice` when Zoho could not be read: the same shape comes back, with zeros.
  */
-export function buildSalesFunnelBoard({ tf, contacts = [], closed = [], estimates = [], dataFrom = null, city, notice = null, now = new Date() }) {
+export function buildSalesFunnelBoard(options) {
+  // The board is built first, then every card is given the formula that produced it.
+  return withSalesFormulas(buildBoard(options), options?.tf);
+}
+
+function buildBoard({ tf, contacts = [], closed = [], estimates = [], dataFrom = null, city, notice = null, now = new Date() }) {
   // The dashboard's own day, used for "is this follow-up late" and for the overdue card below.
   const today = localDayKey(now);
   const real = (list) => (list ?? []).filter(isRealRecord).map((contact) => toRecord(contact, today));
@@ -428,4 +434,11 @@ export function buildSalesFunnelBoard({ tf, contacts = [], closed = [], estimate
     // The internal signals the cards were built from are dropped; the frontend gets the flat record only.
     records: visible.map(({ cityNameKey, handover, hasStage, ...record }) => record)
   };
+}
+
+// Every card ships with the formula that produced it, generated from the same STAGES table the
+// counting used, so Show Formula cannot fall out of step with the code.
+function withSalesFormulas(board, tf) {
+  attachSalesFormulas(board, tf, [...LADDER_STAGES, PRINCIPAL_STAGE]);
+  return board;
 }

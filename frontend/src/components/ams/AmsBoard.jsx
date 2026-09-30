@@ -1,10 +1,22 @@
 import { Info } from 'lucide-react';
+import { FormulaButton, useFormulaToggle, useShowFormula } from '../formula/FormulaPanel.jsx';
 import { useDashboard } from '../../hooks/useDashboard.js';
 import { PeriodFilter } from '../PeriodFilter.jsx';
 import { NA } from '../installation/shared.jsx';
 import { BoardSkeleton } from '../presales/BoardSkeleton.jsx';
 import { AmsSchedule } from './AmsSchedule.jsx';
 import { AmsVisits } from './AmsVisits.jsx';
+
+
+/**
+ * The Show Formula button, reading the one switch the app shell owns. Boards that draw their own
+ * header use this rather than threading the switch down through props.
+ */
+function FormulaToggle() {
+  const on = useShowFormula();
+  const toggle = useFormulaToggle();
+  return <FormulaButton on={on} onToggle={toggle} />;
+}
 
 export function AmsBoard({ timeframe, onTimeframe }) {
   const { data, error, loading } = useDashboard({ timeframe }, '/api/ams-dashboard');
@@ -28,6 +40,7 @@ export function AmsBoard({ timeframe, onTimeframe }) {
           </p>
         </div>
         <div className="ps-controls">
+          <FormulaToggle />
           <PeriodFilter value={timeframe} onChange={onTimeframe} />
         </div>
       </header>

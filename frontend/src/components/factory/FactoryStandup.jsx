@@ -1,4 +1,5 @@
 import { Info, Play, Square } from 'lucide-react';
+import { FormulaButton, useFormulaToggle, useShowFormula } from '../formula/FormulaPanel.jsx';
 import { useState } from 'react';
 import { useDashboard } from '../../hooks/useDashboard.js';
 import { API_URL } from '../../lib/api.js';
@@ -60,6 +61,17 @@ function EmptyPeriod({ label }) {
       <p>{label}. New rows added to the planning sheet with a date in this window will appear here.</p>
     </section>
   );
+}
+
+
+/**
+ * The Show Formula button, reading the one switch the app shell owns. Boards that draw their own
+ * header use this rather than threading the switch down through props.
+ */
+function FormulaToggle() {
+  const on = useShowFormula();
+  const toggle = useFormulaToggle();
+  return <FormulaButton on={on} onToggle={toggle} />;
 }
 
 export function FactoryStandup({ timeframe, onTimeframe }) {
@@ -146,6 +158,7 @@ export function FactoryStandup({ timeframe, onTimeframe }) {
           </p>
         </div>
         <div className="ps-controls">
+          <FormulaToggle />
           <PeriodFilter
             value={timeframe}
             onChange={(value) => {

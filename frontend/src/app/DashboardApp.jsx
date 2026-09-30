@@ -15,8 +15,14 @@ const SalesBoard = lazy(() => import('../components/sales/SalesBoard.jsx').then(
 import { Sidebar } from '../components/Sidebar.jsx';
 import { useDashboard } from '../hooks/useDashboard.js';
 import { PeriodFilter } from '../components/PeriodFilter.jsx';
+import { FormulaButton, FormulaProvider, FormulaToggleProvider, useFormulaSwitch } from '../components/formula/FormulaPanel.jsx';
 
-function BoardHeader({ title, subtitle, timeframe, onTimeframe }) {
+/**
+ * The header every board that does not draw its own gets: Design, Measurements, Dispatch and
+ * Installation. It carries the Show Formula button, so those four have it without each having to
+ * wire up its own copy.
+ */
+function BoardHeader({ title, subtitle, timeframe, onTimeframe, showFormula, onFormula }) {
   return (
     <header className="ps-head">
       <div>
@@ -28,6 +34,7 @@ function BoardHeader({ title, subtitle, timeframe, onTimeframe }) {
       </div>
       <div className="ps-controls">
         <PeriodFilter value={timeframe} onChange={onTimeframe} />
+        <FormulaButton on={showFormula} onToggle={onFormula} />
       </div>
     </header>
   );
@@ -37,6 +44,10 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState('pre-sales');
   // One reporting period shared by every tab: daily, monthly, quarterly or a custom range.
   const [timeframe, setTimeframe] = useState('daily');
+  // ONE Show Formula switch for the whole dashboard. Every board reads it through FormulaProvider
+  // below, so turning it on in one module leaves it on when you move to the next - which is what
+  // someone checking how a number is built actually wants.
+  const [showFormula, toggleFormula] = useFormulaSwitch();
   const [psm, setPsm] = useState('All PSM');
   // The decision queue reads every sales rep's deals; only that board uses this now.
   const salesOwner = 'All Sales Reps';
@@ -87,7 +98,7 @@ export default function App() {
     sales: () => <SalesBoard />,
     design: () => (
       <div className="ps">
-        <BoardHeader title="Design Monitoring Review" subtitle="Orders in design, from brief to handover" timeframe={timeframe} onTimeframe={setTimeframe} />
+        <BoardHeader title="Design Monitoring Review" subtitle="Orders in design, from brief to handover" timeframe={timeframe} onTimeframe={setTimeframe} showFormula={showFormula} onFormula={toggleFormula} />
         <nav className="design-sections" aria-label="Design subcategories">
           <button aria-pressed={designSection === 'pre'} onClick={() => { setDesignSection('pre'); setDesignCard(null); }}>Pre Design</button>
           <button aria-pressed={designSection === 'post'} onClick={() => { setDesignSection('post'); setDesignCard(null); }}>Post Design</button>
@@ -126,14 +137,14 @@ export default function App() {
     ),
     pdi: () => (
       <div className="ps lt">
-        <BoardHeader title="PDI & Site Review" subtitle="PDI verification, payment and dispatch readiness" timeframe={timeframe} onTimeframe={setTimeframe} />
+        <BoardHeader title="PDI & Site Review" subtitle="PDI verification, payment and dispatch readiness" timeframe={timeframe} onTimeframe={setTimeframe} showFormula={showFormula} onFormula={toggleFormula} />
         <PdiDashboard onSelectDetail={handleCardClick} timeframe={timeframe} />
       </div>
     ),
-    factory: () => <FactoryStandup timeframe={timeframe} onTimeframe={setTimeframe} />,
+    factory: () => <FactoryStandup timeframe={timeframe} onTimeframe={setTimeframe} showFormula={showFormula} onFormula={toggleFormula} />,
     dispatch: () => (
       <div className="ps">
-        <BoardHeader title="Dispatch Review" subtitle="Planner, scheduler, tracker and complaints" timeframe={timeframe} onTimeframe={setTimeframe} />
+        <BoardHeader title="Dispatch Review" subtitle="Planner, scheduler, tracker and complaints" timeframe={timeframe} onTimeframe={setTimeframe} showFormula={showFormula} onFormula={toggleFormula} />
         {/* DispatchReview owns its own fetch, so it opens its own popup — the orders and the
             complaints are two different record sets and only it knows which tab is showing. */}
         <DispatchReview timeframe={timeframe} />
@@ -141,15 +152,17 @@ export default function App() {
     ),
     installation: () => (
       <div className="ps">
-        <BoardHeader title="Installation Review" subtitle="Incoming projects through to handover" timeframe={timeframe} onTimeframe={setTimeframe} />
+        <BoardHeader title="Installation Review" subtitle="Incoming projects through to handover" timeframe={timeframe} onTimeframe={setTimeframe} showFormula={showFormula} onFormula={toggleFormula} />
         <InstallationReview timeframe={timeframe} />
       </div>
     ),
-    ams: () => <AmsBoard timeframe={timeframe} onTimeframe={setTimeframe} />,
+    ams: () => <AmsBoard timeframe={timeframe} onTimeframe={setTimeframe} showFormula={showFormula} onFormula={toggleFormula} />,
     'decision-queue': () => <DecisionQueueBoard preSales={preSalesState} sales={salesState} onOpen={handleCardClick} />
   };
 
   return (
+    <FormulaProvider value={showFormula}>
+    <FormulaToggleProvider value={toggleFormula}>
     <div className="app-shell ps-theme">
       <Sidebar currentTab={currentTab} onTabChange={handleTabChange} />
 
@@ -171,6 +184,8 @@ export default function App() {
         </div>
       </main>
     </div>
+    </FormulaToggleProvider>
+    </FormulaProvider>
   );
 }
 

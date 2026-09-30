@@ -11,7 +11,7 @@ import { MondayRoster } from './MondayRoster.jsx';
 import { TeamTable } from './TeamTable.jsx';
 import { PeriodFilter } from '../PeriodFilter.jsx';
 import IndiaHeatMap from '../IndiaHeatMap.jsx';
-import { Formula, FormulaButton, FormulaPanel, FormulaProvider, useFormulaSwitch } from '../formula/FormulaPanel.jsx';
+import { Formula, FormulaButton, FormulaPanel, useFormulaToggle, useShowFormula } from '../formula/FormulaPanel.jsx';
 import { conversionFormula, mandateFormula, riskFormulas, rotaFormula, teamFormula } from '../formula/formulas.js';
 
 const ALL_PSM = 'All PSM';
@@ -32,12 +32,22 @@ function LeadListToggle({ psm, leads, children }) {
     </>
   );
 }
-const timeOf = (date) => date?.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+// The freshness stamp carries its DATE as well as its time. "updated 10:27 am" on its own is
+// ambiguous the moment a tab is left open overnight or a saved payload is served — it reads as this
+// morning whether the data is an hour or a week old.
+const timeOf = (date) => date && [
+  date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+  date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
+].join(', ');
 
 export { RefreshButton } from '../../shared/ui/RefreshButton.jsx';
 export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selectedDetail, onDetail, onOpen }) {
   const { data, error, loading, refreshing, stale, fetchedAt, refresh } = state;
-  const [showFormula, toggleFormula] = useFormulaSwitch();
+  // The switch itself now lives in the app shell so every board shares it; this board reads it
+  // from the context and keeps its own button, which sits in its own header rather than the
+  // shared BoardHeader.
+  const showFormula = useShowFormula();
+  const toggleFormula = useFormulaToggle();
 
   if (!data) {
     if (loading) return <BoardSkeleton />;
@@ -64,13 +74,14 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
   };
 
   return (
-    <FormulaProvider value={showFormula}>
     <div className={`ps${loading ? ' is-refreshing' : ''}`}>
       <header className="ps-head">
         <div>
           <h1>PSM Monitoring Review</h1>
           <p className="ps-sub">
-            <span>{range ?? periodName}</span>
+            {/* The period range used to sit here. It is dropped: the period buttons to the right
+                already say which period is selected, and the date that matters on this line is when
+                the data was last read, which the source stamp below now carries. */}
             <span title="Leads owned by Deepak, Ishita, Sowmya and Sparshan, including converted ones">PSM team leads, incl. converted</span>
             {meta.isDemo ? (
               <span className="ps-source demo">Demo data · CRM integration pending</span>
@@ -183,7 +194,6 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
         <IndiaHeatMap points={leadPoints(data.leads)} title="Where the leads came from" />
       </div>
     </div>
-    </FormulaProvider>
   );
 }
 

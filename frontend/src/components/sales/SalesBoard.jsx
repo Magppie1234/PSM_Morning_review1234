@@ -1,4 +1,5 @@
 import { RefreshCw } from 'lucide-react';
+import { Formula, FormulaButton, FormulaPanel, useFormulaToggle, useShowFormula } from '../formula/FormulaPanel.jsx';
 import { lazy, Suspense, useState } from 'react';
 import { BoardSkeleton } from '../presales/BoardSkeleton.jsx';
 import { RefreshButton } from '../../shared/ui/RefreshButton.jsx';
@@ -21,6 +22,29 @@ const SECTIONS = [
   { id: 'weekly', label: 'Weekly view' },
   { id: 'efficiency', label: 'Efficiency margin' }
 ];
+
+
+/**
+ * The Show Formula button, reading the one switch the app shell owns. Boards that draw their own
+ * header use this rather than threading the switch down through props.
+ */
+function FormulaToggle() {
+  const on = useShowFormula();
+  const toggle = useFormulaToggle();
+  return <FormulaButton on={on} onToggle={toggle} />;
+}
+
+// The formulas on one section's cards. They sit either directly on the group (incoming, closed,
+// overdue and so on) or inside its `stages` array (the S1-S6 ladder), so both are walked.
+function collectFormulas(group) {
+  if (!group || typeof group !== 'object') return [];
+  const out = [];
+  for (const value of Object.values(group)) {
+    if (Array.isArray(value)) value.forEach((entry) => entry?.formula && out.push(entry.formula));
+    else if (value && typeof value === 'object' && value.formula) out.push(value.formula);
+  }
+  return out;
+}
 
 export function SalesBoard() {
   const [section, setSection] = useState('lead-generation');
@@ -54,6 +78,7 @@ export function SalesBoard() {
           </p>
         </div>
         <div className="ps-controls">
+          <FormulaToggle />
           <RefreshButton
             onRefresh={refresh}
             loading={busy}
@@ -87,6 +112,14 @@ export function SalesBoard() {
         {meta.notice && <p className="sb-notice">{meta.notice}</p>}
         {error && <p className="sb-notice" role="alert">{error}</p>}
         {!active.data && loading && <BoardSkeleton />}
+
+        {/* Show Formula. The entries are sent by the API alongside the cards, generated from the same
+            STAGES table the counting used, so this cannot describe a rule the numbers did not follow.
+            Each section shows its own cards' formulas rather than all of them at once. */}
+        <FormulaPanel title={section === 'lead-generation' ? 'Lead generation' : 'Sales performance'}>
+          {collectFormulas(section === 'lead-generation' ? data.leadGeneration : data.salesPerformance)
+            .map((entry, index) => <Formula entry={entry} compact key={`${entry.title}-${index}`} />)}
+        </FormulaPanel>
 
         <div className={`sb-section${(isEfficiency ? efficiency.loading : loading) ? ' is-loading' : ''}`}>
           {active.data && section === 'lead-generation' && <LeadGeneration data={data.leadGeneration} loading={loading} onOpen={setCard} />}

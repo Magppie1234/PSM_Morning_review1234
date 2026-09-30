@@ -6,6 +6,13 @@ const FormulaContext = createContext(false);
 export const useShowFormula = () => useContext(FormulaContext);
 export const FormulaProvider = FormulaContext.Provider;
 
+// The switch's toggle, carried separately from its value so a board can offer the button without
+// the value being threaded down through props. Kept as its own context rather than an object, so a
+// board that only reads the value does not re-render when the toggle identity changes.
+const FormulaToggleContext = createContext(() => {});
+export const useFormulaToggle = () => useContext(FormulaToggleContext);
+export const FormulaToggleProvider = FormulaToggleContext.Provider;
+
 const STORAGE_KEY = 'ps-show-formula';
 export function useFormulaSwitch() {
   const [on, setOn] = useState(() => {
