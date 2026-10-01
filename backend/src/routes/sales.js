@@ -6,7 +6,6 @@ import { buildDesignDashboardFromDeals } from '../services/designMapper.js';
 import { loadPdiReview } from '../services/pdiReview.js';
 import { buildPreDesignBoard, getPreDesignDeals } from '../services/preDesignBoard.js';
 import { getAllDeals } from '../services/dealsModule.js';
-import { getFullDealLedger } from '../services/bulkLedger.js';
 import { buildPostDesignFunnel, getPostDesignQueue } from '../services/postDesignFunnel.js';
 import { ALL_HISTORY, getStageLedger, indexByRecord } from '../services/stageLedger.js';
 import { getSalesManagersByContact } from '../services/salesManagers.js';
@@ -100,10 +99,7 @@ salesRoutes.get('/pre-design-funnel', async (request, response) => {
         console.error('Whole orders module unavailable; the dated cards fall back to the window:', error.message);
         return null;
       }),
-      // The full history, through Bulk Read where it works and the paged walk where it does not.
-      // 3 requests instead of 140; getFullDealLedger falls back on its own, so a bulk failure costs
-      // latency rather than the card.
-      getFullDealLedger().catch((error) => {
+      getStageLedger('deals', ALL_HISTORY).catch((error) => {
         console.error('Full stage ledger unavailable; the dated cards fall back to the window:', error.message);
         return null;
       })
