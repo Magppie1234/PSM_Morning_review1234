@@ -248,10 +248,21 @@ export const qualifiedByOf = (psmName) => (PSM_NAMES.has(clean(psmName)) ? 'psm'
 // Client_Status is NOT tracked by any history module, so these six cards cannot be dated the way the
 // rest of the boards now are — see the note in config/journey.js. Change a row here and every card on
 // the Sales board follows.
+// S1 TO S6 ARE EXACTLY SIX NAMED CURRENT STATUS VALUES, and nothing else.
+//
+// The Current Status picklist holds nine values: these six, plus Closed, Dead and -None-. S1 used to
+// match the empty string as well, and stageKeyOf() fell back to S1 for anything it did not recognise,
+// so the rung collected every record with no status at all. MEASURED over the 2,119 contacts created
+// since 1 June 2026:
+//
+//   genuinely "Not Yet Validated"      42
+//   blank / -None-                  1,308      <- 62% of the module, all of it landing on S1
+//
+// So S1 read 1,350 when the answer was 42, and "qualified" (defined as anything past S1) silently
+// excluded all 1,308 as well. Blanks now have their own key, which is on no card and is not qualified;
+// the count is reported as a note instead, so the gap is visible rather than inflating a rung.
 export const STAGES = [
-  // Most of S1 is records with no Current Stage at all rather than one actively marked "Not Yet
-  // Validated", so the label says both and the card carries a note with the split for the current filter.
-  { key: 'S1', short: 'S1', label: 'Not Yet Validated or not set', match: /^$|not\s*yet\s*validated/i },
+  { key: 'S1', short: 'S1', label: 'Not Yet Validated', match: /not\s*yet\s*validated/i },
   { key: 'S2', short: 'S2', label: 'Only Validated', match: /^only\s*validated/i },
   { key: 'S3', short: 'S3', label: 'Validated But Design Open', match: /validated\s*but\s*design\s*open/i },
   { key: 'S4', short: 'S4', label: 'Design Open + Price Open', match: /design\s*open\s*\+?\s*price\s*open/i },
@@ -266,6 +277,9 @@ export const CLOSED_STAGE = { key: 'closed', label: 'Closed', match: /^closed$/i
 // reads as the CRM has it; only the card is named the way the sales team talks about it.
 export const CLOSED_CARD_LABEL = 'Order Booked';
 export const DEAD_STAGE = { key: 'DEAD', label: 'Dead', match: /^dead$/i };
+// Not a rung and not a card: where a record goes when Current Status is blank or holds a value outside
+// the nine the picklist defines. Keeping it off STAGES is what keeps it off the board.
+export const UNSET_STAGE = { key: 'UNSET', label: 'Current Status not set' };
 
 // S1 to S5 get a card each, S6 stands alone as "principal", and the first five are the open pipeline.
 export const LADDER_STAGES = STAGES.slice(0, 5);
@@ -275,15 +289,17 @@ export function stageKeyOf(clientStatus) {
   const value = clean(clientStatus);
   if (DEAD_STAGE.match.test(value)) return DEAD_STAGE.key;
   if (CLOSED_STAGE.match.test(value)) return CLOSED_STAGE.key;
-  // A blank Current Stage is common (over half the records) and means the same as "Not Yet Validated",
-  // which is what S1 matches on an empty string. An unrecognised value lands there too, so no record is lost.
-  return STAGES.find((stage) => stage.match.test(value))?.key ?? 'S1';
+  // Blank, "-None-" or anything outside the six named rungs is NOT a rung. It used to fall back to S1,
+  // which put 1,308 unset records on a card named after a status 42 of them actually hold.
+  if (!value || /^-?\s*none\s*-?$/i.test(value)) return UNSET_STAGE.key;
+  return STAGES.find((stage) => stage.match.test(value))?.key ?? UNSET_STAGE.key;
 }
 
 export function stageLabelOf(key) {
   if (key === DEAD_STAGE.key) return DEAD_STAGE.label;
   if (key === CLOSED_STAGE.key) return CLOSED_STAGE.label;
-  return STAGES.find((stage) => stage.key === key)?.label ?? STAGES[0].label;
+  if (key === UNSET_STAGE.key) return UNSET_STAGE.label;
+  return STAGES.find((stage) => stage.key === key)?.label ?? UNSET_STAGE.label;
 }
 
 // Whether Current Stage is actually filled in. S1 absorbs both the blank and the "Not Yet Validated"
@@ -291,8 +307,11 @@ export function stageLabelOf(key) {
 // the CRM holds.
 export const hasStageSet = (clientStatus) => Boolean(clean(clientStatus));
 
-// A lead is "qualified" once it is past S1, and not dead.
-export const isQualifiedStage = (key) => key !== 'S1' && key !== DEAD_STAGE.key;
+// A lead is "qualified" once it is past S1, and not dead. A record with no status set is not past
+// anything, so it is not qualified either - that has to be stated explicitly now that blanks no longer
+// sit on S1, or moving them off the rung would silently promote 1,308 records into "qualified".
+export const isQualifiedStage = (key) =>
+  key !== 'S1' && key !== UNSET_STAGE.key && key !== DEAD_STAGE.key;
 // Open pipeline: still on the ladder, neither closed nor dead.
 export const isOpenStage = (key) => key !== CLOSED_STAGE.key && key !== DEAD_STAGE.key;
 
