@@ -1,0 +1,132 @@
+/* PSM health + Sales health.
+   ---------------------------------------------------------------------------------------------
+   THE PALETTE IS SIX COLOURS. Every chart on these boards draws from --an-c1 … --an-c6 and nothing
+   else. No per-chart hues, no categorical rainbow, no gradients. Six is enough to carry meaning
+   (main / secondary / good / attention / loss / neutral) and few enough that a colour means the same
+   thing in every chart on the page - which is the entire point. A chart that needs a seventh colour
+   is trying to say two things at once; split it instead of widening this list. */
+:root {
+  --an-c1: #2563eb;  /* blue   — the main series, the thing being measured */
+  --an-c2: #93b4f8;  /* sky    — the same series, lighter: remainders, secondary bars */
+  --an-c3: #0d9488;  /* teal   — good: connected, qualified, done */
+  --an-c4: #d97706;  /* amber  — attention: not configured, overdue, ageing */
+  --an-c5: #e11d48;  /* rose   — loss: dropped, lost, dead */
+  --an-c6: #64748b;  /* slate  — neutral: "no data", muted series */
+
+  --an-track: #e9eef7; /* the empty half of every ring, bar and waffle */
+  --an-grid: #eceae5;  /* chart gridlines and axes */
+  --an-surface: #fff;  /* knockout fill behind line-chart dots */
+}
+
+/* NO DARK-MODE BLOCK HERE, deliberately. This app is light-only: no other stylesheet in the project
+   responds to prefers-color-scheme, and the page background, cards and text are all fixed light. A
+   dark block in this one file does not make the board dark - it makes the CHARTS dark on a light
+   page for every viewer whose OS is set to dark, which is exactly what happened when it was tried:
+   the rings rendered near-black against white cards. If the app ever gains a real theme, the six
+   hues get lifted there, with the rest of the palette, not here on their own. */
+
+.an-stack { display: grid; gap: 16px; min-width: 0; }
+.an-panel { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); }
+.an-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 15px; }
+.an-head h2 { margin: 0; font-size: 1.05rem; }
+.an-head p { margin: 0; color: var(--muted); font-size: .8rem; }
+
+/* ── Metric cards ──────────────────────────────────────────────────────────────────────────── */
+.an-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.an-metric { min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 9px; background: var(--line-soft); font-variant-numeric: tabular-nums; }
+.an-metric h3 { margin: 0 0 8px; font-size: .78rem; line-height: 1.4; }
+
+/* The figure and its chart sit side by side; the chart is the context, so it never outgrows the
+   number it explains. A card with no chart keeps the identical figure size, so a row of cards reads
+   evenly whether or not every one of them has a series behind it. */
+.an-metric-body {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px 10px; min-height: 48px;
+}
+.an-metric-figure { min-width: 0; }
+.an-metric strong { display: block; font-size: clamp(1.15rem, 2vw, 1.55rem); line-height: 1.2; overflow-wrap: anywhere; }
+.an-metric strong.an-empty {
+  font-size: .86rem;
+  color: var(--an-c4);
+  font-weight: 650;
+  /* "No data available" is prose, not a figure: it breaks at spaces like a sentence. Inheriting
+     overflow-wrap:anywhere from the rule above split it as "No data availabl / e". */
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+.an-metric.is-unset { border-color: color-mix(in srgb, var(--an-c4) 35%, var(--line)); }
+.an-metric p, .an-metric small { display: block; margin: 6px 0 0; color: var(--muted); font-size: .72rem; line-height: 1.45; }
+.an-metric-figure small { margin-top: 3px; }
+
+.an-chart { flex: 0 0 auto; display: grid; place-items: center; }
+.an-chart-block { flex: 1 1 auto; max-width: 150px; }
+.an-chart-unset { opacity: .55; }
+
+/* ── Blocks ────────────────────────────────────────────────────────────────────────────────── */
+.an-breakdowns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.an-breakdown { min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 9px; }
+.an-breakdown.is-wide { grid-column: 1 / -1; }
+.an-breakdown h3 { margin: 0 0 6px; font-size: .83rem; }
+.an-note { margin: 0 0 12px; color: var(--muted); font-size: .74rem; line-height: 1.45; }
+.an-none { margin: 0; color: var(--muted); font-size: .78rem; }
+
+/* ── Chart rows (bars + lollipops) ─────────────────────────────────────────────────────────── */
+.mc-rows { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.mc-rows li {
+  display: grid;
+  grid-template-columns: minmax(74px, 38%) 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: .74rem;
+}
+.mc-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.mc-track { position: relative; height: 8px; border-radius: 999px; background: var(--an-track); }
+.mc-fill { display: block; height: 100%; border-radius: inherit; }
+.mc-value { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700; }
+.mc-note { grid-column: 2 / -1; margin-top: -3px; color: var(--muted); font-size: .68rem; }
+
+/* A lollipop is the same row with the weight moved to the end: a hairline stem and a solid dot. */
+.mc-pops .mc-track { background: transparent; }
+.mc-pops .mc-track::before { content: ''; position: absolute; inset-inline: 0; top: 50%; height: 1px; background: var(--an-track); }
+.mc-stem { position: absolute; top: 50%; left: 0; height: 2px; border-radius: 999px; background: var(--an-c6); opacity: .45; transform: translateY(-50%); }
+.mc-dot { position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%; transform: translate(-50%, -50%); }
+
+/* ── SVG charts ────────────────────────────────────────────────────────────────────────────── */
+.mc { display: block; }
+.mc-wide { width: 100%; height: auto; }
+
+/* A stretched bar needs an EXPLICIT height. These use preserveAspectRatio="none" so the bar spans the
+   card, which means height:auto derives from the viewBox ratio and a 200x10 box becomes 20-30px tall
+   with its rounded corners stretched into ellipses. Fixing the height keeps the corner radius honest. */
+.mc-bar { width: 100%; height: 10px; }
+.mc-bar-tall { height: 14px; }
+.mc-combo { width: 100%; height: auto; max-height: 240px; }
+.mc-scatter { width: 100%; height: auto; max-height: 250px; }
+.mc-axis { fill: var(--muted); font-size: 10px; font-family: inherit; }
+/* Dot labels sit on the plot, so they are darker than axis text but still clearly secondary. */
+.mc-point { fill: var(--ink-2); font-size: 10px; font-weight: 650; font-family: inherit; }
+
+/* ── Efficiency rates ──────────────────────────────────────────────────────────────────────── */
+.an-rates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.an-rate { padding: 13px; border: 1px solid var(--line); border-radius: 9px; background: var(--line-soft); font-variant-numeric: tabular-nums; }
+.an-rate-label { display: block; margin-bottom: 6px; font-size: .76rem; color: var(--ink-2); }
+.an-rate strong { display: block; margin-bottom: 9px; font-size: 1.4rem; line-height: 1.15; }
+.an-rate strong.an-empty { font-size: .86rem; color: var(--muted); }
+.an-rate small { display: block; margin-top: 7px; color: var(--muted); font-size: .7rem; line-height: 1.45; }
+.an-split { margin-top: 12px; }
+.an-split .an-note { margin: 7px 0 0; }
+
+/* ── Responsive ────────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1050px) {
+  .an-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .an-breakdowns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 740px) {
+  .an-metrics, .an-breakdowns, .an-rates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .an-panel { padding: 12px; }
+  .an-metrics, .an-breakdowns, .an-rates { grid-template-columns: 1fr; }
+  .mc-rows li { grid-template-columns: minmax(56px, 38%) 1fr auto; }
+}

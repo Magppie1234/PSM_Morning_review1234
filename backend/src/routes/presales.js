@@ -3,10 +3,11 @@ import { dashboardData } from '../data/dashboardData.js';
 import { applyPsmFilterFallback } from '../lib/fallbacks.js';
 import { timeframeOf } from '../lib/http.js';
 import { buildDashboardFromLeads } from '../services/leadMapper.js';
+import { buildPreSalesTrend } from '../services/preSalesAnalytics.js';
 import { getTimeframeFilter } from '../services/timeUtils.js';
 import {
   getClosedContacts, getDealStages, getLeadOwnerChanges, getRecentCalls, getRecentContacts, getRecentLeads,
-  getRecentStatusHistory
+  getRecentStatusHistory, getRecentTasks, getPreSalesTrendLeads
 } from '../services/zohoClient.js';
 
 // Pre Sales board: funnel, mandate, PSM performance and the lead details behind them.
@@ -32,18 +33,34 @@ presalesRoutes.get('/dashboard', async (request, response) => {
       const dealStages = await optional('Converted deal stages', getDealStages(dealIds), new Map());
       return { leads, dealStages };
     });
-    const [{ leads, dealStages }, contacts, statusHistory, calls, closedContacts] = await Promise.all([
+    const [{ leads, dealStages }, contacts, statusHistory, calls, closedContacts, tasks] = await Promise.all([
       leadRead,
       optional('Contacts (qualified opportunities)', getRecentContacts(window.previousStart ?? window.start), null),
       optional('Lead status history', getRecentStatusHistory(window.start), []),
       optional('Call logs', getRecentCalls(window.start), []),
-      optional('Closed contacts', getClosedContacts(), [])
+      optional('Closed contacts', getClosedContacts(), []),
+      optional('Lead tasks', getRecentTasks(window.start), null)
     ]);
-    response.json(buildDashboardFromLeads(leads, request.query.psm, timeframe, dealStages, contacts, statusHistory, calls, closedContacts));
+    response.json(buildDashboardFromLeads(leads, request.query.psm, timeframe, dealStages, contacts, statusHistory, calls, closedContacts, tasks));
   } catch (error) {
     console.error('Error fetching leads, serving fallback:', error.message);
     const source = { ...dashboardData, meta: { ...dashboardData.meta, notice: error.message } };
     response.json(applyPsmFilterFallback(source, request.query.psm));
+  }
+});
+
+// The twelve-month cohort trend is requested after the main board has rendered. A full-year Leads
+// walk takes ~31s cold in this org; making it part of /dashboard delayed every morning review card.
+presalesRoutes.get('/presales-trend', async (request, response) => {
+  try {
+    const tf = getTimeframeFilter(timeframeOf(request));
+    const start = new Date(`${tf.end}T00:00:00Z`);
+    start.setUTCMonth(start.getUTCMonth() - 11, 1);
+    const leads = await getPreSalesTrendLeads(start.toISOString().slice(0, 10));
+    response.json({ months: buildPreSalesTrend(leads, tf, request.query.psm), meta: { reportLabel: tf.reportLabel } });
+  } catch (error) {
+    console.error('Pre-Sales trend unavailable:', error.message);
+    response.status(502).json({ error: 'Pre-Sales trend could not be read from Zoho.' });
   }
 });
 

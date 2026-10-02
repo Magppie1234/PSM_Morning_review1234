@@ -10,6 +10,7 @@ import { SalesPerformance } from './SalesPerformance.jsx';
 import { SalesFilters } from './SalesFilters.jsx';
 import { SalesRecordsPopup } from './SalesRecordsPopup.jsx';
 import { WeeklyView } from './WeeklyView.jsx';
+import { SalesHealth } from '../AnalyticsPanel.jsx';
 import { useDashboard } from '../../hooks/useDashboard.js';
 
 const timeOf = (date) => date?.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
@@ -124,6 +125,7 @@ export function SalesBoard() {
         <div className={`sb-section${(isEfficiency ? efficiency.loading : loading) ? ' is-loading' : ''}`}>
           {active.data && section === 'lead-generation' && <LeadGeneration data={data.leadGeneration} loading={loading} onOpen={setCard} />}
           {active.data && section === 'sales-performance' && <SalesPerformance data={data.salesPerformance} loading={loading} onOpen={setCard} />}
+          {active.data && section === 'sales-performance' && <SalesHealth health={data.health} />}
           {active.data && section === 'weekly' && (
             <WeeklyView
               weeks={data.weeks ?? []}

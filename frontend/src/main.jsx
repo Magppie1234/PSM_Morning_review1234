@@ -25,6 +25,7 @@ import './styles/table-tools.css';
 import './styles/sales-records.css';
 import './styles/sales-weekly.css';
 import './styles/sales-efficiency.css';
+import './styles/analytics.css';
 import './styles/india-map.css';
 import './styles/sales-sections.css';
 import './styles/sales-leadgen.css';

@@ -2,7 +2,7 @@ import { config } from '../../config/env.js';
 import { nextReportingDayAt, reportingDay } from './reportingDay.js';
 import { REFRESH_INTERVAL_MS, withReadContext } from './readCache.js';
 
-const PATHS = new Set(['/dashboard', '/sales-funnel', '/sales-efficiency', '/pre-design-funnel', '/post-design-dashboard', '/pdi-dashboard', '/sales-dashboard', '/design-dashboard', '/dispatch-dashboard', '/installation-dashboard', '/ams-dashboard']);
+const PATHS = new Set(['/dashboard', '/presales-trend', '/sales-funnel', '/sales-efficiency', '/pre-design-funnel', '/post-design-dashboard', '/pdi-dashboard', '/sales-dashboard', '/design-dashboard', '/dispatch-dashboard', '/installation-dashboard', '/ams-dashboard']);
 
 // Cache the complete mapped response as well as source pages. Query variants retain their
 // own populations; manual refresh bypasses only this request's sources, never other boards.

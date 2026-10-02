@@ -5,6 +5,7 @@ import { PSM_NAMES } from '../config/roster.js';
 import { OTHER_CITY_KEY, canonicalCityName, cityBucketOf, cityRows, isSunrooof, mergeCityNames } from '../config/salesFunnel.js';
 import { withAllPsms } from './teamRows.js';
 import { dayOffset, getTimeframeFilter, localDayKey } from './timeUtils.js';
+import { buildPreSalesAnalytics } from './preSalesAnalytics.js';
 
 const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 });
 const dayKey = (date) => String(date ?? '').slice(0, 10);
@@ -127,7 +128,7 @@ function riskFor(item) {
   return { risk: 'Qualified lead awaiting drawing progress', action: 'Review drawing status with PSM', priority: 'Medium' };
 }
 
-export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timeframe = 'daily', dealStages = new Map(), contacts = null, statusHistory = [], calls = [], closedContacts = []) {
+export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timeframe = 'daily', dealStages = new Map(), contacts = null, statusHistory = [], calls = [], closedContacts = [], tasks = null) {
   const tf = getTimeframeFilter(timeframe);
   // Last real call on each lead (made, received or missed; scheduled future calls are not contact),
   // plus how many calls the PSM placed (attempts; policy allows up to 15 per lead).
@@ -381,6 +382,8 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
       lastContact: lastCall.get(String(contact.id)) ?? null
     })),
     mandate,
+    analytics: buildPreSalesAnalytics({ leads, contacts, history: statusHistory, calls, tasks, mandate, tf,
+      selectedPsm: isSpecificPsm ? selectedPsm : '' }),
     funnel: [
       { label: `Total Leads ${tfSuffix}`, value: total, conversion: '100%', icon: 'users' },
       { label: 'Contacted', value: contacted, conversion: pct(contacted, total), basis: 'of leads', icon: 'phone' },
