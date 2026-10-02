@@ -70,6 +70,46 @@
 .sf-btn:hover { border-color: var(--accent-line); color: var(--accent); }
 .sf-btn.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 
+/* The month picker, styled as one more control in the period group so it reads as part of the same
+   row rather than an afterthought bolted on the end. Matches .pf-month on the universal filter. */
+.sf-month {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  transition: border-color 0.12s var(--ease-out), background 0.12s var(--ease-out);
+}
+.sf-month:hover { border-color: var(--accent-line); }
+.sf-month.is-on { border-color: var(--accent); background: var(--accent-soft); }
+.sf-month.is-on select { color: var(--accent); }
+
+/* The select FILLS its box. The period controls lay out on a grid that stretches each cell, so a
+   fixed-width select left an empty stub of bordered box beside it on narrow widths. */
+.sf-month select {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 0.78rem;
+  font-weight: 650;
+  font-family: inherit;
+  cursor: pointer;
+}
+.sf-month select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The label text is for screen readers; the select's own value is what sighted users read. */
+.sf-month-sr {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
 .sf-count {
   padding: 1px 6px;
   border-radius: 999px;

@@ -11,9 +11,27 @@ const PERIODS = [
   { value: 'daily', label: 'Yesterday', hint: 'Yesterday, against the day before' },
   { value: 'this-week', label: 'This week', hint: 'Monday to today, against the same days last week' },
   { value: 'monthly', label: 'This month', hint: 'The 1st to today, against the same days last month' },
+  // LAST MONTH is a different question from This month: this month moves every day and compares part
+  // of a month with part of another, where last month is a finished period that stops moving. Same
+  // value the universal PeriodFilter sends, so the two bars cannot drift apart.
+  { value: 'last-month', label: 'Last month', hint: 'All of last month, against all of the month before' },
   { value: 'quarterly', label: 'This quarter', hint: 'This quarter to date, against the same days last quarter' },
   { value: 'yearly', label: 'This year', hint: '1 January to today, against the same days last year' }
 ];
+// How far back the month picker offers, matching PeriodFilter.
+const MONTHS_OFFERED = 24;
+
+/** The last `MONTHS_OFFERED` months, newest first, as { value: "2026-09", label: "September 2026" }. */
+function monthOptions() {
+  const now = new Date();
+  return Array.from({ length: MONTHS_OFFERED }, (_, index) => {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - index, 1));
+    return {
+      value: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`,
+      label: date.toLocaleDateString('en-IN', { timeZone: 'UTC', month: 'long', year: 'numeric' })
+    };
+  });
+}
 
 function OthersMenu({ bucket, city, onCity }) {
   const [open, setOpen] = useState(false);
@@ -80,6 +98,9 @@ function OthersMenu({ bucket, city, onCity }) {
 // number beside a city name would contradict whichever section is on screen. The cards do the counting.
 export function SalesFilters({ cities = [], city = ALL, onCity, timeframe = 'monthly', onTimeframe }) {
   const bucketOf = (key) => cities.find((entry) => entry.key === key);
+  // "month:2026-09" - a single month the user picked, which is its own control rather than a button.
+  const isMonth = String(timeframe).startsWith('month:');
+  const pickedMonth = isMonth ? String(timeframe).slice('month:'.length) : '';
   const button = (key, label) => (
     <button type="button" className={`sf-btn${city === key ? ' is-on' : ''}`} aria-pressed={city === key} onClick={() => onCity(key)}>
       {label}
@@ -109,6 +130,22 @@ export function SalesFilters({ cities = [], city = ALL, onCity, timeframe = 'mon
             {period.label}
           </button>
         ))}
+        {/* ONE SPECIFIC MONTH, which no button can offer: the buttons are all relative to today, so
+            there is no way to ask for, say, August once September has started. Sends the same
+            "month:YYYY-MM" value the universal PeriodFilter sends. */}
+        <label className={`sf-month${isMonth ? ' is-on' : ''}`}>
+          <span className="sf-month-sr">Pick a month</span>
+          <select
+            aria-label="Pick a month"
+            value={pickedMonth}
+            onChange={(event) => { if (event.target.value) onTimeframe(`month:${event.target.value}`); }}
+          >
+            <option value="">Pick a month…</option>
+            {monthOptions().map((month) => (
+              <option key={month.value} value={month.value}>{month.label}</option>
+            ))}
+          </select>
+        </label>
       </div>
     </div>
   );
