@@ -10,11 +10,26 @@ import { MandateBar } from './MandateBar.jsx';
 import { MondayRoster } from './MondayRoster.jsx';
 import { TeamTable } from './TeamTable.jsx';
 import { PeriodFilter } from '../PeriodFilter.jsx';
+import { PreSalesAnalytics } from '../AnalyticsPanel.jsx';
+import { useDashboard } from '../../hooks/useDashboard.js';
 import IndiaHeatMap from '../IndiaHeatMap.jsx';
 import { Formula, FormulaButton, FormulaPanel, useFormulaToggle, useShowFormula } from '../formula/FormulaPanel.jsx';
 import { conversionFormula, mandateFormula, riskFormulas, rotaFormula, teamFormula } from '../formula/formulas.js';
 
 const ALL_PSM = 'All PSM';
+
+// THE BOARD'S TWO VIEWS, in the same pattern and with the same markup as the Sales board's tab bar
+// (.sb-tabs, styled in sales-sections.css and already imported globally).
+//
+// The split is by WHAT THE NUMBER IS FOR, not by where it came from:
+//   Morning review  what the team acts on in the stand-up - the roster, the mandate, the lead flow,
+//                   what needs action today, per-PSM performance and a PSM's own lead list.
+//   PSM health      the analysis nobody acts on in the meeting - conversion, response and calling
+//                   effort, per-PSM activity, the efficiency margin, and where the leads came from.
+const SECTIONS = [
+  { id: 'morning-review', label: 'Morning review' },
+  { id: 'psm-health', label: 'PSM health' }
+];
 const isPending = (item) => item?.value === '—';
 
 // A PSM's full lead list is long, so it stays closed until asked for (and closes again when the PSM changes).
@@ -51,6 +66,12 @@ const todayLabel = () => new Date().toLocaleDateString('en-IN', {
 
 export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selectedDetail, onDetail, onOpen }) {
   const { data, error, loading, refreshing, stale, fetchedAt, refresh } = state;
+  const [section, setSection] = useState(SECTIONS[0].id);
+  const isHealth = section === 'psm-health';
+  // The twelve-month trend is only read while PSM health is on screen. It is a second endpoint, and
+  // the stand-up opens on Morning review - paying for it on every load would cost every user a read
+  // that most of them never look at.
+  const trend = useDashboard({ timeframe, psm }, '/api/presales-trend', Boolean(data) && isHealth);
   // The switch itself now lives in the app shell so every board shares it; this board reads it
   // from the context and keeps its own button, which sits in its own header rather than the
   // shared BoardHeader.
@@ -141,6 +162,20 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
         </div>
       </header>
 
+      <div className="sb-tabs" role="tablist" aria-label="PSM views">
+        {SECTIONS.map((entry) => (
+          <button
+            type="button"
+            key={entry.id}
+            role="tab"
+            aria-selected={section === entry.id}
+            onClick={() => setSection(entry.id)}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
+
       {meta.notice && <p className="ps-notice">{meta.notice}</p>}
       {error && <p className="ps-notice" role="alert">{error} Showing the last loaded data.</p>}
 
@@ -152,6 +187,8 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
       )}
 
       <div className="ps-body">
+        {/* ---- MORNING REVIEW ---------------------------------------------------------------- */}
+        {!isHealth && <>
         <MondayRoster />
         <FormulaPanel title="Monday roster"><Formula entry={rotaFormula} compact /></FormulaPanel>
         <MandateBar mandate={data.mandate} period={range ?? periodName} />
@@ -166,7 +203,6 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
             </div>
           </FormulaPanel>
         </LeadFlow>
-
         {pending.length > 0 && (
           <p className="ps-pending ps-pending-line">
             <Lock size={14} aria-hidden="true" />
@@ -205,12 +241,23 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
           </>
         )}
 
-        {/* The chevron conversion funnel used to sit here. It said the same thing as the card flow above,
-            in a second visual language, so it was removed rather than kept in two places. */}
+        </>}
+
+        {/* ---- PSM HEALTH ------------------------------------------------------------------- */}
+        {/* Everything here answers "how is pre-sales doing", not "what do we do this morning". The
+            analytics panel carries conversion, health, PSM activity and the efficiency margin; the
+            map and the conversion formula are the same kind of question, so they moved here with it
+            rather than being left behind on a board they no longer belonged to. */}
+        {isHealth && <>
+        <PreSalesAnalytics analytics={data.analytics} trend={trend} />
+
+        {/* The chevron conversion funnel used to sit here. It said the same thing as the card flow on
+            Morning review, in a second visual language, so it was removed rather than kept twice. */}
         <FormulaPanel title="Lead conversion funnel"><Formula entry={conversionFormula} /></FormulaPanel>
 
         {/* Raw leads carry no closure outcome, so the map offers lead generation only and says why. */}
         <IndiaHeatMap points={leadPoints(data.leads)} title="Where the leads came from" />
+        </>}
       </div>
     </div>
   );
