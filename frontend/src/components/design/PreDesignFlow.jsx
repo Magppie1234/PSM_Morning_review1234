@@ -147,9 +147,13 @@ function FlowCard({ node, id, label, tone, better, size = 'md', extra = '', prev
   // and returns as the visible copy below the breakpoint), in the tooltip, and in the explicit
   // aria-label — which overrides content, so without it the share would be lost to a screen reader.
   const shareText = !empty && node?.share != null ? `${pct(node.share)} ${SHARE_BASIS}` : null;
+  // The live queue, sent by the API on every dated card. Absent on the cards that have no stage of
+  // their own (requests, revision done), and absent entirely if the stage ledger could not be read.
+  const sitting = typeof node?.sitting === 'number' ? node.sitting : null;
   const ariaLabel = [
     empty ? `${label}: no orders in this period` : `Open the ${plural(count, 'order')} in ${label}`,
     money && !empty ? `worth ${money}` : null,
+    sitting != null ? `${plural(sitting, 'order')} sitting here now` : null,
     shareText,
     note
   ].filter(Boolean).join('. ');
@@ -181,6 +185,11 @@ function FlowCard({ node, id, label, tone, better, size = 'md', extra = '', prev
             visually hides this copy (it stays in the accessible name) while the label is on, and
             shows it here once the wires go. Exactly one of the two is ever visible. */}
         {shareText && <em className="lf-inline-share">{shareText}</em>}
+        {/* THE SECOND FIGURE. The count above is flow: orders that entered this stage during the
+            selected period. This is stock: how many are sitting on the stage right now, whatever
+            period is chosen. Both are needed - flow says what happened, stock says what is waiting -
+            and they are deliberately different numbers, so the label says which is which. */}
+        {sitting != null && <em className="pd-sitting">{sitting.toLocaleString('en-IN')} here now</em>}
       </span>
       {!empty && node?.share != null && (
         <span className="lf-share" aria-hidden="true"><b style={{ width: `${Math.max(node.share * 100, 2)}%` }} /></span>

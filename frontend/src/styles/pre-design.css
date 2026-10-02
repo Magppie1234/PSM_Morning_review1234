@@ -81,6 +81,19 @@
   line-height: 1.2;
 }
 
+/* THE LIVE QUEUE, under the period figure. Deliberately quieter than the count above it: the count is
+   what happened in the period and leads the card, this is how many are sitting on the stage right now.
+   Two different questions, so they must not read as equally weighted. */
+.pd-lf .lf-figures em.pd-sitting {
+  flex-basis: 100%;
+  color: var(--lf-muted, #6b7280);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
 /* A caveat the API sends with the figure, e.g. how many booked orders record a value. Pushed to the
    bottom of the card so the notes line up across the row. Muted, but never below 4.5:1 on --surface. */
 .pd-card-note { margin-top: auto; padding-top: 2px; color: var(--muted); font-size: 0.64rem; font-weight: 600; line-height: 1.35; }

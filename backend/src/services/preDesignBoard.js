@@ -735,6 +735,7 @@ function sentForApprovalCard({ tf, allDeals, fullHistory, managers, selected, fa
   const missedByCreation = inPeriod.filter((record) => !tf.matches(record.createdAt)).length;
 
   return {
+    records: inPeriod,
     card: cityCard(inPeriod, {
       key: 'sentForApproval',
       label,
@@ -747,6 +748,100 @@ function sentForApprovalCard({ tf, allDeals, fullHistory, managers, selected, fa
         : 'Counted by the month the design first went out, from the stage history, not by when the order was created.'
     }, inPrevious),
     dated: true,
+    missedByCreation
+  };
+}
+
+// ---------------------------------------------------------------------------
+// DATED STAGE CARDS — the fix for the wrong date axis
+// ---------------------------------------------------------------------------
+// Every card on this chain used to be cut from the orders CREATED in the period, then tested against
+// a snapshot of Deals.Stage. That attributes an event to the month the order was created rather than
+// the month the event happened, and it loses any order whose work happened later than its creation.
+//
+// MEASURED against the stage ledger, September 2026:
+//
+//   card                 ledger says entered   the creation-dated card showed
+//   Revision requested                  308                               0
+//   Query to SM                          82                              11
+//   Under design                         29                               0
+//
+// Those are not rounding differences - the old rule was answering a different question. So each card
+// now counts the orders that ENTERED one of its own stages inside the period, read from DealHistory,
+// and carries the live queue beside it as `sitting`. The card's NAME and KEY are unchanged; only what
+// feeds it changes.
+//
+// `entered` is the headline (`count`), because a flow figure is comparable across boards and responds
+// to the period buttons. `sitting` answers "and how many are there right now", which is the question a
+// queue board needs and the one the old snapshot rule was accidentally half-answering.
+//
+// Without the whole module or a full history there is nothing to date against, so the card falls back
+// to the old creation-dated set and says so on its face rather than showing a confident zero.
+const stagesForStep = (key) => {
+  const step = DEAL_PRE_DESIGN_STEPS.find((candidate) => candidate.key === key);
+  return (step?.stages ?? []).map((stage) => clean(stage).toLowerCase());
+};
+
+/** Every date this order entered one of `stages`, oldest first. */
+function entriesInto(fullHistory, id, stages) {
+  const entry = fullHistory?.get(String(id));
+  if (!entry?.entries?.length || !stages.length) return [];
+  const wanted = new Set(stages);
+  return entry.entries
+    .filter((step) => wanted.has(clean(canonicalStage(step.stage)).toLowerCase()))
+    .map((step) => step.enteredAt)
+    .filter(Boolean)
+    .sort();
+}
+
+function datedStageCard({ key, label, tf, universe, selected, fullHistory, fallback, extra = {}, money = false, remember = null }) {
+  const stages = stagesForStep(key);
+  if (!universe?.length || !fullHistory || !stages.length) {
+    return cityCard(fallback.records, {
+      key,
+      label,
+      share: fallback.share ?? null,
+      ...extra,
+      dated: false,
+      note: [extra.note, 'Dated by creation, not by when the order reached this stage: the full order '
+        + 'history could not be read for this response.'].filter(Boolean).join(' ')
+    }, fallback.previous, money);
+  }
+
+  // An order counts if it entered the stage AT ANY POINT in the period, and it counts ONCE however
+  // many times it entered. Those are two separate decisions and both matter:
+  //
+  //   counting every entry       inflates the card - September has 308 entries into a revision stage
+  //                              but only 206 orders, because an order can be sent back three times
+  //   counting the FIRST entry   deflates it to 142, and silently drops exactly the orders that are
+  //   only                       the problem: a repeat offender first revised in July is invisible in
+  //                              September, which is the month someone needs to act on it
+  //
+  // So: distinct orders with at least one entry inside the window. 206 for September, which is the
+  // number the question "how many orders were sent back for revision this month" actually asks for.
+  const dated = universe
+    .map((record) => ({ record, at: entriesInto(fullHistory, record.id, stages) }))
+    .filter((row) => row.at.length && selected.matches(row.record));
+
+  const inPeriod = dated.filter((row) => row.at.some((at) => tf.matches(at))).map((row) => row.record);
+  const inPrevious = tf.previousStart
+    ? dated.filter((row) => row.at.some((at) => tf.previousMatches(at))).map((row) => row.record)
+    : null;
+  // The live queue: where orders stand right now, whatever period is selected.
+  const stageSet = new Set(stages);
+  const sitting = universe.filter((record) =>
+    selected.matches(record) && stageSet.has(clean(record.stage).toLowerCase())).length;
+  // What the old creation-dated rule would have thrown away.
+  const missedByCreation = inPeriod.filter((record) => !tf.matches(record.createdAt)).length;
+
+  // EVERY ID A CARD QUOTES MUST RESOLVE AGAINST `records`, which is what the popup reads. These cards
+  // are cut from the whole module, not from the creation-scoped cohort `records` used to carry - so an
+  // order worked on this period but created earlier counted on the card and then vanished from its own
+  // popup. Measured before the fix: "Revision requested" showed 180 and opened 51.
+  remember?.(inPeriod);
+  return {
+    ...cityCard(inPeriod, { key, label, ...extra, dated: true }, inPrevious, money),
+    sitting,
     missedByCreation
   };
 }
@@ -768,6 +863,7 @@ export function buildPreDesignBoard({ tf, deals = [], city, history = null, mana
   const isStaged = (record) => clean(record.stage).toLowerCase() !== EMPTY_STAGE;
   const cohort = arrived.filter((record) => record.request && isStaged(record));
   const before = arrivedBefore.filter((record) => record.request && isStaged(record));
+  const cohortIds = new Set(cohort.map((record) => record.id));
   const cut = (test) => [cohort.filter(test), before.filter(test)];
 
   const [assigned, assignedBefore] = cut((record) => record.designerAssigned);
@@ -790,10 +886,32 @@ export function buildPreDesignBoard({ tf, deals = [], city, history = null, mana
   // than left inside the gap between "created" and "requests". Nil in a normal month; 1,300-odd in the
   // quarter the CRM was loaded.
   const imported = arrived.filter((record) => !record.request && record.rank >= 4).length;
+  // ORDERS WITH NO STAGE SET. "None" is Zoho's empty stage and the blueprint's entry state at once:
+  // 2,575 orders across the module sit on it, a third of everything. They are still kept off every
+  // card - an order nobody has set a stage on has not reached a step - but the count is published
+  // here and in `coverage` so the gap is visible instead of silently swallowing a third of the module.
+  const unstaged = arrived.filter((record) => !isStaged(record)).length;
+  const unstagedModule = (allDeals ?? []).filter(isRealDeal)
+    .filter((deal) => clean(canonicalStage(deal.Stage)).toLowerCase() === EMPTY_STAGE).length;
   const overLimit = asked.filter((record) => record.revisions > REVISION_LIMIT).length;
   const withAmount = booked.filter((record) => record.amount > 0).length;
+  // THE UNIVERSE the dated cards are cut from: every real order in the module, not just the ones
+  // created in this period. That is the whole point - an order created in July whose designer was
+  // assigned in September belongs to September's "Designer assigned", and the creation-scoped cohort
+  // could never see it.
+  const universe = (allDeals ?? []).filter(isRealDeal).map((deal) => toRecord(deal, fullHistory, managers));
+  applyCityMerge([universe]);
+  // Everything the dated cards point at, so `records` below can resolve every id they quote.
+  const datedRecords = new Map();
+  const rememberDated = (records) => { for (const record of records) datedRecords.set(record.id, record); };
+  const datedCard = (key, label, fallbackRecords, fallbackPrevious, extra = {}, money = false) => datedStageCard({
+    key, label, tf, universe, selected, fullHistory, money, extra, remember: rememberDated,
+    fallback: { records: fallbackRecords, previous: fallbackPrevious, share: of(fallbackRecords) }
+  });
+
   // The dated "Sent for approval" card, built before the rest so its note can be quoted below.
   const sentApproval = sentForApprovalCard({ tf, allDeals, fullHistory, managers, selected, fallback: { records: approval, previous: approvalBefore, of } });
+  rememberDated(sentApproval.records ?? []);
 
   // How much of the cohort each Pre-efficiency average is actually made of — said on the card, so an
   // average over three orders can never be read as an average over the month.
@@ -814,21 +932,37 @@ export function buildPreDesignBoard({ tf, deals = [], city, history = null, mana
         arrived: arrived.length,
         orders: cohort.length,
         importedPastDesign: imported,
+        unstagedThisPeriod: unstaged,
+        unstagedModule,
+        unstagedNote: 'Orders whose Stage is "None" are on no card. The blueprint treats None as its entry '
+          + 'state, so these have entered the process but have not reached a step; the count is published rather '
+          + 'than the orders being counted somewhere they do not belong.',
         withRevisionCount: cohort.filter((record) => record.hasRevisions).length,
         withDesignTime: measuredDays,
         bookedWithValue: withAmount,
         moneyField: 'Deals.Value, in lakhs — the only rupee field filled in the module; Amount is empty on every record',
         cohortRule: 'Orders created in the period carrying a design field (designer, design date, design presentation, revision count) or sitting at a design stage',
         stageSource: history
-          ? 'DealHistory — each card counts orders that ever reached its stage, not only those sitting there now'
-          : 'Deals.Stage snapshot only — the stage ledger could not be read, so an order that moved past a stage is not counted by it',
+          ? 'DealHistory — each card counts the DISTINCT orders that entered one of its stages inside the '
+            + 'period, counted once however many times they entered, plus the live queue beside it'
+          : 'Deals.Stage snapshot only — the stage ledger could not be read, so the cards fall back to '
+            + 'counting by the month the order was created, which undercounts every one of them',
         // Of the cohort this board is about, not of every order fetched across both windows.
         ordersWithHistory: history ? cohort.filter((record) => history.has(record.id)).length : 0,
         withSalesManager: cohort.filter((record) => record.sm).length,
         smSource: 'Contacts.Sales_Manager on the qualified lead the order came from. The Orders module has no sales-manager field; the order owner is a different person on 53% of orders and is not used for this.',
         cohortNote: 'Legacy orders imported straight into Final Handover carry no design field and are left out',
-        pairNote: 'Assigned / pending and Under design / Query to SM each partition the requests card, so either pair adds back to it',
-        tailNote: 'Order booked and Handover to design are where this period’s requests stand today, so a short period shows few of either'
+        // THESE TWO NOTES USED TO CLAIM A PARTITION. They no longer can, and saying so is the point.
+        // Every card except "Total new requests from sales" now counts orders that ENTERED its stage
+        // during the period, drawn from the whole module - so a card legitimately exceeds the requests
+        // card whenever work was done this month on orders created earlier, which is most months. The
+        // old pair arithmetic only held because every card was cut from the same creation-scoped list,
+        // and that is exactly the behaviour that reported 0 revisions in a month with 206.
+        pairNote: 'The cards no longer add back to the requests card. Requests counts orders that ARRIVED '
+          + 'this period; every other card counts orders that ENTERED its stage this period, whenever the '
+          + 'order was created. A card above the requests figure means work was done on older orders.',
+        tailNote: 'Each card carries two figures: how many orders entered that stage in the period, and '
+          + 'how many are sitting there right now. The second ignores the period by design.'
       },
       notice
     },
@@ -847,36 +981,24 @@ export function buildPreDesignBoard({ tf, deals = [], city, history = null, mana
           : null
       }, before),
       // 2 and 3 — the first pair, which partitions the requests card.
-      designerAssigned: cityCard(assigned, {
-        key: 'designerAssigned', label: 'Designer assigned', share: of(assigned)
-      }, assignedBefore),
-      assignmentPending: cityCard(pending, {
-        key: 'assignmentPending',
-        label: 'Designer assignment pending',
-        share: of(pending),
-        note: pending.length
-          ? `${pending.filter((record) => record.stage && record.stage !== 'Form Filled').length.toLocaleString('en-IN')} of these sit at a later stage with no designer named in Zoho`
+      designerAssigned: datedCard('designerAssigned', 'Designer assigned', assigned, assignedBefore),
+      assignmentPending: datedCard('assignmentPending', 'Designer assignment pending', pending, pendingBefore, {
+        note: unstaged
+          ? `${unstaged.toLocaleString('en-IN')} further orders have no stage set in Zoho at all and are on no card`
           : null
-      }, pendingBefore),
+      }),
       // 4 and 5 — the second pair, which partitions it again.
-      underDesign: cityCard(design, {
-        key: 'underDesign', label: 'Under design', share: of(design)
-      }, designBefore),
-      queryToSm: cityCard(query, {
-        key: 'queryToSm', label: 'Query to SM', share: of(query)
-      }, queryBefore),
+      underDesign: datedCard('underDesign', 'Under design', design, designBefore),
+      queryToSm: datedCard('queryToSm', 'Query to SM', query, queryBefore),
       // 6 to 10 — the single chain the two pairs feed into.
       // SENT FOR APPROVAL IS DATED DIFFERENTLY FROM EVERY OTHER CARD HERE, and deliberately.
       // See sentForApprovalCard() for why, and for what it gives up in exchange.
       sentForApproval: sentApproval.card,
-      revisionRequested: cityCard(asked, {
-        key: 'revisionRequested',
-        label: 'Revision requested',
-        share: of(asked),
+      revisionRequested: datedCard('revisionRequested', 'Revision requested', asked, askedBefore, {
         note: overLimit
           ? `${overLimit.toLocaleString('en-IN')} past the ${REVISION_LIMIT}-revision limit`
           : null
-      }, askedBefore),
+      }),
       // This card reads the same as the one before it whenever no order is parked on a revision stage
       // — which is the truth, not a fault, so it says so rather than leaving two equal figures side by
       // side with no explanation.
@@ -891,17 +1013,15 @@ export function buildPreDesignBoard({ tf, deals = [], city, history = null, mana
           : null
       }, doneBefore),
       // The one card with money on it.
-      orderBooked: cityCard(booked, {
-        key: 'orderBooked',
-        label: 'Order booked',
-        share: of(booked),
+      orderBooked: datedCard('orderBooked', 'Order booked', booked, bookedBefore, {
         note: booked.length && withAmount < booked.length
           ? `Value recorded on ${withAmount.toLocaleString('en-IN')} of ${booked.length.toLocaleString('en-IN')} booked orders`
           : null
-      }, bookedBefore, true),
-      handover: cityCard(handover, {
-        key: 'handover', label: 'Handover to design', share: of(handover)
-      }, handoverBefore)
+      }, true),
+      handover: datedCard('handover', 'Handover to design', handover, handoverBefore, {
+        note: 'These are the same orders the Post Design board shows on its "Handover" card: this is '
+          + 'the handoff between the two boards, so the two figures must never be added together.'
+      })
     }, tf, Boolean(history)),
     // The two averages under the funnel. Same cohort, same city buckets, different arithmetic.
     preEfficiency: {
@@ -934,7 +1054,8 @@ export function buildPreDesignBoard({ tf, deals = [], city, history = null, mana
     },
     // The design cohort, which is what every card's `ids` point into. The internal signals the cards
     // were cut on are dropped; the frontend gets the flat order only.
-    records: cohort.map(({
+    // The cohort, plus every order a dated card points at that the cohort does not already hold.
+    records: [...cohort, ...[...datedRecords.values()].filter((record) => !cohortIds.has(record.id))].map(({
       cityNameKey, rank, hasArea, hasRevisions, request, designerAssigned: _da, queryToSm: _q,
       assignmentPending: _ap, underDesign: _ud,
       sentForApproval: _sa, revisionAsked: _ra, revisionDone: _rd, booked: _bk, handedOver,
