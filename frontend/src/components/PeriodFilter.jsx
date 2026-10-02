@@ -7,9 +7,15 @@ const BUTTONS = [
   { value: 'daily', label: 'Daily', hint: 'Yesterday vs the day before' },
   { value: 'weekly', label: 'Weekly', hint: 'Last full week (Monday to Sunday) vs the week before' },
   { value: 'monthly', label: 'Monthly', hint: 'This month to date vs the same days last month' },
+  // LAST MONTH is a whole finished month, which is a different question from Monthly: Monthly is
+  // this month so far against the same days last month, and it moves every day. Last month stops
+  // moving once the month ends, which is what you want when reporting on a closed period.
+  { value: 'last-month', label: 'Last month', hint: 'All of last month vs all of the month before' },
   { value: 'quarterly', label: 'Quarterly', hint: 'This quarter to date vs the same days last quarter' }
 ];
 const MAX_DAYS = 366;
+// How far back the month picker offers. Two years is well past anything the boards hold.
+const MONTHS_OFFERED = 24;
 
 const todayIso = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 const spanDays = (from, to) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
@@ -22,8 +28,23 @@ function validate(from, to) {
   return '';
 }
 
+/** The last `MONTHS_OFFERED` months, newest first, as { value: "2026-09", label: "September 2026" }. */
+function monthOptions() {
+  const now = new Date();
+  return Array.from({ length: MONTHS_OFFERED }, (_, index) => {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - index, 1));
+    return {
+      value: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`,
+      label: date.toLocaleDateString('en-IN', { timeZone: 'UTC', month: 'long', year: 'numeric' })
+    };
+  });
+}
+
 export function PeriodFilter({ value = 'daily', onChange }) {
   const isCustom = value.startsWith('custom');
+  // "month:2026-09" — a single month the user picked, which is its own control rather than a button.
+  const isMonth = value.startsWith('month:');
+  const pickedMonth = isMonth ? value.slice('month:'.length) : '';
   const [, currentFrom = '', currentTo = ''] = isCustom ? value.split(':') : [];
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({ from: currentFrom, to: currentTo });
@@ -65,6 +86,24 @@ export function PeriodFilter({ value = 'daily', onChange }) {
             {button.label}
           </button>
         ))}
+        {/* PICK A MONTH. A select rather than another button: twenty-four months cannot be a button
+            each, and the one you want is a named thing rather than a date range to compose. */}
+        <label className={`pf-month${isMonth ? ' on' : ''}`}>
+          <span className="pf-month-sr">Pick a month</span>
+          <select
+            aria-label="Pick a month"
+            value={pickedMonth}
+            onChange={(event) => {
+              setOpen(false);
+              if (event.target.value) onChange(`month:${event.target.value}`);
+            }}
+          >
+            <option value="">Pick a month…</option>
+            {monthOptions().map((month) => (
+              <option key={month.value} value={month.value}>{month.label}</option>
+            ))}
+          </select>
+        </label>
         <button
           type="button"
           aria-pressed={isCustom}

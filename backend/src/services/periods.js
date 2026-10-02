@@ -10,7 +10,7 @@ import { localDayKey } from './timeUtils.js';
 //   custom     any from → to (≤ 366 days)    vs the equal-length window just before it
 // Encoded as a string so every endpoint takes one `timeframe` query value: "custom:2026-09-01:2026-09-15".
 
-export const PERIODS = ['daily', 'this-week', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom'];
+export const PERIODS = ['daily', 'this-week', 'weekly', 'monthly', 'last-month', 'month', 'quarterly', 'yearly', 'custom'];
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_CUSTOM_DAYS = 366;
 
@@ -28,6 +28,8 @@ const monthStart = (iso, shift = 0) => {
 };
 const yearStart = (iso, shift = 0) => `${Number(iso.slice(0, 4)) + shift}-01-01`;
 const minIso = (a, b) => (a < b ? a : b);
+// "September 2026", for a window that is a whole calendar month and should be named as one.
+const monthName = (iso) => utc(iso).toLocaleDateString('en-IN', { timeZone: 'UTC', month: 'long', year: 'numeric' });
 // The Monday of the week `iso` falls in (weeks run Mon → Sun here, unlike JavaScript's Sun → Sat).
 const mondayOf = (iso) => addDays(iso, -((utc(iso).getUTCDay() + 6) % 7));
 
@@ -68,6 +70,41 @@ export function parsePeriod(timeframe = 'daily', now = new Date()) {
     const prev = matchingPrevious(start, today, monthStart(today, -1), addDays(start, -1));
     return { kind, start, end: today, ...prev, name: 'Month to date', shortLabel: 'This month' };
   }
+  // LAST MONTH, whole. Not "the same days of last month" - that is what `monthly` compares against.
+  // This is the completed month itself, 1st to last, against the completed month before it, so two
+  // finished months are compared like with like and the figure stops moving once the month ends.
+  if (kind === 'last-month') {
+    const start = monthStart(today, -1);
+    const end = addDays(monthStart(today), -1);
+    return {
+      kind,
+      start,
+      end,
+      prevStart: monthStart(today, -2),
+      prevEnd: addDays(start, -1),
+      name: monthName(start),
+      shortLabel: 'Last month'
+    };
+  }
+  // ANY MONTH THE USER PICKS, as "month:YYYY-MM". Same shape as last-month: the whole calendar month
+  // against the whole month before it. A month that has not finished yet is clamped to today, so
+  // picking the current month cannot invent days that have not happened.
+  if (kind === 'month' && /^\d{4}-\d{2}$/.test(from ?? '')) {
+    const start = `${from}-01`;
+    const monthEnd = addDays(monthStart(start, 1), -1);
+    const end = minIso(monthEnd, today);
+    if (start <= today) {
+      return {
+        kind,
+        start,
+        end,
+        prevStart: monthStart(start, -1),
+        prevEnd: addDays(start, -1),
+        name: monthName(start) + (end < monthEnd ? ' (to date)' : ''),
+        shortLabel: monthName(start)
+      };
+    }
+  }
   if (kind === 'quarterly') {
     const month = utc(today).getUTCMonth();
     const start = monthStart(today, -(month % 3));
@@ -100,7 +137,10 @@ export function getPeriodWindow(timeframe, now = new Date()) {
     const key = localDayKey(dateStr);
     return key >= from && key <= to;
   };
-  const timeframeValue = period.kind === 'custom' ? `custom:${period.start}:${period.end}` : period.kind;
+  const timeframeValue = period.kind === 'custom'
+    ? `custom:${period.start}:${period.end}`
+    // `month` carries which month it is, so the value the UI gets back selects the same one again.
+    : period.kind === 'month' ? `month:${period.start.slice(0, 7)}` : period.kind;
   return {
     timeframe: timeframeValue,
     kind: period.kind,
