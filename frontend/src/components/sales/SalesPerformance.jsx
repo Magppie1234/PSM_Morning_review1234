@@ -190,6 +190,9 @@ function Node({ wires = 'has-in has-out', onWire, children }) {
 function FlowCard({ node, id, label, hint, about, tone, size = 'md', extra = '', share, alert = false, onOpen }) {
   const count = node?.count ?? 0;
   const empty = count === 0;
+  // Present only on the cards built from Opportunity_Stage_History (Principal S6, Handover to design);
+  // every other card here sits on Client_Status, which nothing tracks, so there is no queue to show.
+  const sitting = typeof node?.sitting === 'number' ? node.sitting : null;
   const spoken = [label, hint].filter(Boolean).join(' · ');
   // Any card may carry a caveat from the API (e.g. how many of its records have no
   // Current Stage set). It is on the face of the card, so it belongs in the spoken name
@@ -202,6 +205,7 @@ function FlowCard({ node, id, label, hint, about, tone, size = 'md', extra = '',
     empty
       ? `${spoken}: no records in this period`
       : `Open the ${count} ${count === 1 ? 'record' : 'records'} in ${spoken}, worth ${node.valueLabel}`,
+    sitting != null ? `${sitting} sitting here now` : null,
     shareText,
     note
   ]
@@ -235,6 +239,10 @@ function FlowCard({ node, id, label, hint, about, tone, size = 'md', extra = '',
       </span>
       {hint && <span className="sp-name">{hint}</span>}
       <Figures count={count} valueLabel={node?.valueLabel} shareText={shareText} />
+      {/* THE SECOND FIGURE, on the two cards the API can date. The count above is flow - contacts that
+          reached this stage inside the period - and this is stock: how many are sitting there right
+          now, which deliberately does not move when the period does. */}
+      {sitting != null && <span className="sp-sitting">{sitting.toLocaleString('en-IN')} here now</span>}
       {!empty && share != null && (
         <span className="lf-share" aria-hidden="true"><b style={{ width: `${Math.max(share * 100, 2)}%` }} /></span>
       )}

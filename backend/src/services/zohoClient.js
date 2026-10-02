@@ -112,13 +112,13 @@ export async function getLeadFieldMetadata() {
 // Pages through a module newest-first until it passes the cutoff: an ISO date (fetch from that day,
 // with a day of timezone margin) or, if omitted, the default 7-day window.
 // `timeField` is the date the window is measured on (Lead Status History only has Modified_Time).
-async function getRecordsInWindow(module, fields, since, timeField = 'Created_Time', extra = {}) {
+async function getRecordsInWindow(module, fields, since, timeField = 'Created_Time', extra = {}, pageLimit = MAX_PAGES) {
   const cutoff = since
     ? Date.parse(`${since}T00:00:00Z`) - 86_400_000
     : Date.now() - (LEAD_WINDOW_DAYS + 2) * 86_400_000;
   const data = [];
   let pageToken;
-  for (let page = 1; page <= MAX_PAGES; page += 1) {
+  for (let page = 1; page <= pageLimit; page += 1) {
     // Zoho serves only the first 2,000 records by page number; beyond that it needs the page token.
     const paging = pageToken ? { page_token: pageToken } : { page };
     const payload = await zohoGet(module, { fields, per_page: 200, ...paging, sort_by: timeField, sort_order: 'desc', ...extra });
@@ -126,6 +126,7 @@ async function getRecordsInWindow(module, fields, since, timeField = 'Created_Ti
     data.push(...rows);
     const oldest = rows.at(-1)?.[timeField];
     if (!payload.info?.more_records || !oldest || Date.parse(oldest) < cutoff) break;
+    if (page === pageLimit && pageLimit !== MAX_PAGES) throw new Error(`${module} reporting window exceeds ${pageLimit} pages`);
     pageToken = payload.info?.next_page_token;
     if (page >= 10 && !pageToken) break;
   }
@@ -156,10 +157,61 @@ export async function getRecentLeads(since) {
   }
 }
 
+export const getPreSalesTrendLeads = (since) => getRecordsInWindow(config.zoho.leadsModule,
+  'Owner,Company,Full_Name,Product_Requirement,Lead_Status,Created_Time,Converted__s',
+  since, 'Created_Time', { converted: 'both' }, 160);
+
 // Qualified opportunities: Contacts created since `since`, with the PSM (Sales_Manager) and the
 // opportunity value in lakhs. These feed the PSM mandate progress bar.
 export async function getRecentContacts(since) {
   return getRecordsInWindow('Contacts', CONTACT_FIELDS, since);
+}
+
+// CONTACTS FETCHED BY ID, for the two Sales cards that are dated from Opportunity_Stage_History.
+//
+// Those cards count the contacts that ENTERED a stage during the period, and a contact that entered
+// "Principally Closed" in September may well have been created in June - so it is not in the window
+// getRecentContacts() reads, and the card could never see it. Rather than scan the whole Contacts
+// module (a serial token walk, the same structural problem the Deal history had), the stage ledger
+// names the exact ids and this fetches only those.
+//
+// MEASURED: 10-23 contacts per card per month fall outside the board's existing window, so this is
+// normally a single request. Zoho caps the `ids` parameter at 100 per call, hence the batching.
+const IDS_PER_CALL = 100;
+
+// CONTACTS SITTING AT ONE Contacts.Stage VALUE, right now.
+//
+// The "and how many are there today" figure beside the two dated Sales cards. It must NOT be derived
+// from whichever contacts the period happened to load, or the number silently changes when you change
+// the period - which is exactly what "right now" must never do. So it is its own query.
+//
+// VERIFIED that criteria really filters here before relying on it: a bogus stage returns 204 with no
+// rows, and a real one returns only that stage. That check matters because the same `criteria`
+// parameter is accepted and then SILENTLY IGNORED on the history modules, which would have made this
+// look like it worked while counting the whole module.
+export async function getContactsAtStage(stage) {
+  if (!stage) return [];
+  return getAllRecords('Contacts', CONTACT_FIELDS, {
+    criteria: `(Stage:equals:${stage})`,
+    maxPages: 10
+  });
+}
+
+export async function getContactsByIds(ids) {
+  const wanted = [...new Set((ids ?? []).map(String).filter(Boolean))];
+  if (!wanted.length) return [];
+  const batches = [];
+  for (let at = 0; at < wanted.length; at += IDS_PER_CALL) batches.push(wanted.slice(at, at + IDS_PER_CALL));
+  // Each batch is allowed to fail on its own: losing one costs the contacts in it, not the card.
+  const results = await Promise.allSettled(batches.map((batch) =>
+    zohoGet('Contacts', { ids: batch.join(','), fields: CONTACT_FIELDS })));
+  return results.flatMap((result, index) => {
+    if (result.status === 'rejected') {
+      console.error(`Contacts by id batch ${index + 1}/${batches.length} failed:`, result.reason?.message);
+      return [];
+    }
+    return result.value?.data ?? [];
+  });
 }
 
 // City, Owner, Stage ("Status"), Amount ("BD Value"), Est_Closoure_Date ("Est. Closure Date", the CRM's
@@ -171,7 +223,7 @@ export async function getRecentContacts(since) {
 // Next_Follow_UP_Date ("Follow Up Date") is the follow-up the team actually fills; Next_Follow_Up_Date1
 // is a newer datetime field almost nobody uses, so it is read only as a fallback. Last_Note carries the
 // free-text next action. All three feed the weekly view.
-const CONTACT_FIELDS = 'Full_Name,Sales_Manager,Owner,Created_By,City,Stage,Amount,Total_Opportunity_Value,Client_Status,Lead_Source,Created_Time,Modified_Time,Modified_By,Actual_Closure_Date,Est_Closoure_Date,Product_Requirement,Product_Type,Next_Follow_UP_Date,Next_Follow_Up_Date1,Last_Note';
+const CONTACT_FIELDS = 'Full_Name,Sales_Manager,Owner,Created_By,City,Stage,Amount,Total_Opportunity_Value,Client_Status,Lead_Source,Lead_Drop_Reason,Created_Time,Modified_Time,Modified_By,Actual_Closure_Date,Est_Closoure_Date,Product_Requirement,Product_Type,Next_Follow_UP_Date,Next_Follow_Up_Date1,Last_Note';
 
 // Same window as getRecordsInWindow, but the first ten pages go out a few at a time instead of one
 // after another. Zoho serves pages 1-10 by page number and only needs the page token beyond that, so
@@ -276,6 +328,13 @@ export async function getRecentStatusHistory(since) {
 export async function getRecentCalls(since) {
   return getRecordsInWindow('Calls', 'Call_Start_Time,Call_Type,Call_Duration_in_seconds,Outgoing_Call_Status,Subject,What_Id,Who_Id,Owner,Created_Time', since);
 }
+
+// Activity reads share the same Zoho cache and reporting window as the boards. The relationship ids
+// let each board count only tasks and notes attached to records in its own filtered cohort.
+export const getRecentTasks = (since) => getRecordsInWindow(
+  'Tasks', 'Status,Due_Date,What_Id,Who_Id,Closed_Time,Created_Time', since, 'Created_Time', {}, 160);
+export const getRecentNotes = (since) => getRecordsInWindow(
+  'Notes', 'Parent_Id,Created_Time', since, 'Created_Time', {}, 160);
 
 // Stage of each deal a lead was converted into, keyed by deal id (Zoho accepts 100 ids per call).
 export async function getDealStages(ids = []) {

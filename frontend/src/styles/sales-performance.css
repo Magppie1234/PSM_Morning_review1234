@@ -142,3 +142,16 @@
   .sp-lf { transition: none; }
   .sp-fade { animation: none; }
 }
+
+
+/* The live queue on the two dated cards (Principal S6, Handover to design). Quieter than the count
+   above it: that is what happened in the period, this is what is waiting right now. */
+.sp-sitting {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}

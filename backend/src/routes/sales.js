@@ -6,17 +6,19 @@ import { buildDesignDashboardFromDeals } from '../services/designMapper.js';
 import { loadPdiReview } from '../services/pdiReview.js';
 import { buildPreDesignBoard, getPreDesignDeals } from '../services/preDesignBoard.js';
 import { getAllDeals } from '../services/dealsModule.js';
+import { getFullDealLedger } from '../services/bulkLedger.js';
 import { buildPostDesignFunnel, getPostDesignQueue } from '../services/postDesignFunnel.js';
 import { ALL_HISTORY, getStageLedger, indexByRecord } from '../services/stageLedger.js';
 import { getSalesManagersByContact } from '../services/salesManagers.js';
 import { buildPostDesignBoard, getPostDesignDeals } from '../services/postDesignBoard.js';
 import { buildSalesEfficiency } from '../services/salesEfficiency.js';
 import { buildSalesFunnelBoard, estimateEndOf } from '../services/salesFunnelBoard.js';
+import { buildSalesHealth } from '../services/salesHealth.js';
 import { buildSalesDashboardFromDeals } from '../services/salesMapper.js';
 import { getTimeframeFilter, localDayKey } from '../services/timeUtils.js';
 import {
-  getClosedContacts, getEarliestContactDate, getEfficiencyContacts, getEfficiencyDeals,
-  getEstimateContacts, getRecentContacts, getRecentDeals
+  getClosedContacts, getContactsAtStage, getContactsByIds, getEarliestContactDate, getEfficiencyContacts,
+  getEfficiencyDeals, getEstimateContacts, getRecentContacts, getRecentDeals, getRecentTasks, getRecentNotes
 } from '../services/zohoClient.js';
 
 // Boards built from Zoho Deals (Orders): Sales, Design and PDI / site.
@@ -99,7 +101,10 @@ salesRoutes.get('/pre-design-funnel', async (request, response) => {
         console.error('Whole orders module unavailable; the dated cards fall back to the window:', error.message);
         return null;
       }),
-      getStageLedger('deals', ALL_HISTORY).catch((error) => {
+      // The full history, through Bulk Read where it works and the paged walk where it does not.
+      // 3 requests instead of 140; getFullDealLedger falls back on its own, so a bulk failure costs
+      // latency rather than the card.
+      getFullDealLedger().catch((error) => {
         console.error('Full stage ledger unavailable; the dated cards fall back to the window:', error.message);
         return null;
       })
@@ -168,7 +173,7 @@ salesRoutes.get('/sales-funnel', async (request, response) => {
     // which runs past today on a month or quarter still in progress.
     const today = localDayKey(new Date());
     const estimateEnd = estimateEndOf(tf);
-    const [contacts, closed, estimates, dataFrom] = await Promise.all([
+    const [contacts, closed, estimates, dataFrom, tasks, notes] = await Promise.all([
       // Back to the start of the comparison window rather than the period's own start, so every card's
       // "vs last period" figure is counted from a complete window.
       getRecentContacts(tf.previousStart ?? tf.start),
@@ -182,9 +187,37 @@ salesRoutes.get('/sales-funnel', async (request, response) => {
       getEarliestContactDate().catch((error) => {
         console.error('Earliest contact date unavailable:', error.message);
         return null;
-      })
+      }),
+      getRecentTasks(tf.start).catch((error) => { console.error('Qualified lead tasks unavailable:', error.message); return null; }),
+      getRecentNotes(tf.start).catch((error) => { console.error('Qualified lead notes unavailable:', error.message); return null; })
     ]);
-    response.json(buildSalesFunnelBoard({ tf, contacts, closed, estimates, dataFrom, city }));
+    // THE DATED CARDS. Principally Closed (S6) and Handover to design are the two Sales cards that sit
+    // on Contacts.Stage, which Opportunity_Stage_History does track - so unlike the S1-S5 rungs they can
+    // be counted by WHEN a contact reached them instead of by a snapshot of where it stands now.
+    //
+    // Two reads, both optional: losing either drops those cards back to the snapshot rule rather than
+    // failing the board. The ledger goes back to the start of the comparison window so "vs last period"
+    // is counted over a complete window, exactly as the contact read does.
+    const ledgerFrom = tf.previousStart ?? tf.start;
+    const stageRows = await optional('Contact stage history', getStageLedger('contacts', ledgerFrom));
+    const history = stageRows.length ? indexByRecord(stageRows, 'contacts') : null;
+    // Contacts named by the ledger that the window read did not already load - a contact created in June
+    // can enter Principally Closed in September, and the card has to be able to see it.
+    const known = new Set(contacts.map((contact) => String(contact.id)));
+    const missing = history ? [...history.keys()].map(String).filter((id) => !known.has(id)) : [];
+    const extraContacts = missing.length ? await optional('Contacts by id', getContactsByIds(missing)) : [];
+    // The live queue behind each dated card, as its own query so the figure does not move when the
+    // period does. Both are small (Principally Closed is single digits, Handover a few hundred).
+    const [principalQueue, handoverQueue] = await Promise.all([
+      optional('Principally Closed queue', getContactsAtStage('Principally Closed')),
+      optional('Handover queue', getContactsAtStage('Handover To Post Design'))
+    ]);
+    const board = buildSalesFunnelBoard({
+      tf, contacts, closed, estimates, dataFrom, city, history, extraContacts,
+      queues: { principal: principalQueue, handover: handoverQueue }
+    });
+    board.health = buildSalesHealth({ contacts, tf, city, history, tasks, notes });
+    response.json(board);
   } catch (error) {
     console.error('Error fetching sales funnel contacts, serving an empty board:', error.message);
     const notice = `Qualified leads (Zoho Contacts) could not be read: ${error.message}. Refresh to try again.`;

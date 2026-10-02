@@ -311,7 +311,7 @@ export function buildSalesFunnelBoard(options) {
   return withSalesFormulas(buildBoard(options), options?.tf);
 }
 
-function buildBoard({ tf, contacts = [], closed = [], estimates = [], dataFrom = null, city, notice = null, now = new Date() }) {
+function buildBoard({ tf, contacts = [], closed = [], estimates = [], dataFrom = null, city, notice = null, now = new Date(), history = null, extraContacts = [], queues = {} }) {
   // The dashboard's own day, used for "is this follow-up late" and for the overdue card below.
   const today = localDayKey(now);
   const real = (list) => (list ?? []).filter(isRealRecord).map((contact) => toRecord(contact, today));
@@ -359,17 +359,97 @@ function buildBoard({ tf, contacts = [], closed = [], estimates = [], dataFrom =
   // Everything the board will show, once. The weekly view groups these, and they are what `records` sends.
   const visible = only(universe);
 
+  // -------------------------------------------------------------------------
+  // THE TWO DATED CARDS
+  // -------------------------------------------------------------------------
+  // Principally Closed and Handover to design live on Contacts.Stage, which Opportunity_Stage_History
+  // tracks, so they can be counted by WHEN a contact reached them. Every other rung on this board sits
+  // on Client_Status, which nothing tracks, and has to stay a snapshot - see config/journey.js.
+  //
+  // WHY THIS MATTERS. The old rule was "created in the period AND standing there now", which dates an
+  // event by the month the contact was created. MEASURED from the ledger:
+  //
+  //   Principally Closed   Jun 31  Jul 37  Aug 36  Sep 73      the board showed 0 in EVERY month
+  //   Handover to design                   Aug 334  Sep 22     the board showed Aug 271, Sep 0
+  //
+  // A contact created in June that was principally closed in September belonged to neither month, so
+  // the card emptied itself as records aged. Now: the distinct contacts that entered the stage inside
+  // the period, counted once however many times they entered, with the live queue beside them.
+  const datedPool = new Map(
+    [...real(contacts), ...real(extraContacts)].map((record) => [String(record.id), record]));
+  applyCityMerge([[...datedPool.values()]]);
+
+  const enteredDuring = (match, matches) => {
+    const found = [];
+    for (const [id, entry] of history ?? []) {
+      const record = datedPool.get(String(id));
+      if (!record || !selected.matches(record)) continue;
+      const hit = (entry.entries ?? []).some((step) =>
+        match.test(String(step.stage ?? '')) && step.enteredAt && matches(step.enteredAt));
+      if (hit) found.push(record);
+    }
+    return found;
+  };
+
+  // `sitting` ignores the period on purpose: it is where contacts stand right now.
+  // The live queue comes from its OWN query, not from whichever contacts this period happened to load.
+  // Built from the loaded pool it read 312 for August and 297 for September - the same "right now"
+  // question giving two answers because the pool differed. A stock figure that moves with the period
+  // filter is worse than no stock figure.
+  const sittingIn = (rows) => {
+    if (!Array.isArray(rows)) return null;
+    const records = real(rows);
+    applyCityMerge([records]);
+    return records.filter(selected.matches).length;
+  };
+
+  // EVERY ID A CARD QUOTES MUST RESOLVE AGAINST `records`, which is what the popup reads. The dated
+  // cards can point at a contact fetched by id from the stage ledger - one created long before this
+  // period - and such a contact is in no other list on this board. Without collecting them here the
+  // card counted 2 and the popup listed 1, because the second id resolved to nothing.
+  const datedRecords = new Map();
+  const remember = (records) => { for (const record of records) datedRecords.set(record.id, record); };
+
+  const datedCard = (key, label, match, fallbackNow, fallbackBefore, queue = null) => {
+    if (!history) {
+      return cityCard(fallbackNow, { key, label, dated: false,
+        note: 'Counted by when the contact was created, not by when it reached this stage: the contact '
+          + 'stage history could not be read for this response.' }, fallbackBefore);
+    }
+    const inPeriod = enteredDuring(match, (at) => tf.matches(at));
+    const inPrevious = tf.previousStart ? enteredDuring(match, (at) => tf.previousMatches(at)) : null;
+    remember(inPeriod);
+    return {
+      ...cityCard(inPeriod, { key, label, dated: true }, inPrevious),
+      sitting: sittingIn(queue)
+    };
+  };
+
+  // Records whose Current Status is blank or outside the six named rungs. They used to be counted on
+  // S1, which made that rung read 1,350 when 42 contacts actually hold "Not Yet Validated". They are on
+  // no card now, so the count is reported on S1 instead - the gap stays visible without inflating a rung.
+  const unsetCount = intake.filter((record) => !record.hasStage).length;
+
   const stageCard = (stage) => {
     const records = open.filter((record) => record.stageKey === stage.key);
-    // S1 is mostly records with no Current Stage at all, so it says so rather than letting the card be
-    // read as "the CRM checked these and found them unvalidated".
-    const blank = records.filter((record) => !record.hasStage).length;
-    const note = stage.key === 'S1' && blank
-      ? `${blank} of ${records.length} have no Current Stage set in Zoho`
+    const note = stage.key === 'S1' && unsetCount
+      ? `${unsetCount.toLocaleString('en-IN')} more leads in this period have no Current Status set in Zoho and are on no rung`
       : null;
     return cityCard(records, { key: stage.key, label: stage.label, short: stage.short, note },
       openBefore.filter((record) => record.stageKey === stage.key));
   };
+
+  // Built before the response literal so `datedRecords` is populated by the time `records` is assembled.
+  const principalCard = datedCard(PRINCIPAL_STAGE.key, PRINCIPAL_STAGE.label, PRINCIPAL_STAGE.match,
+    open.filter((record) => record.stageKey === PRINCIPAL_STAGE.key),
+    openBefore.filter((record) => record.stageKey === PRINCIPAL_STAGE.key),
+    queues.principal);
+  const handoverCard = datedCard('handover', HANDOVER_LABEL, HANDOVER_MATCH,
+    open.filter((record) => record.handover),
+    openBefore.filter((record) => record.handover),
+    queues.handover);
+  // The contacts the dated cards reached that no other list on this board holds.
+  const extraVisible = [...datedRecords.values()].filter((record) => !byId.has(record.id));
 
   return {
     meta: {
@@ -421,18 +501,17 @@ function buildBoard({ tf, contacts = [], closed = [], estimates = [], dataFrom =
       // past, so any "last period" figure would be invented rather than measured.
       overdue: cityCard(only(overdue), { key: 'overdue', label: OVERDUE_LABEL }),
       stages: LADDER_STAGES.map(stageCard),
-      principal: stageCard(PRINCIPAL_STAGE),
+      principal: principalCard,
       // What actually closed in the period, by Actual_Closure_Date. The flow reads
       // Est. closure → Overdue → S1..S5 → S6 → Order Booked → Handover.
       closed: cityCard(closedNow, { key: CLOSED_STAGE.key, label: CLOSED_CARD_LABEL }, only(closuresBefore)),
-      handover: cityCard(open.filter((record) => record.handover), { key: 'handover', label: HANDOVER_LABEL },
-        openBefore.filter((record) => record.handover))
+      handover: handoverCard
     },
     // The weekly view. `weeks` are the period's Monday-start weeks, sent whether or not anything falls
     // in them so the UI draws the empty ones; `buckets` catch the follow-ups either side.
     ...weeklyView(visible, tf),
     // The internal signals the cards were built from are dropped; the frontend gets the flat record only.
-    records: visible.map(({ cityNameKey, handover, hasStage, ...record }) => record)
+    records: [...visible, ...extraVisible].map(({ cityNameKey, handover, hasStage, ...record }) => record)
   };
 }
 
