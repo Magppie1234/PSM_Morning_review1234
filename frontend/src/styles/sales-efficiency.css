@@ -64,3 +64,22 @@
 .em-trend { min-width: 0; }
 .em-trend-label { fill: var(--muted); font-size: 11px; font-weight: 600; }
 .em-trend-grid { stroke: var(--line); stroke-width: 1; }
+
+
+/* Sparkline + delta on a metric card. Added with the PSM health charts; both use the same six-colour
+   palette from analytics.css, so a teal line means the same thing on both boards. The sparkline is
+   the ONLY chart on these cards by design - the full chart and its table stay in the detail modal,
+   which is the decision recorded in this section's DESIGN.md. */
+.em-summary-spark { display: block; margin: 6px 0 2px; }
+.em-summary-spark svg { width: 100%; height: 30px; }
+
+/* Direction is a word and an arrow, never colour alone. */
+.em-delta {
+  margin-left: 6px;
+  font-style: normal;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.em-delta.is-up { color: var(--an-c3); }
+.em-delta.is-down { color: var(--an-c5); }

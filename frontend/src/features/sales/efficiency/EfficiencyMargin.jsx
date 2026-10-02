@@ -23,7 +23,7 @@ export function EfficiencyMargin({ data, loading = false }) {
   return <section className="em em-compact" aria-labelledby="em-title" aria-busy={loading}>
     <div className="em-heading"><div><h2 id="em-title">Efficiency margin</h2><p>Review the essentials. Select a card for the calculation and breakdown.</p></div><span>{loading ? 'Updating…' : meta.reportLabel}</span></div>
     {meta.amsDetected > 0 && <p className="em-warn"><AlertTriangle size={15} aria-hidden="true" />{count(meta.amsDetected)} service / installation records {meta.excludeAmsRecords ? 'excluded' : 'included'} in these results.</p>}
-    <div className="em-metric-grid">{metrics.map((metric) => <MetricCard key={metric.key} metric={metric} comparison={meta.comparison} onOpen={(event) => openDetail(event, { type: 'metric', key: metric.key })} />)}</div>
+    <div className="em-metric-grid">{metrics.map((metric) => <MetricCard key={metric.key} metric={metric} comparison={meta.comparison} months={months} onOpen={(event) => openDetail(event, { type: 'metric', key: metric.key })} />)}</div>
     <div className="em-breakdown-grid">{summaries.map((item) => <button className="em-breakdown" key={item.key} type="button" onClick={(event) => openDetail(event, { type: item.key })} aria-haspopup="dialog">
       <span className="em-summary-label">{item.label}<ArrowUpRight size={15} aria-hidden="true" /></span><span className="em-breakdown-total">{item.value}</span><span className="em-summary-context">{item.caption}</span>
       <MiniBars rows={item.rows} format={item.format} label={item.label} /><span className="em-open-detail">View chart & table</span>
