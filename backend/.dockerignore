@@ -1,0 +1,25 @@
+# Nothing secret, local or disposable goes into the image.
+node_modules
+npm-debug.log
+
+# Credentials. These arrive from the host's environment at runtime, never from the image.
+.env
+.env.*
+!.env.example
+
+# Runtime state written by the app: the Zoho token and the lead/deal fallback caches. All of it is
+# CRM-derived and must not be baked into an image or shipped anywhere.
+.data
+.zoho_token.json
+.leads_cache.json
+.deals_cache.json
+.standup_state.json
+
+# Local spreadsheets the factory board reads, plus anything downloaded during audits.
+*.xlsx
+*.zip
+*.csv
+
+# Audit and test scratch files.
+_*.mjs
+test
