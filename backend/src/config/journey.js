@@ -116,8 +116,14 @@ export const DEAL_PRE_DESIGN_STEPS = [
   // that CARRY a revision count and are no longer sitting on a revision stage — the nearest honest
   // reading, and the card says so.
   { key: 'revisionDone', label: 'Revision done', derived: true, stages: [] },
+  // "Payment Approvals" USED TO BE HERE AS WELL as on post-design's "Payment pending", so its orders
+  // were counted on both boards. The blueprint settles which is which:
+  //   Payment Awaited  -> Order Booked              pre-booking, so it belongs here
+  //   PD Approvals -> Payment Approvals -> Handover to Factory   post-design, so it belongs there
+  // "Closed Won" is kept although it has never been used in 28,025 history rows, because it is a
+  // standard Zoho value that would start appearing the moment anyone selected it.
   { key: 'orderBooked', label: 'Order booked', stages: [
-    'Order Booked', 'Closed Won', 'Payment Awaited', 'Payment Approvals'] },
+    'Order Booked', 'Closed Won', 'Payment Awaited'] },
   { key: 'handover', label: 'Handover to design', stages: [
     'Handover to Post Design', 'Assign Post - Designer'] }
 ];
@@ -138,6 +144,12 @@ export const DEAL_POST_DESIGN_STEPS = [
     { key: 'requested', label: 'Requested', stages: ['Request for Site Visit', 'Revisit Req-First Measurement'] },
     { key: 'planned', label: 'Planned', stages: ['Align First Measurement', 'First Measurement'] },
     { key: 'done', label: 'Done', stages: ['First Measurement Done', 'First Measurement Approved', 'Design Approved After First Meaurement', 'First Measurement / EPT /Production Drawing / Mood Board 3D / PDI'] }] },
+  // EP prep · Planned CANNOT FILL, and this is the honest record of why rather than a silent zero.
+  // Its only stage value is "EPT", which appears 0 times in 28,025 DealHistory rows: it is a state of
+  // the "Post Design" blueprint, which is INACTIVE. The active "Order Stages" blueprint goes straight
+  // from Preparation of Electrical and Plumbing Drawings to Request for Electric and Plumbing Marking
+  // with nothing between, so there is no real state for this sub-step to count. The value is kept so
+  // the card starts working by itself if that blueprint is ever activated.
   { key: 'epPrep', label: 'EP prep', subs: [
     { key: 'requested', label: 'Requested', stages: ['Preparation of Electrical and Plumbing Drawings'] },
     { key: 'planned', label: 'Planned', stages: ['EPT'] },
@@ -158,8 +170,11 @@ export const DEAL_POST_DESIGN_STEPS = [
     { key: 'requested', label: 'Requested', stages: ['Request Visit for PDI', 'Prepare PDI'] },
     { key: 'planned', label: 'Planned', stages: ['Align PDI'] },
     { key: 'done', label: 'Done', stages: ['PDI', 'PDI Done', 'PDI Verifiction'] }] },
+  // "Payment Awaited" is NOT here: the blueprint routes it straight to Order Booked, which makes it a
+  // pre-booking state and pre-design's "Order booked" card its home. Keeping it on both cards counted
+  // the same 7 orders twice across two boards.
   { key: 'payment', label: 'Payment pending', subs: [
-    { key: 'pending', label: 'Pending', stages: ['Sent for PDI payment Approval', 'Payment Awaited', 'Payment Approvals', 'Approval from Accounts'] },
+    { key: 'pending', label: 'Pending', stages: ['Sent for PDI payment Approval', 'Payment Approvals', 'Approval from Accounts'] },
     { key: 'done', label: 'Done', stages: ['PDI Payment Done'] }] },
   { key: 'factory', label: 'Sent to factory', subs: [], stages: ['Handover to Factory', 'Send PDI Drawings to Factory'] }
 ];
