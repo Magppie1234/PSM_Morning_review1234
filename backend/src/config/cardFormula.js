@@ -184,6 +184,14 @@ export { F as FORMULA_FIELDS, c as formulaFilter, ORDERS, HISTORY };
 const CONTACTS = 'Qualified Leads (Contacts)';
 const cf = (label, api) => ({ label, api, module: CONTACTS });
 
+// Opportunity_Stage_History - the contact-side stage ledger. Distinct from DealHistory above, which
+// tracks orders; this one tracks Contacts.Stage and is what dates S6 and Handover to design.
+const OPP_HISTORY = 'Opportunity Stage History';
+const H = {
+  stage: { label: 'Stage', api: 'Stage', module: OPP_HISTORY },
+  entered: { label: 'Modified Time (entered the stage)', api: 'Modified_Time', module: OPP_HISTORY }
+};
+
 const C = {
   name: cf('Full Name', 'Full_Name'),
   psm: cf('Sales Manager', 'Sales_Manager'),
@@ -228,15 +236,47 @@ const uniqueFields = (fields) => {
   });
 };
 
-function salesFormula({ title, summary, filters = [], fields = [], crm = [] }, tf) {
+// `dated: true` means the card is NOT scoped by Created Time. Three cards on this board are dated by
+// something real - Order Booked by Actual Closure Date, Principally Closed and Handover to design by
+// when the contact entered the stage - and printing a Created Time filter on them was simply false:
+// the one order on Order Booked was created in November 2025 and the panel claimed a filter of
+// "created between 1 and 2 October 2026". A formula that does not match the code is worse than none.
+function salesFormula({ title, summary, filters = [], fields = [], crm = [], dated = false }, tf) {
+  const steps = CONTACT_STEPS(tf);
   return {
     title,
     summary,
     module: CONTACTS,
-    filters: [c(C.created, 'is', period(tf)), ...filters, ...CONTACT_EXCLUSIONS],
+    filters: [...(dated ? [] : [c(C.created, 'is', period(tf))]), ...filters, ...CONTACT_EXCLUSIONS],
     fields: uniqueFields([C.name, C.psm, C.city, ...fields]),
-    crm: [...CONTACT_STEPS(tf), ...crm]
+    // steps[1] is the Created Time line; a dated card drops it and states its own rule instead.
+    crm: [...(dated ? steps.filter((step) => !step.startsWith('Filter: Created Time')) : steps), ...crm]
   };
+}
+
+/** S6, which unlike S1-S5 is dated: Contacts.Stage is tracked by Opportunity_Stage_History. */
+export function principalFormula(stage, tf) {
+  return salesFormula({
+    title: `${stage.short ?? stage.key} · ${stage.label}`,
+    summary: 'Qualified leads that ENTERED "Principally Closed" during the period, counted once each '
+      + 'from Opportunity Stage History, with the number sitting there right now beside it. This card '
+      + 'reads Contacts.Stage, which Zoho tracks - unlike the S1-S5 rungs, which read Client_Status and '
+      + 'cannot be dated at all.',
+    dated: true,
+    filters: [
+      c(H.stage, 'is', `"${stage.label}"`),
+      c(H.entered, 'is', period(tf))
+    ],
+    fields: [C.status, C.value, C.estClosure],
+    crm: [
+      'Open Opportunity Stage History in Zoho CRM.',
+      `Filter: Stage is "${stage.label}".`,
+      `Filter: Modified Time (the moment the contact entered the stage) ${period(tf)}.`,
+      'Count each contact once, however many times it entered.',
+      'The second figure is a separate query: the contacts whose Stage is this one right now, which '
+        + 'deliberately does not move when the period does.'
+    ]
+  }, tf);
 }
 
 /** The six ladder rungs, built from the same STAGES table the cards were counted with. */
@@ -245,12 +285,13 @@ export function ladderFormula(stage, tf) {
   return salesFormula({
     title: `${stage.short ?? stage.key} · ${stage.label}`,
     summary: `Open qualified leads whose Current Stage reads "${stage.label}". `
-      + (isS1 ? 'Most of these have NO Current Stage set at all, rather than one actively marked "Not Yet Validated" — the card carries the split. ' : '')
+      + (isS1 ? 'Only leads actually marked "Not Yet Validated" are here. Leads with no Current Stage set are NOT on this rung — they are on no rung, and the card says how many. '
+        : '')
       + SNAPSHOT_NOTE,
-    filters: [c(C.status, 'is', isS1 ? 'empty, or "Not Yet Validated"' : `"${stage.label}"`)],
+    filters: [c(C.status, 'is', `"${stage.label}"`)],
     fields: [C.status, C.value, C.estClosure],
     crm: [
-      `Filter: Current Stage is ${isS1 ? 'empty OR "Not Yet Validated"' : `"${stage.label}"`}.`,
+      `Filter: Current Stage is "${stage.label}".`,
       'Exclude anything already Closed or Dead: both are tested before the ladder, so "Closed" is never read as the tail of "Design Closed + Price Open".'
     ]
   }, tf);
@@ -295,15 +336,25 @@ export const SALES_CARD_SPECS = {
   closed: {
     title: 'Order Booked',
     summary: 'What actually closed in the period, dated by Actual Closure Date rather than by Current Stage. The Zoho value is "Closed"; only the card is named the way the sales team talks about it.',
+    dated: true,
     filters: [c(C.actualClosure, 'is', 'inside the period'), c(C.status, 'is', 'Closed')],
     fields: [C.actualClosure, C.value, C.status],
-    crm: ['Filter: Current Stage is "Closed".', 'Filter: Actual Closure Date is inside the period.']
+    crm: ['Filter: Current Stage is "Closed".', 'Filter: Actual Closure Date is inside the period.',
+      'NOT filtered by Created Time: a lead booked this month may have arrived a year ago.']
   },
   handover: {
     title: 'Handover to design',
-    summary: 'Open qualified leads handed to the design team. Counted in CLIENTS, not orders. One client averages 2.12 orders, which is why this figure and the Design board intake can never be equal.',
+    summary: 'Qualified leads that ENTERED "Handover To Post Design" during the period, from Opportunity '
+      + 'Stage History, with the number sitting there right now beside it. Counted in CLIENTS, not orders: '
+      + 'one client averages 2.12 orders, which is why this figure and the Design board intake can never be equal.',
+    dated: true,
+    filters: [c(H.stage, 'is', '"Handover To Post Design"'), c(H.entered, 'is', 'inside the period')],
     fields: [C.status, C.value],
-    crm: ['Filter: the record has been handed to design.', 'Note the unit: this card counts clients, the Design board counts orders.']
+    crm: ['Open Opportunity Stage History in Zoho CRM.',
+      'Filter: Stage is "Handover To Post Design".',
+      'Filter: Modified Time (when the contact entered the stage) is inside the period.',
+      'NOT filtered by Created Time: a lead handed over this month may have arrived months earlier.',
+      'Note the unit: this card counts clients, the Design board counts orders.']
   }
 };
 
@@ -320,7 +371,8 @@ export function attachSalesFormulas(board, tf, ladderStages = []) {
     if (stage) card.formula = ladderFormula(stage, tf);
   });
   const s6 = ladderStages.find((entry) => entry.key === 'S6');
-  if (salesPerformance?.principal && s6) salesPerformance.principal.formula = ladderFormula(s6, tf);
+  // S6 gets its own dated formula, not the snapshot one the S1-S5 rungs carry.
+  if (salesPerformance?.principal && s6) salesPerformance.principal.formula = principalFormula(s6, tf);
   return board;
 }
 
