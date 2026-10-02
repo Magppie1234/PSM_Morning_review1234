@@ -14,11 +14,13 @@ export function createApp() {
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
 
+  // CORS runs BEFORE sign-in, because a browser sends its preflight OPTIONS without credentials: behind
+  // the auth check that preflight would 401 and the real request would never be made, which looks to the
+  // page like the API is down rather than like it needs a password.
+  app.use('/api', cors({ origin: config.corsOrigins.length ? config.corsOrigins : false }));
+
   if (config.auth.user && config.auth.password) app.use(basicAuth(config.auth));
 
-  // Browsers may call the API only from the listed origins (the Vite dev server locally). In production the
-  // frontend is served by this same server, so no cross-origin access is needed.
-  app.use('/api', cors({ origin: config.corsOrigins.length ? config.corsOrigins : false }));
   app.use(express.json({ limit: '100kb' }));
   app.use('/api', dashboardCache());
   app.use('/api', apiRoutes);
