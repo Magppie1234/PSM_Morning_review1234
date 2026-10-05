@@ -130,3 +130,18 @@
   .an-metrics, .an-breakdowns, .an-rates { grid-template-columns: 1fr; }
   .mc-rows li { grid-template-columns: minmax(56px, 38%) 1fr auto; }
 }
+
+.an-metric[role="button"] { cursor: pointer; }
+.an-metric[role="button"]:hover { border-color: var(--an-c1); }
+.an-metric[role="button"]:focus-visible, .an-open:focus-visible { outline: 2px solid var(--an-c1); outline-offset: 3px; }
+.an-open { border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; padding: 0; }
+.an-open:hover { text-decoration: underline; }
+.an-evidence-tools { display: flex; align-items: center; justify-content: space-between; padding: 16px; gap: 12px; }
+.tat-sub { display: block; font-size: .65rem; font-weight: 400; color: var(--muted); }
+.tat-summary { display: grid; gap: 4px; min-width: 120px; font-size: .75rem; }
+
+.an-breakdown[role="button"], .an-rate[role="button"] { cursor: pointer; }
+.an-breakdown[role="button"]:focus-visible, .an-rate[role="button"]:focus-visible { outline: 2px solid var(--an-c1); outline-offset: 3px; }
+
+.tat-cell .lt-ok, .tat-summary .lt-ok { color: #15803d; }
+.tat-cell .lt-late, .tat-summary .lt-late { color: var(--danger); }
