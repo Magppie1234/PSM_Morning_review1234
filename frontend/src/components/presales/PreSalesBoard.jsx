@@ -216,7 +216,7 @@ export function PreSalesBoard({ state, timeframe, onTimeframe, psm, onPsm, selec
         {/* The Senior decision queue used to sit beside this table. It is off every board now; the same
             leads are reachable from the funnel cards and the Needs action row. */}
         <div className="ps-split ps-split-one">
-          <TeamTable rows={data.performance ?? []} onPsm={onPsm} onDetail={onDetail} />
+          <TeamTable leads={data.leads ?? []} rows={data.performance ?? []} onPsm={onPsm} onDetail={onDetail} />
         </div>
         <FormulaPanel title="PSM performance">
           <Formula entry={teamFormula} />

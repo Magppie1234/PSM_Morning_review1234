@@ -472,7 +472,10 @@
 .lt-tag { color: var(--warn); font-size: 0.66rem; font-style: normal; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
 
 /* Chart view of a lead table: two donuts with clickable legends */
-.lp { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; padding: 6px 2px 4px; }
+.lp { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; padding: 6px 2px 4px; min-height: 0; overflow-y: auto; }
+.lp-reasons { grid-column: 1 / -1; }
+.lp-reasons .lp-legend { max-height: 260px; overflow-y: auto; }
+.lp-reasons .lp-legend span { white-space: normal; overflow-wrap: anywhere; }
 .lp-chart { margin: 0; }
 .lp-chart figcaption { margin-bottom: 8px; color: var(--ink-2); font-size: 0.78rem; font-weight: 750; letter-spacing: 0.03em; text-transform: uppercase; }
 .lp-body { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
@@ -491,3 +494,25 @@
 .lp-focus { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; color: var(--ink-2); font-size: 0.82rem; font-weight: 650; }
 @media (max-width: 900px) { .lp { grid-template-columns: 1fr; } }
 .mb-warn { color: var(--warn); font-weight: 700; cursor: help; }
+
+.lf-missing { max-width: 340px; margin: 14px 0; }
+.lf-missing h3 { font-size: .8rem; margin-bottom: 8px; }
+.lf-missing .lf-wire-share { display: none; }
+.lf-missing { --lf-amber: #a15c00; }
+.lf-missing .lf-node { border-radius: 10px; box-shadow: 0 0 0 2px #e8b350; }
+.lf-missing .lf-card { --tone: #a15c00; background: #fff4d6; border-color: #e8b350; border-top-color: #a15c00; }
+.lf-missing .lf-label, .lf-missing .lf-figures strong { color: #854900; }
+.lf-missing-note { color: #854900; font-size: .76rem; font-weight: 650; }
+.lf-missing .lf-cities { background: #fffaeb; border-color: #e8b350; }
+.lf-missing .lf-card:hover, .lf-missing .lf-card.is-selected { background: #ffedbf; }
+.lf-missing-detail { --tone: #a15c00; }
+.lf-missing-detail .lf-detail-table th.lf-missing-column,
+.lf-missing-detail .lf-detail-table td.lf-missing-cell {
+  background: #fff4d6; color: #854900; font-weight: 700;
+  box-shadow: inset 2px 0 #e8b350, inset -2px 0 #e8b350;
+}
+.lf-missing-detail .lf-detail-table th.lf-missing-column { border-top: 2px solid #e8b350; }
+@media (max-width: 1100px) {
+  .lf-missing-detail .lf-detail-table td.lf-missing-cell { padding: 8px 10px !important; border-radius: 6px; }
+  .lf-missing-detail .lf-detail-table td.lf-missing-cell::before { color: #854900; }
+}

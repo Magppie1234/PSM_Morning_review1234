@@ -8,6 +8,7 @@ import { comparisonNote, funnelFormulas } from '../formula/formulas.js';
 // Card definitions. `better` says which direction of change is good news, so colour follows meaning.
 // `hint` is the Zoho status (or rule) behind the card, shown under its label.
 const CARDS = {
+  missingInfo: { label: 'Missing Info', tone: 'amber', better: 'down', hint: 'Not in Funnel · Missing table information or State · early lead stages only' },
   raw: { label: 'Raw leads', tone: 'ink', better: 'up' },
   contacted: { label: 'Contacted', tone: 'blue', better: 'up' },
   notContacted: { label: 'Not contacted', tone: 'red', better: 'down' },
@@ -169,6 +170,7 @@ function FlowCard({ id, node, flow, onSelect, onSelectCity, selected, size = 'md
           {VALUED.has(id) && <span className="lf-inline-value" title="Total opportunity value in Zoho">({node.value ? inr(node.value) : '₹0'})</span>}
           {shareText && <em className="lf-inline-share">{shareText}</em>}
         </span>
+        {id === 'missingInfo' && <span className="lf-missing-note">Missing information to review</span>}
         {id === 'toSm' && (
           <span className="lf-pending" title="Opportunities whose Client Status is blank or Not Yet Validated">
             {node.pending ?? 0} pending validation{node.pending === 1 ? '' : 's'}
@@ -241,6 +243,7 @@ export function LeadFlow({ flow, leads = [], opportunities = [], formulaCtx, chi
         <div className="lf-c">{card('toSm', 'has-in has-out')}</div>
         <div className="lf-c">{card('closed', 'has-in')}</div>
       </section>
+      <section className="lf-missing" aria-label="Not in Funnel"><h3>Not in Funnel</h3>{card('missingInfo', '', 'sm')}</section>
       {formulaCtx && (
         <FormulaPanel title="Funnel">
           <p className="fx-note">{comparisonNote(formulaCtx)} Click any card to see its records; the popup shows its column formulas.</p>

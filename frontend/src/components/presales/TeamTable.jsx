@@ -1,3 +1,6 @@
+import { useCallback, useState } from 'react';
+import { AnalyticsDetails } from '../AnalyticsDetails.jsx';
+import { formatDuration } from './leadTiming.jsx';
 import { SortSelect, SortTh, amountOf, useTableTools } from '../tableTools.jsx';
 
 const RANK = { danger: 0, warning: 1, success: 2, neutral: 3 };
@@ -59,6 +62,7 @@ const FIELDS = {
   inHours: (row) => row.inHours,
   afterHours: (row) => row.afterHours,
   contacted: (row) => row.contacted,
+  tat: (row) => row.tat?.maxExcessHours,
   qualified: (row) => row.qualified,
   architectLeads: (row) => row.architectLeads,
   clientReach: (row) => row.clientReach,
@@ -69,11 +73,13 @@ const FIELDS = {
 // Column names for the phone's sort menu, where the headings are hidden.
 const SORT_OPTIONS = [
   ['psm', 'PSM'], ['leads', 'Leads'], ['inHours', 'Arrived 9:30–6:30'], ['afterHours', 'Arrived after hours'],
-  ['contacted', 'Contacted'], ['qualified', 'Qualified'], ['architectLeads', 'Architect'],
+  ['contacted', 'Contacted'], ['tat', 'TAT'], ['qualified', 'Qualified'], ['architectLeads', 'Architect'],
   ['clientReach', 'Client reach'], ['value', 'Value'], ['missed', 'Missed'], ['status', 'Status']
 ];
 
-export function TeamTable({ rows = [], onPsm, onDetail }) {
+export function TeamTable({ rows = [], leads = [], onPsm, onDetail }) {
+  const [selection, setSelection] = useState(null);
+  const close = useCallback(() => setSelection(null), []);
   const sorted = [...rows].sort(
     (a, b) => (RANK[a.tone] ?? 3) - (RANK[b.tone] ?? 3) || b.missed - a.missed || b.leads - a.leads
   );
@@ -84,7 +90,7 @@ export function TeamTable({ rows = [], onPsm, onDetail }) {
   };
 
   return (
-    <section className="ps-panel">
+    <><section className="ps-panel">
       <header className="ps-panel-head">
         <div>
           <h2>PSM performance</h2>
@@ -103,6 +109,7 @@ export function TeamTable({ rows = [], onPsm, onDetail }) {
               <SortTh tools={tools} field="leads" rowSpan={2} className="num">Leads</SortTh>
               <th scope="colgroup" colSpan={2} className="ps-th-group" title="When the lead was created in Zoho (IST). Office hours are 9:30 am – 6:30 pm.">Lead arrival</th>
               <SortTh tools={tools} field="contacted" rowSpan={2}>Contacted</SortTh>
+              <SortTh tools={tools} field="tat" rowSpan={2}>TAT<small className="tat-sub">contacted within 12 hours</small></SortTh>
               <SortTh tools={tools} field="qualified" rowSpan={2}>Qualified</SortTh>
               <SortTh tools={tools} field="architectLeads" rowSpan={2} className="num">Architect</SortTh>
               <SortTh tools={tools} field="clientReach" rowSpan={2} className="num" title={CLIENT_REACH_HINT}>Client reach</SortTh>
@@ -134,6 +141,15 @@ export function TeamTable({ rows = [], onPsm, onDetail }) {
                 <Num row={row} field="inHours" />
                 <Num row={row} field="afterHours" className="ps-warn-text" title={`${row.afterHours} of ${row.leads} leads arrived after 6:30 pm or before 9:30 am`} />
                 <td data-label="Contacted"><Rate value={row.contacted} base={row.leads} of="leads" reason={zeroReason('contacted', row)} /></td>
+                <td data-label="TAT"><button type="button" className="an-open tat-summary" onClick={(event) => {
+                  event.stopPropagation();
+                  setSelection({ label: `${row.psm} · TAT`, detail: '12 elapsed hours from lead creation to first connected PSM call. Late = contacted after 12h; overdue = no verified connection after 12h. Maximum excess is shown below.',
+                    rows: leads.filter((lead) => lead.psm === row.psm && !/junk|not interested/i.test(lead.status)).map((lead) => ({ ...lead, module: 'Leads', owner: lead.psm, created: lead.createdAt })) });
+                }}>
+                  {row.tat ? <><span className="lt-ok">{row.tat.onTime} on time</span><span className={row.tat.late + row.tat.overdue ? 'lt-late' : ''}>{row.tat.late} late · {row.tat.overdue} overdue</span>
+                    {row.tat.maxExcessHours > 0 && <small className="lt-late">Max {formatDuration(row.tat.maxExcessHours * 3600000)} over 12h</small>}
+                    {(row.tat.pending > 0 || row.tat.unknown > 0) && <small>{row.tat.pending} pending · {row.tat.unknown} unverified</small>}</> : 'Not verifiable'}
+                </button></td>
                 <td data-label="Qualified"><Rate value={row.qualified} base={row.contacted} of="contacted" reason={zeroReason('qualified', row)} /></td>
                 <Num row={row} field="architectLeads" />
                 <Num row={row} field="clientReach" title={`${row.clientReach} of ${row.leads} leads came to us first`} />
@@ -152,6 +168,6 @@ export function TeamTable({ rows = [], onPsm, onDetail }) {
           </tbody>
         </table>
       </div>
-    </section>
+    </section>{selection && <AnalyticsDetails selection={selection} onClose={close} />}</>
   );
 }

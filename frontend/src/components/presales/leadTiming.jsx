@@ -98,3 +98,15 @@ export function AttemptsCell({ lead }) {
     </span>
   );
 }
+
+export function TatCell({ tat }) {
+  if (!tat || tat.state === 'unknown') return <span className="lf-na">Not verifiable</span>;
+  const contacted = Boolean(tat.contactedAt);
+  const late = tat.state === 'late' || tat.state === 'overdue';
+  return <span className="lt-stack tat-cell">
+    <span className={late ? 'lt-late' : contacted ? 'lt-ok' : 'lt-warn'}>
+      {contacted ? `${formatDuration(tat.hours * HOUR)} to contact` : 'Awaiting contact'}
+    </span>
+    <small className={late ? 'lt-late' : ''}>{late ? `${formatDuration(tat.excessHours * HOUR)} over 12h` : contacted ? 'Within 12 hours' : `${formatDuration((12 - tat.hours) * HOUR)} remaining`}</small>
+  </span>;
+}
