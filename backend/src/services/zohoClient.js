@@ -137,7 +137,7 @@ export async function getRecentLeads(since) {
   const module = config.zoho.leadsModule;
   const fields = [
     'Owner', 'Company', 'Full_Name', 'First_Name', 'Last_Name', 'Lead_Source', 'Lead_Status',
-    'Created_Time', 'Modified_Time', 'Last_Activity_Time', 'City', 'Lead_Type', 'Lead_Ratings',
+    'Created_Time', 'Modified_Time', 'Last_Activity_Time', 'City', 'State1', 'Lead_Type', 'Lead_Ratings',
     'Product_Requirement', 'Next_Follow_UP_Date', 'Follow_Up_Date_Time', 'Oppourtunity_Value',
     'Client_Budget_In_Lakhs', 'Converted__s', 'Converted_Date_Time', 'Lead_Assigned_Date', 'Project_Stage',
     'Architect_Name', 'Architect_Firm', 'Architect_No', 'Working_with_an_Architect_Interior_Designer',
