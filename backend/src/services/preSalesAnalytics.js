@@ -1,3 +1,4 @@
+import { leadTat } from './leadTat.js';
 import { isQualifiedStatus } from './leadFlow.js';
 import { PSM_NAMES } from '../config/roster.js';
 import { isSunrooof } from '../config/salesFunnel.js';
@@ -38,7 +39,10 @@ export function buildPreSalesTrend(leads, tf, selectedPsm = 'All PSM') {
     date.setUTCMonth(date.getUTCMonth() + index);
     const label = date.toISOString().slice(0, 7);
     const item = byMonth.get(label) ?? { count: 0, qualified: 0 };
-    return { label, ...item, rate: rate(item.qualified, item.count) };
+    return { label, ...item, rate: rate(item.qualified, item.count), records: leads.filter((row) => inScope(row) && String(row.Created_Time).slice(0, 7) === label).map((row) => ({
+      id: String(row.id), module: 'Leads', name: row.Full_Name || row.Company || 'Unnamed lead', owner: row.Owner?.name,
+      created: row.Created_Time, status: row.Lead_Status || 'Not recorded', detail: row.Converted__s === true || isQualifiedStatus(row.Lead_Status) ? 'Qualified' : 'Not qualified'
+    })) };
   });
 }
 
@@ -60,18 +64,14 @@ export function buildPreSalesAnalytics({ leads, contacts, history, calls, tasks,
   const untouched = cohort.filter((row) => /not contacted/i.test(String(row.Lead_Status ?? '')) && row.Converted__s !== true);
   const notResponding = cohort.filter((row) => /no response|not responding|call back later/i.test(String(row.Lead_Status ?? '')));
   const walkIns = cohort.filter((row) => /walk\s*-?\s*in/i.test(String(row.Lead_Source ?? '')));
-  const linkedCalls = calls.filter((row) => linkedId(row, ids) && tf.matches(row.Call_Start_Time ?? row.Created_Time) &&
+  const now = Date.now();
+  const linkedCalls = (calls ?? []).filter((row) => linkedId(row, ids) && tf.matches(row.Call_Start_Time ?? row.Created_Time) &&
+    Date.parse(row.Call_Start_Time ?? row.Created_Time) <= now &&
     !/scheduled/i.test(`${row.Outgoing_Call_Status ?? ''} ${row.Subject ?? ''}`));
   const outbound = linkedCalls.filter((row) => row.Call_Type === 'Outbound');
   const connected = outbound.filter((row) => Number(row.Call_Duration_in_seconds) > 0);
-  const firstByLead = new Map();
-  for (const call of linkedCalls.filter((row) => Number(row.Call_Duration_in_seconds) > 0)) {
-    const id = linkedId(call, ids);
-    const at = call.Call_Start_Time ?? call.Created_Time;
-    if (!firstByLead.has(id) || at < firstByLead.get(id)) firstByLead.set(id, at);
-  }
-  const firstSpans = cohort.map((row) => days(row.Created_Time, firstByLead.get(String(row.id))))
-    .filter((value) => Number.isFinite(value) && value >= 0);
+  const tat = leadTat(cohort, calls, now);
+  const firstSpans = [...tat.values()].filter((row) => row.contactedAt).map((row) => row.hours / 24);
   const inContacts = (contacts ?? []).filter((row) => inPsm(row.Sales_Manager?.name ?? '') &&
     !isSunrooof(row) && !/test/i.test(String(row.Full_Name ?? '')) && tf.matches(row.Created_Time));
   const salesValues = inContacts.map((row) => Number(row.Total_Opportunity_Value) * 100_000)
@@ -97,10 +97,46 @@ export function buildPreSalesAnalytics({ leads, contacts, history, calls, tasks,
   let workingDays = 0;
   for (let day = new Date(`${tf.start}T00:00:00Z`); day.toISOString().slice(0, 10) <= tf.end;
     day.setUTCDate(day.getUTCDate() + 1)) if (day.getUTCDay() !== 0) workingDays += 1;
+  const leadRows = (list, note = () => '') => list.map((row) => ({
+    id: String(row.id), module: 'Leads', name: row.Full_Name || row.Company || 'Unnamed lead',
+    owner: owner(row), created: row.Created_Time, status: row.Lead_Status || 'Not recorded',
+    detail: note(row), tat: tat.get(String(row.id))
+  }));
+  const callRows = (list) => list.map((row) => ({ id: String(row.id ?? ''), module: 'Calls',
+    name: row.Subject || 'Call', owner: owner(row), created: row.Call_Start_Time ?? row.Created_Time,
+    status: Number(row.Call_Duration_in_seconds) > 0 ? 'Connected' : 'Not connected',
+    detail: `${Number(row.Call_Duration_in_seconds) || 0} seconds · lead ${linkedId(row, ids)}` }));
+  const contactRows = (list, field) => list.map((row) => ({ id: String(row.id), module: 'Contacts',
+    name: row.Full_Name || 'Unnamed contact', owner: row.Sales_Manager?.name,
+    created: row.Created_Time, status: row.Client_Status || 'Not recorded',
+    detail: `₹${((Number(row[field]) || 0) * 100000).toLocaleString('en-IN')}` }));
+  const denominator = (list) => {
+    const included = new Set(list.map((row) => String(row.id)));
+    return leadRows(cohort, (row) => included.has(String(row.id)) ? 'Numerator + denominator' : 'Denominator only');
+  };
+  const activityCalls = outbound.filter((row) => inPsm(row.Owner?.name));
+  const evidence = {
+    leadContact: denominator(converted), firstConnect: leadRows(cohort.filter((row) => tat.get(String(row.id)).contactedAt)),
+    dropRatio: denominator(dropped), qualification: denominator(qualified),
+    salesValue: contactRows(inContacts.filter((row) => Number(row.Total_Opportunity_Value) > 0), 'Total_Opportunity_Value'),
+    psmValue: contactRows(inContacts.filter((row) => Number(row.Amount) > 0), 'Amount'),
+    walkIn: leadRows(walkIns, () => 'Walk In source only; no tracked transition'),
+    sla: leadRows(cohort), callConnect: callRows(outbound), talkTime: callRows(outbound),
+    untouched: leadRows(untouched), notResponding: leadRows(notResponding),
+    overdueTasks: (overdue ?? []).map((row) => ({ id: String(row.id ?? ''), module: 'Tasks',
+      name: row.Subject || 'Task', owner: owner(row), created: row.Due_Date, status: row.Status,
+      detail: `Due ${row.Due_Date} · lead ${linkedId(row, ids)}` })),
+    qualificationTarget: mandate?.records ?? [],
+    intake: leadRows(cohort), dailyQualified: leadRows(qualified), connected: leadRows(cohort.filter((row) => tat.get(String(row.id)).contactedAt)),
+    dropReasons: leadRows(dropped, (row) => row.Dead_Reason || row.Reason_for_Cold || 'Not recorded'),
+    sources: leadRows(cohort, (row) => `${row.Lead_Source || 'Not recorded'} · ${isQualified.has(String(row.id)) ? 'Qualified' : 'Not qualified'}`),
+    byPsm: leadRows(qualified), talkByPsm: callRows(activityCalls), effort: [...leadRows(qualified), ...callRows(activityCalls)]
+  };
   return {
+    evidence,
     metrics: [
       metric('leadContact', 'Lead → Contact ratio', rate(converted.length, cohort.length), '%', 'Converted leads ÷ raw leads', `${converted.length} / ${cohort.length}`),
-      metric('firstConnect', 'Average first-connect time', mean(firstSpans.map((value) => value * 24 * 60)), 'min', 'First logged call with positive duration after lead creation', `${firstSpans.length} leads`),
+      metric('firstConnect', 'Average first-connect time', mean(firstSpans.map((value) => value * 24)), 'hours', 'Elapsed hours from creation to first logged PSM call with positive duration; includes connections after the selected period', `${firstSpans.length} leads`),
       metric('dropRatio', 'Lead drop ratio', rate(dropped.length, cohort.length), '%', 'Dropped lead statuses ÷ raw leads', `${dropped.length} / ${cohort.length}`),
       metric('salesValue', 'Average sales value', mean(salesValues), 'inr', 'Contacts: Value(₹ Lacs)', `${salesValues.length} contacts with value`),
       metric('psmValue', 'Average PSM value', mean(psmValues), 'inr', 'Contacts: BD Value', `${psmValues.length} contacts with value`),
@@ -108,11 +144,11 @@ export function buildPreSalesAnalytics({ leads, contacts, history, calls, tasks,
       metric('walkIn', 'Lead → walk-in conversion', null, '%',
         'No walk-in transition is tracked in the Lead Blueprint; Walk In is a Lead_Source at intake',
         `${walkIns.length} leads have Walk In as their source`)
-    ],
+    ].map((item) => contacts == null && ['salesValue', 'psmValue'].includes(item.key) ? { ...item, value: null, sample: null, detail: 'Contact data unavailable' } : item),
     health: [
-      metric('sla', 'First-response SLA', null, '%', 'Target not configured'),
-      metric('callConnect', 'Call connect', rate(connected.length, outbound.length), '%', 'Outbound calls with positive talk duration ÷ outbound attempts', `${connected.length} / ${outbound.length}`),
-      metric('talkTime', 'Talk time', outbound.reduce((sum, row) => sum + (Number(row.Call_Duration_in_seconds) || 0), 0) / 60, 'min', 'Logged outbound talk minutes in the selected period; daily target not configured'),
+      metric('sla', 'First-response SLA', calls == null ? null : rate([...tat.values()].filter((row) => row.state === 'onTime').length, cohort.length), '%', 'Leads connected by a PSM within 12 elapsed hours of creation ÷ raw leads'),
+      metric('callConnect', 'Call connect', calls == null ? null : rate(connected.length, outbound.length), '%', 'Outbound calls with positive talk duration ÷ outbound attempts', `${connected.length} / ${outbound.length}`),
+      metric('talkTime', 'Talk time', calls == null ? null : outbound.reduce((sum, row) => sum + (Number(row.Call_Duration_in_seconds) || 0), 0) / 3600, 'hours', 'Logged outbound talk hours in the selected period; daily target not configured'),
       metric('untouched', 'Untouched leads', untouched.length, 'count', 'Still at Not Contacted Yet'),
       metric('notResponding', 'Not-responding pile', notResponding.length, 'count', 'No Response / Call Back Later status'),
       metric('overdueTasks', 'Overdue tasks on raw leads', overdue?.length ?? null, 'count', overdue ? 'Open tasks attached to leads in this period' : 'Task data unavailable'),
@@ -120,10 +156,11 @@ export function buildPreSalesAnalytics({ leads, contacts, history, calls, tasks,
         ? rate(mandate.achieved, mandate.target) : null, '%', mandate?.target > 0
         ? 'Qualified-opportunity value achieved ÷ approved PSM value target' : 'Target not configured',
         mandate?.target > 0 ? `₹${Math.round(mandate.achieved).toLocaleString('en-IN')} / ₹${Math.round(mandate.target).toLocaleString('en-IN')}` : null)
-    ],
+    ].map((item) => contacts == null && item.key === 'qualificationTarget' ? { ...item, value: null, sample: null, detail: 'Contact data unavailable' } : item),
+    availability: { calls: calls != null, contacts: contacts != null, tasks: tasks != null },
     breakdowns: { dropReasons: group(dropped, (row) => row.Dead_Reason || row.Reason_for_Cold), sources, byPsm },
     efficiency: { leads: cohort.length, qualified: qualified.length, connected: firstSpans.length,
-      averageFirstConnectMinutes: mean(firstSpans.map((value) => value * 24 * 60)),
+      averageFirstConnectHours: mean(firstSpans.map((value) => value * 24)),
       qualificationPerWorkingDay: workingDays ? qualified.length / workingDays : null,
       workingDays }
   };

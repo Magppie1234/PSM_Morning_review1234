@@ -1,5 +1,6 @@
+import { leadTat, summarizeTat } from './leadTat.js';
 import { buildContactStages } from './contactStages.js';
-import { buildLeadFlow, isQualifiedStatus } from './leadFlow.js';
+import { buildLeadFlow, isQualifiedStatus, missingLeadFields } from './leadFlow.js';
 import { buildMandate } from './mandate.js';
 import { PSM_NAMES } from '../config/roster.js';
 import { OTHER_CITY_KEY, canonicalCityName, cityBucketOf, cityRows, isSunrooof, mergeCityNames } from '../config/salesFunnel.js';
@@ -134,7 +135,7 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
   // plus how many calls the PSM placed (attempts; policy allows up to 15 per lead).
   const lastCall = new Map();
   const nowMs = Date.now();
-  calls.forEach((call) => {
+  (calls ?? []).forEach((call) => {
     const leadId = call.What_Id?.id ?? call.Who_Id?.id;
     const at = call.Call_Start_Time ?? call.Created_Time;
     if (!leadId || !at || Date.parse(at) > nowMs || /scheduled/i.test(`${call.Outgoing_Call_Status ?? ''} ${call.Subject ?? ''}`)) return;
@@ -168,6 +169,11 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
     .filter((lead) => tf.matches(lead.Created_Time))
     .map((lead) => classify(lead, dealStages, todayKey));
 
+  const tat = leadTat(leads, calls);
+  const missingFieldsOf = (lead) => missingLeadFields(lead, {
+    callsAvailable: calls !== null, tat: tat.get(String(lead.id)), lastContact: lastCall.get(String(lead.id)),
+    statusSince: enteredStatus.get(`${lead.id}|${lead.Lead_Status}`) ?? lead.Created_Time
+  });
   const allActive = items.filter((item) => !item.excluded);
 
   const byOwner = new Map();
@@ -220,7 +226,8 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
       cityKeyOf: cityOf,
       // Empty when the history read failed, which falls the card back to current-status counting
       // rather than reporting a number smaller than the truth.
-      everQualified: (lead) => everQualified.has(String(lead.id))
+      everQualified: (lead) => everQualified.has(String(lead.id)),
+      missingFieldsOf
     }
   );
   // Sales qualified and Closed come from Contacts (qualified opportunities), not from lead statuses.
@@ -325,6 +332,7 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
     ],
     performance: performanceRows.map((row) => ({
       ...row,
+      tat: summarizeTat(allActive.filter((item) => item.lead.Owner?.name === row.psm).map((item) => tat.get(String(item.lead.id)))),
       value: money(row.value),
       status: row.zeroReason ? 'No leads' : row.missed > 0 ? 'Watch' : 'On track',
       tone: row.zeroReason ? 'neutral' : row.missed > 0 ? 'warning' : 'success'
@@ -335,6 +343,9 @@ export function buildDashboardFromLeads(leads, selectedPsm = 'All PSM', timefram
       psm: item.lead.Owner?.name ?? 'Unassigned',
       status: item.lead.Lead_Status ?? 'Status not recorded',
       city: item.lead.City ?? 'City not recorded',
+      state: item.lead.State1?.trim() || null,
+      missingFields: missingFieldsOf(item.lead),
+      tat: tat.get(String(item.lead.id)),
       source: item.lead.Lead_Source || null, // left empty in Zoho → shown as NA, not guessed
       architect: item.lead.Architect_Name || item.lead.Architect_Firm || (item.isArchitect ? 'Architect / Designer' : '—'),
       product: item.lead.Product_Requirement ?? 'Product not recorded',

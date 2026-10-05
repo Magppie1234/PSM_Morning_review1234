@@ -78,6 +78,9 @@ export function buildMandate({ tf, contacts, selectedPsm, now = new Date() }) {
     missing,
     psms,
     achieved,
+    records: counted.map((row) => ({ id: String(row.id), module: 'Contacts', name: row.Full_Name || 'Unnamed opportunity',
+      owner: psmOf(row), created: row.Created_Time, status: row.Client_Status || 'Not recorded',
+      detail: `₹${((Number(row.Total_Opportunity_Value) || 0) * LAKH).toLocaleString('en-IN')}` })),
     opportunities: counted.length,
     // Opportunities with no Total_Opportunity_Value in Zoho add ₹0, so achievement is understated until filled.
     unvalued: counted.filter((contact) => !(Number(contact.Total_Opportunity_Value) > 0)).length,

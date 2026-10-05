@@ -37,7 +37,7 @@ presalesRoutes.get('/dashboard', async (request, response) => {
       leadRead,
       optional('Contacts (qualified opportunities)', getRecentContacts(window.previousStart ?? window.start), null),
       optional('Lead status history', getRecentStatusHistory(window.start), []),
-      optional('Call logs', getRecentCalls(window.start), []),
+      optional('Call logs', getRecentCalls(window.previousStart ?? window.start), null),
       optional('Closed contacts', getClosedContacts(), []),
       optional('Lead tasks', getRecentTasks(window.start), null)
     ]);

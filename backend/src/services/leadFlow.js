@@ -44,6 +44,35 @@ export function flowBucket(lead) {
 const CONTACTED_LEAVES = ['qualified', 'drawingAwaited', 'followUp', 'notResponding', 'dropped'];
 const QUALIFIED_LEAVES = ['qualified', 'drawingAwaited'];
 
+// The audit stops at the early lead outcomes shown in the funnel. Its fields
+// mirror those cards' tables; derived zero attempts / no reassignment are valid.
+export const MISSING_INFO_FIELDS = [
+  { key: 'state', label: 'State' },
+  { key: 'tat', label: 'TAT' },
+  { key: 'statusSince', label: 'Time in status' },
+  { key: 'lastContact', label: 'Last contacted' },
+  { key: 'createdAt', label: 'Created' },
+  { key: 'modifiedAt', label: 'Modified' },
+  { key: 'reason', label: 'Reason for dropping' }
+];
+export function missingLeadFields(lead, activity = {}) {
+  const bucket = flowBucket(lead);
+  if (bucket === 'qualified') return [];
+  const missing = [];
+  const validDate = (value) => value != null && Number.isFinite(Date.parse(value));
+  if (!String(lead.State1 ?? '').trim()) missing.push('state');
+  if (!validDate(activity.statusSince ?? lead.Created_Time)) missing.push('statusSince');
+  if (bucket === 'dropped') {
+    if (!String(lead.Reason_for_Cold ?? '').trim() && !String(lead.Dead_Reason ?? '').trim()) missing.push('reason');
+  } else {
+    if (activity.callsAvailable !== false && !activity.tat?.contactedAt) missing.push('tat');
+    if (activity.callsAvailable !== false && !validDate(activity.lastContact?.at)) missing.push('lastContact');
+    if (!validDate(lead.Created_Time)) missing.push('createdAt');
+    if (!validDate(lead.Modified_Time)) missing.push('modifiedAt');
+  }
+  return missing;
+}
+
 function node(leads, previous, raw, { valueOf, labelOf, cityKeyOf }) {
   const total = (list) => list.reduce((sum, lead) => sum + valueOf(lead), 0);
   const ids = (list) => list.map((lead) => String(lead.id));
@@ -77,6 +106,7 @@ export function buildLeadFlow(current, previous, previousLabel, options = {}) {
     // available", which falls the card back to its old current-status-only behaviour rather than
     // silently reporting a smaller number.
     everQualified: () => false,
+    missingFieldsOf: (lead) => missingLeadFields(lead),
     ...options
   };
   const pick = (list, keys) => list.filter((lead) => keys.includes(flowBucket(lead)));
@@ -88,6 +118,12 @@ export function buildLeadFlow(current, previous, previousLabel, options = {}) {
   add('raw', [...CONTACTED_LEAVES, 'notContacted']);
   add('contacted', CONTACTED_LEAVES);
   add('notContacted', ['notContacted']);
+  // Include Not contacted and the four early outcomes, but no later stages.
+  add('missingInfo', ['notContacted', 'drawingAwaited', 'followUp', 'notResponding', 'dropped'],
+    (lead) => shape.missingFieldsOf(lead).length > 0);
+  const missingIds = new Set(nodes.missingInfo.ids);
+  const missingKeys = new Set(current.filter((lead) => missingIds.has(String(lead.id))).flatMap(shape.missingFieldsOf));
+  nodes.missingInfo.missingFields = MISSING_INFO_FIELDS.filter((field) => missingKeys.has(field.key));
   CONTACTED_LEAVES.forEach((key) => add(key, [key]));
 
   // PSM QUALIFIED — the one card on this funnel that is NOT a snapshot of where leads sit now.

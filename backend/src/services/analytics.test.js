@@ -18,16 +18,16 @@ test('Pre-Sales rates use the lead cohort and linked CRM activity', () => {
   ];
   const calls = [{ Who_Id: { id: '1' }, What_Id: { id: 'unrelated' }, Call_Type: 'Outbound',
     Call_Start_Time: '2026-09-02T11:00:00+05:30', Created_Time: '2026-09-02T11:00:00+05:30',
-    Call_Duration_in_seconds: 120 }];
+    Owner: { name: 'Deepak' }, Call_Duration_in_seconds: 120 }];
   const tasks = [{ Who_Id: { id: '2' }, What_Id: { id: 'unrelated' }, Due_Date: '2026-09-10', Status: 'Not Started' }];
   const result = buildPreSalesAnalytics({ leads, contacts: [], history: [], calls, tasks,
     mandate: { achieved: 50, target: 100 }, tf, selectedPsm: 'Deepak' });
   assert.equal(result.efficiency.leads, 2);
   assert.equal(m(result.metrics, 'leadContact').value, 50);
-  assert.equal(m(result.metrics, 'firstConnect').value, 60);
+  assert.equal(m(result.metrics, 'firstConnect').value, 1);
   assert.equal(m(result.health, 'callConnect').value, 100);
   assert.equal(m(result.health, 'overdueTasks').value, 1);
-  assert.equal(m(result.health, 'sla').value, null);
+  assert.equal(m(result.health, 'sla').value, 50);
   assert.equal(m(result.health, 'qualificationTarget').value, 50);
 });
 
@@ -62,4 +62,21 @@ test('twelve-month qualification trend keeps empty months and follows the PSM fi
   assert.equal(months.find((row) => row.label === '2026-08').rate, 100);
   assert.equal(months.find((row) => row.label === '2026-09').rate, 0);
   assert.equal(months.find((row) => row.label === '2026-07').rate, null);
+});
+
+
+test('health evidence reconciles ratios, hours and unavailable call data', () => {
+  const leads = [{ id: '1', Owner: { name: 'Deepak' }, Company: 'One', Created_Time: '2026-09-30T20:00:00Z', Lead_Status: 'Under follow-up' }];
+  const calls = [{ id: 'call', Who_Id: { id: '1' }, Owner: { name: 'Deepak' }, Call_Type: 'Outbound', Call_Start_Time: '2026-10-01T10:00:00Z', Call_Duration_in_seconds: 60 }];
+  const args = { leads, contacts: [], history: [], calls, tasks: [], mandate: null, tf, selectedPsm: 'Deepak' };
+  const result = buildPreSalesAnalytics(args);
+  assert.equal(m(result.metrics, 'firstConnect').value, 14);
+  assert.equal(m(result.metrics, 'firstConnect').unit, 'hours');
+  assert.equal(result.evidence.firstConnect[0].tat.excessHours, 2);
+  assert.equal(result.evidence.leadContact.length, result.efficiency.leads);
+  assert.equal(result.evidence.callConnect.length, 0); // Activity is outside the selected period.
+  const unavailable = buildPreSalesAnalytics({ ...args, calls: null });
+  assert.equal(m(unavailable.health, 'sla').value, null);
+  assert.equal(m(unavailable.health, 'talkTime').value, null);
+  assert.equal(unavailable.evidence.sla[0].tat.state, 'unknown');
 });
