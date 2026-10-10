@@ -145,3 +145,27 @@
 
 .tat-cell .lt-ok, .tat-summary .lt-ok { color: #15803d; }
 .tat-cell .lt-late, .tat-summary .lt-late { color: var(--danger); }
+
+
+/* ── Detail panel: graph first, list on request ─────────────────────────────────────────────── */
+/* The breakdowns sit two-up inside the dialog rather than three-up like the board, because the
+   dialog is narrower than the page and a third column would squeeze the bar labels to ellipses. */
+.an-detail-charts { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 0; }
+
+.an-views { display: inline-flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.an-views button {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.an-views button:hover { color: var(--ink); }
+.an-views button[aria-selected='true'] { background: var(--an-c1); color: #fff; }
+
+@media (max-width: 760px) { .an-detail-charts { grid-template-columns: 1fr; } }
