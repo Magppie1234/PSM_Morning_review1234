@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#f6f4f1" />
+<title>Departmental Query Control Tower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" />
+<link rel="stylesheet" href="dept-query.css" />
+</head>
+<body>
+
+<!-- Icon sprite: Lucide-style strokes, used via <use>. Never Unicode glyphs. -->
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <defs>
+    <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+      <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+    </symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z" />
+      <path d="M12 9v4" /><path d="M12 17h.01" />
+    </symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+    </symbol>
+    <symbol id="i-rupee" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 3h12" /><path d="M6 8h12" /><path d="m6 13 8.5 8" /><path d="M6 13h3a5 5 0 0 0 0-10" />
+    </symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m9 18 6-6-6-6" />
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <header class="topbar">
+    <div>
+      <h1>Departmental Query Control Tower</h1>
+      <p class="sub">Design, Factory, Installation &amp; Services &nbsp;·&nbsp; built for the Wednesday review &nbsp;·&nbsp; source: Zoho ticket forms</p>
+    </div>
+    <div class="controls">
+      <div class="seg" id="periodSeg" role="group" aria-label="Reporting period">
+        <button type="button" data-p="week" aria-pressed="false">This Week</button>
+        <button type="button" data-p="month" aria-pressed="true">This Month</button>
+        <button type="button" data-p="august" aria-pressed="false">August (actual)</button>
+      </div>
+      <div class="seg" id="lensSeg" role="group" aria-label="Accountability lens">
+        <button type="button" data-l="both" aria-pressed="true">Both</button>
+        <button type="button" data-l="raised" aria-pressed="false">Raised by</button>
+        <button type="button" data-l="fault" aria-pressed="false">At fault</button>
+      </div>
+      <div class="seg" id="deptSeg" role="group" aria-label="Department filter">
+        <button type="button" data-d="all" aria-pressed="true">All depts</button>
+        <button type="button" data-d="Design" aria-pressed="false">Design</button>
+        <button type="button" data-d="Factory" aria-pressed="false">Factory</button>
+        <button type="button" data-d="Installation" aria-pressed="false">Installation</button>
+        <button type="button" data-d="Services" aria-pressed="false">Services</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="scope" id="scope" role="status"></div>
+
+  <div class="grid kpis">
+    <div class="card kpi">
+      <div class="top"><svg aria-hidden="true"><use href="#i-inbox" /></svg><span class="lbl">Open Queries</span></div>
+      <div class="val" id="k-open">&mdash;</div>
+      <div class="delta" id="k-open-d"></div>
+    </div>
+    <div class="card kpi">
+      <div class="top"><svg aria-hidden="true"><use href="#i-alert" /></svg><span class="lbl">SLA Breaches</span></div>
+      <div class="val" id="k-sla">&mdash;</div>
+      <div class="delta" id="k-sla-d"></div>
+    </div>
+    <div class="card kpi">
+      <div class="top"><svg aria-hidden="true"><use href="#i-clock" /></svg><span class="lbl">Avg Days to Close</span></div>
+      <div class="val" id="k-tat">&mdash;</div>
+      <div class="delta" id="k-tat-d"></div>
+    </div>
+    <div class="card kpi lead">
+      <div class="top"><svg aria-hidden="true"><use href="#i-rupee" /></svg><span class="lbl">Revenue Leakage</span></div>
+      <div class="val" id="k-leak-wrap">
+        <span class="unit">&#8377;</span><input class="leakedit" id="k-leak" inputmode="decimal" aria-label="Revenue leakage for the period, in lakhs" value="18.4" /><span class="unit">&nbsp;L</span>
+      </div>
+      <div class="delta" id="k-leak-d"></div>
+    </div>
+  </div>
+
+  <div class="grid cols">
+    <section class="card">
+      <h2>Raised By vs. At Fault <span class="qual">— by department</span></h2>
+      <div class="legend">
+        <span><i style="background:#d6cfc6"></i>Raised by</span>
+        <span><i style="background:var(--d-design)"></i>At fault</span>
+        <span style="margin-left:auto;color:var(--danger)">+n = at fault more often than it complains</span>
+      </div>
+      <div id="acct"></div>
+      <p class="note" id="acctNote"></p>
+    </section>
+    <section class="card">
+      <h2>Leakage <span class="qual">— by at-fault department</span></h2>
+      <div class="lk" id="leak"></div>
+    </section>
+  </div>
+
+  <div class="grid cols3">
+    <section class="card">
+      <h2>Root Cause of Failure</h2>
+      <div id="rc"></div>
+    </section>
+    <section class="card">
+      <h2>Issues by Location</h2>
+      <div class="lk" id="locs"></div>
+    </section>
+    <section class="card">
+      <h2>Aging Alerts <span class="qual">— open beyond SLA</span></h2>
+      <div class="age" id="age"></div>
+    </section>
+  </div>
+
+  <section class="card" style="margin-bottom:var(--sp-panel)">
+    <h2>Wednesday Review Flow <span class="qual">— where queries hand off</span></h2>
+    <div class="pipe" id="pipe"></div>
+  </section>
+
+  <section class="card">
+    <h2>Open Query Register</h2>
+    <div class="tscroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Ticket</th>
+            <th scope="col">Client &amp; Location</th>
+            <th scope="col">Issue / Root Cause</th>
+            <th scope="col">Raised By</th>
+            <th scope="col">At Fault</th>
+            <th scope="col" style="text-align:right">Age</th>
+            <th scope="col">SLA</th>
+            <th scope="col" style="text-align:right">Leakage</th>
+          </tr>
+        </thead>
+        <tbody id="tix"></tbody>
+      </table>
+    </div>
+    <p class="note" id="srcNote"></p>
+  </section>
+
+</div>
+
+<script src="dept-query-data.js"></script>
+<script src="dept-query-app.js"></script>
+</body>
+</html>

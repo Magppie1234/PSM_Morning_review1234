@@ -4,14 +4,139 @@
     {
       "name": "psm-api",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev:api"],
+      "runtimeArgs": [
+        "run",
+        "dev:api"
+      ],
       "port": 4010
     },
     {
       "name": "psm-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev:web"],
+      "runtimeArgs": [
+        "run",
+        "dev:web"
+      ],
       "port": 5174
+    },
+    {
+      "name": "crm-flash-review",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--prefix",
+        "../MAGPPIE_CRM_Flash_Review"
+      ],
+      "port": 3100
+    },
+    {
+      "name": "magi-home-mock",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/vkpal/OneDrive/Desktop/Magppie Office/MAGI/tests/home/mock-server.mjs"
+      ],
+      "port": 8765
+    },
+    {
+      "name": "erp-architecture",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "C:/Users/vkpal/OneDrive/Desktop/Magppie Office/MAGPPIE-ERP-Architecture/project/serve_erp_architect.py",
+        "--port",
+        "8775"
+      ],
+      "port": 8775
+    },
+    {
+      "name": "erp-react",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/vkpal/OneDrive/Desktop/Magppie Office/MAGPPIE-ERP-Architecture/project/node_modules/vite/bin/vite.js",
+        "C:/Users/vkpal/OneDrive/Desktop/Magppie Office/MAGPPIE-ERP-Architecture/project"
+      ],
+      "port": 5180
+    },
+    {
+      "name": "erp-react-built",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/vkpal/OneDrive/Desktop/Magppie Office/MAGPPIE-ERP-Architecture/project/node_modules/vite/bin/vite.js",
+        "preview",
+        "C:/Users/vkpal/OneDrive/Desktop/Magppie Office/MAGPPIE-ERP-Architecture/project",
+        "--port",
+        "5190",
+        "--strictPort"
+      ],
+      "port": 5190
+    },
+    {
+      "name": "dept-query-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8795",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "C:/Users/vkpal/OneDrive/Desktop/Magppie Office/Monitoring_review/docs/mockups"
+      ],
+      "port": 8795
+    },
+    {
+      "name": "installation-management",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../magppie-installation-management",
+        "run",
+        "dev"
+      ],
+      "port": 3300
+    },
+    {
+      "name": "installation-local",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../magppie-installation-management",
+        "run",
+        "local"
+      ],
+      "port": 3300
+    },
+    {
+      "name": "installation-serve",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "../magppie-installation-management/scripts/local.mjs"
+      ],
+      "port": 3300
+    },
+    {
+      "name": "erp-mockups",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8790",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "C:/Users/vkpal/OneDrive/Desktop/Magppie Office/MAGPPIE-ERP-Architecture/docs/mockups"
+      ],
+      "port": 8790
+    },
+    {
+      "name": "store-standards",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "../magppie-store-standards"
+      ],
+      "port": 3200
     }
   ]
 }

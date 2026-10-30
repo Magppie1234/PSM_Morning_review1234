@@ -1,0 +1,1485 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Magppie Store Standards</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap">
+<style>
+/* Layout: phone-first single column. Sticky header with wordmark; bottom tab bar on phones, top nav on desktop.
+   Magppie palette on an off-white ground; single light theme by choice. */
+:root {
+  --paper: #F7F4F0;
+  --card: #FFFDFA;
+  --sand: #C8BFB0;
+  --sand-light: #EDE7DD;
+  --sand-deep: #B5AA99;
+  --stone: #8C8070;
+  --ink: #2B2B2B;
+  --charcoal: #3A3A3A;
+  --soft: #6B645A;
+  --rule: #E5DED3;
+  --good: #4E6B4A; --good-bg: #E7EDE3;
+  --warn: #8F6A2A; --warn-bg: #F5ECD9;
+  --bad: #94443A;  --bad-bg: #F4E3DE;
+  --idle-bg: #EEE9E1;
+  --display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --body: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --r: 12px;
+  --shadow: 0 1px 2px rgba(58, 52, 44, 0.04), 0 4px 16px rgba(58, 52, 44, 0.04);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--charcoal); font-family: var(--body); font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 40; background: var(--paper); }
+button, input, select, textarea { font: inherit; color: inherit; }
+img { max-width: 100%; }
+a { color: inherit; }
+h1, h2, h3 { margin: 0; color: var(--ink); text-wrap: balance; }
+h1 { font-family: var(--display); font-weight: 500; font-size: clamp(30px, 6vw, 40px); line-height: 1.1; letter-spacing: 0.005em; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 22px; line-height: 1.2; }
+h3 { font-size: 15.5px; font-weight: 500; line-height: 1.35; }
+p { margin: 0; }
+.ic { flex: none; }
+
+.wrap { width: 100%; max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page { padding-block: 20px 120px; display: flex; flex-direction: column; gap: 16px; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.tight { gap: 4px; }
+.row { display: flex; align-items: center; gap: 12px; }
+.row.wrap, .wrap.row { flex-wrap: wrap; }
+.gap8 { gap: 8px; }
+.between { justify-content: space-between; }
+.muted { color: var(--soft); }
+.small { font-size: 13px; }
+.bad { color: var(--bad) !important; }
+.num { font-variant-numeric: tabular-nums; }
+.nowrap { white-space: nowrap; }
+.eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--stone); font-weight: 500; }
+.req { color: var(--bad); font-size: 13px; }
+
+/* Header */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; background: rgba(247, 244, 240, 0.94); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule); }
+.top-in { display: flex; align-items: center; gap: 20px; min-height: 58px; }
+.brand { display: flex; align-items: center; gap: 12px; background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink); min-width: 0; }
+.wordmark { font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: 0.32em; color: var(--ink); line-height: 1; padding-left: 0.05em; }
+.wordmark.sm { font-size: 17px; }
+.logo-img { height: 28px; width: auto; display: block; }
+.logo-img.sm { height: 24px; }
+.brand-sub { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--stone); border-left: 1px solid var(--rule); padding-left: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-top { display: flex; gap: 2px; flex: 1; justify-content: flex-end; }
+.nav-top button { display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--soft); font-size: 14px; }
+.nav-top button:hover { color: var(--ink); background: var(--sand-light); }
+.nav-top button[aria-current="page"] { color: var(--ink); background: var(--sand-light); }
+.nav-top .ic { display: none; }
+.who { font-size: 13px; color: var(--soft); white-space: nowrap; }
+.nav-bottom { display: none; }
+.note-strip { margin-top: 12px; font-size: 13px; color: var(--warn); background: var(--warn-bg); padding: 8px 12px; border-radius: 8px; }
+
+@media (max-width: 760px) {
+  .nav-top, .who { display: none; }
+  .nav-bottom { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 35; background: rgba(255, 253, 250, 0.97); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border-top: 1px solid var(--rule); padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
+  .nav-bottom button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: 0; padding: 6px 2px; border-radius: 10px; cursor: pointer; color: var(--stone); font-size: 11px; }
+  .nav-bottom button[aria-current="page"] { color: var(--ink); background: var(--sand-light); }
+  .page { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Cards */
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: var(--r); box-shadow: var(--shadow); }
+.pad { padding: 20px; }
+.band { background: var(--sand-light); border-radius: var(--r); padding: 14px 16px; }
+.empty { border: 1px dashed var(--sand-deep); border-radius: var(--r); padding: 28px 16px; text-align: center; color: var(--soft); }
+.alert { border-radius: 10px; padding: 12px 16px; background: var(--bad-bg); color: var(--ink); border: 1px solid #EBCFC8; }
+.alert.warn { background: var(--warn-bg); border-color: #EBDDBD; }
+.alert.good { background: var(--good-bg); border-color: #D2DECC; }
+.back { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; background: none; border: 0; padding: 4px 0; cursor: pointer; color: var(--soft); font-size: 14px; }
+.back:hover { color: var(--ink); }
+
+/* Buttons and fields */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 14.5px; font-weight: 500; padding: 12px 20px; min-height: 46px; border-radius: 10px; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer; text-decoration: none; white-space: nowrap; }
+.btn:hover:not(:disabled) { background: #000; }
+.btn.ghost { background: var(--card); color: var(--ink); border-color: var(--sand-deep); }
+.btn.ghost:hover:not(:disabled) { background: var(--sand-light); }
+.btn.sm { min-height: 36px; padding: 6px 14px; font-size: 13.5px; }
+.btn.xs { min-height: 30px; padding: 4px 10px; font-size: 12.5px; border-radius: 8px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.link { background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.link.strong { font-weight: 500; text-decoration: none; text-align: left; }
+.icon-btn { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--rule); background: var(--card); cursor: pointer; color: var(--soft); flex: none; }
+.icon-btn:hover { color: var(--ink); background: var(--sand-light); }
+label.f, div.f { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--soft); min-width: 0; }
+input[type=text], input[type=email], input[type=date], input[type=time], select, textarea {
+  font-size: 16px; color: var(--ink); background: #fff; border: 1px solid var(--sand-deep); border-radius: 10px; padding: 11px 12px; width: 100%; min-width: 0; min-height: 46px; }
+select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--stone) 50%), linear-gradient(135deg, var(--stone) 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 34px; }
+textarea { min-height: 90px; resize: vertical; }
+:focus-visible { outline: 2px solid var(--stone); outline-offset: 2px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: end; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1px solid var(--sand-deep); background: #fff; border-radius: 999px; padding: 8px 14px; cursor: pointer; font-size: 13.5px; color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.seg { display: flex; background: var(--sand-light); border-radius: 10px; padding: 3px; gap: 3px; flex-wrap: wrap; }
+.seg button { flex: 1; border: 0; background: transparent; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 13.5px; color: var(--soft); white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.small-seg button { padding: 6px 12px; }
+.tabs { align-self: flex-start; }
+.switch { display: inline-flex; align-items: center; gap: 8px; color: var(--soft); }
+
+/* Pills and dots */
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 999px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pill.submitted { color: var(--good); background: var(--good-bg); }
+.pill.draft, .pill.due { color: var(--warn); background: var(--warn-bg); }
+.pill.overdue { color: var(--bad); background: var(--bad-bg); }
+.pill.upcoming, .pill.off { color: var(--soft); background: var(--idle-bg); }
+.state-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--sand); }
+.state-dot.submitted { background: var(--good); }
+.state-dot.due, .state-dot.draft { background: #C9A15A; }
+.state-dot.overdue { background: var(--bad); }
+.state-dot.upcoming, .state-dot.off { background: var(--sand); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--soft); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.bar { height: 6px; background: var(--sand-light); border-radius: 99px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--ink); border-radius: 99px; transition: width .3s ease; }
+
+/* Hero (store home) */
+.hero { padding: 22px; display: flex; flex-direction: column; gap: 14px; position: relative; overflow: hidden; }
+.hero::after { content: ""; position: absolute; width: 300px; height: 300px; border-radius: 50%; border: 46px solid var(--stone); opacity: 0.06; top: -150px; right: -110px; pointer-events: none; }
+.hero-stats { display: flex; gap: 28px; }
+.hero-stats div { display: flex; flex-direction: column; }
+.hero-stats b { font-family: var(--display); font-size: 34px; font-weight: 600; color: var(--ink); line-height: 1; }
+.hero-stats span { font-size: 12.5px; color: var(--soft); }
+.next { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--ink); color: var(--paper); border: 0; border-radius: 12px; padding: 16px 18px; cursor: pointer; position: relative; z-index: 1; }
+.next > span:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.next .eyebrow { color: var(--sand); }
+.next-t { font-family: var(--display); font-size: 24px; font-weight: 600; line-height: 1.15; }
+.next .small { color: #D9D1C4; }
+.next-go { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; white-space: nowrap; }
+.all-done { display: flex; align-items: center; gap: 8px; color: var(--good); font-weight: 500; }
+.quick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.quick-btn { display: flex; gap: 12px; align-items: flex-start; text-align: left; background: var(--card); border: 1px solid var(--rule); border-radius: var(--r); padding: 14px; cursor: pointer; box-shadow: var(--shadow); color: var(--ink); }
+.quick-btn:hover { border-color: var(--sand-deep); }
+.quick-btn > span { display: flex; flex-direction: column; gap: 2px; }
+.quick-btn b { font-weight: 500; font-size: 14px; line-height: 1.3; }
+.quick-btn > span > span { font-size: 12.5px; color: var(--soft); }
+@media (max-width: 420px) { .quick { grid-template-columns: 1fr; } }
+
+/* Lists */
+.list { overflow: hidden; }
+.list-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px 10px; flex-wrap: wrap; }
+.due-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 20px; background: none; border: 0; border-top: 1px solid var(--rule); text-align: left; cursor: pointer; color: var(--soft); }
+.due-row:hover { background: #FBF8F3; }
+.due-row.static { cursor: default; }
+.due-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.due-main .t { color: var(--ink); font-weight: 500; }
+.due-main .m { font-size: 13px; color: var(--soft); }
+.more { width: 100%; padding: 12px; border: 0; border-top: 1px solid var(--rule); background: none; color: var(--soft); cursor: pointer; font-size: 13.5px; }
+.more:hover { color: var(--ink); }
+
+/* Tiles */
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.tile { display: flex; flex-direction: column; gap: 4px; text-align: left; background: var(--card); border: 1px solid var(--rule); border-radius: var(--r); padding: 16px; box-shadow: var(--shadow); color: var(--soft); font-size: 12.5px; }
+button.tile { cursor: pointer; }
+button.tile:hover { border-color: var(--sand-deep); }
+.tile b { font-family: var(--display); font-size: 34px; font-weight: 600; color: var(--ink); line-height: 1.05; }
+.tile b small { font-size: 20px; color: var(--stone); }
+@media (max-width: 760px) { .tiles { grid-template-columns: 1fr 1fr; } }
+
+/* Tables */
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px; border-top: 1px solid var(--rule); vertical-align: middle; }
+thead th { border-top: 0; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--stone); font-weight: 500; white-space: nowrap; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.matrix th, .matrix td { text-align: center; padding: 8px 6px; }
+.matrix th:first-child, .matrix td:first-child { text-align: left; padding-left: 20px; white-space: nowrap; }
+.matrix tbody tr:hover { background: #FBF8F3; }
+.cell { background: none; border: 0; padding: 8px; cursor: pointer; border-radius: 8px; color: var(--ink); }
+.cell:hover { background: var(--sand-light); }
+
+/* Report */
+.report-head { display: flex; flex-direction: column; gap: 6px; }
+.walk { padding-bottom: 16px; }
+.walk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; padding: 4px 16px 0; }
+.zone { border: 1px dashed var(--sand-deep); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; background: #fff; }
+.zone.has { border-style: solid; border-color: #CFDCC8; background: #FBFDF9; }
+.zone-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); font-weight: 500; }
+.zone-n { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; color: var(--good); }
+@media (max-width: 520px) { .walk-grid { grid-template-columns: 1fr 1fr; padding: 4px 12px 0; } .zone { padding: 10px; } }
+.score-card { display: flex; flex-direction: column; gap: 10px; }
+.score { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.score .big { font-family: var(--display); font-weight: 600; font-size: 54px; line-height: 1; color: var(--ink); }
+details summary { cursor: pointer; color: var(--soft); font-size: 13.5px; padding: 4px 0; }
+details[open] summary { margin-bottom: 8px; }
+.sec { overflow: hidden; }
+.sec.complete { border-color: #D2DECC; }
+.sec-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 20px 6px; flex-wrap: wrap; }
+.items { list-style: none; margin: 0; padding: 0 0 6px; }
+.item { border-top: 1px solid var(--rule); padding: 2px 12px 2px 8px; display: flex; flex-wrap: wrap; align-items: center; }
+.item:first-child { border-top: 0; }
+.tap { display: flex; gap: 14px; align-items: flex-start; padding: 12px; flex: 1; min-width: 0; cursor: pointer; border-radius: 10px; }
+.tap:hover { background: #FBF8F3; }
+.cb { appearance: none; -webkit-appearance: none; width: 26px; height: 26px; margin: 0; border: 1.5px solid var(--sand-deep); border-radius: 8px; background: #fff; display: grid; place-items: center; flex: none; cursor: pointer; transition: background .12s; }
+.cb:checked { background: var(--ink); border-color: var(--ink); }
+.cb:checked::after { content: ""; width: 6px; height: 12px; border: solid var(--paper); border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); }
+.cb:disabled { cursor: default; opacity: .8; }
+.txt { color: var(--ink); padding-top: 2px; }
+.item.done .txt { color: var(--soft); }
+.tag { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; letter-spacing: 0.04em; color: var(--stone); background: var(--sand-light); border-radius: 999px; padding: 1px 8px; vertical-align: 1px; white-space: nowrap; }
+.extra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; width: 100%; padding: 0 12px 12px 52px; }
+.item-note { margin-top: 2px; }
+.note-btn { background: none; border: 0; color: var(--stone); font-size: 12.5px; cursor: pointer; padding: 8px; white-space: nowrap; }
+.note-btn:hover { color: var(--ink); }
+.thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+.thumb { position: relative; width: 76px; height: 76px; margin: 0; border-radius: 8px; overflow: hidden; background: var(--sand-light); border: 1px solid var(--rule); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb button { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: rgba(43,43,43,.78); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.thumb-fallback { display: grid; place-items: center; height: 100%; font-size: 12px; color: var(--soft); }
+.photo-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; min-height: 46px; border-radius: 10px; border: 1px solid var(--sand-deep); background: #fff; cursor: pointer; color: var(--ink); font-size: 14px; font-weight: 500; }
+.photo-btn.compact { min-height: 38px; padding: 7px 12px; font-size: 13px; }
+.photo-btn:hover { background: var(--sand-light); }
+.photo-btn[aria-busy="true"] { opacity: .6; }
+@media (max-width: 520px) { .extra { padding-left: 12px; } .sec-h, .list-h { padding-left: 16px; padding-right: 16px; } .due-row { padding: 14px 16px; } .pad { padding: 16px; } }
+
+.submit-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 34; background: rgba(255, 253, 250, 0.97); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top: 1px solid var(--rule); padding-block: 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
+.submit-in { display: flex; align-items: center; gap: 16px; justify-content: space-between; }
+.submit-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; max-width: 420px; }
+.saving { font-size: 12px; color: var(--soft); }
+.submit-err { margin-top: 8px; }
+@media (max-width: 760px) {
+  .submit-bar { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); padding-bottom: 12px; }
+}
+
+/* Email helper */
+.email-field { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: #fff; }
+.email-field .lbl { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--stone); width: 58px; flex: none; }
+.email-field .val { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--ink); font-size: 14px; }
+.email-body { white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: var(--ink); background: #fff; border: 1px solid var(--rule); border-radius: 10px; padding: 14px; max-height: 320px; overflow: auto; }
+
+/* A4 sheet preview */
+.sheet-wrap { overflow-x: auto; padding: 4px 2px 8px; }
+.sheet { background: #fff; width: 100%; max-width: 720px; margin: 0 auto; aspect-ratio: 210 / 297; min-height: 0; padding: 7% 7.5%; box-shadow: 0 2px 6px rgba(0,0,0,.06), 0 18px 40px rgba(58,52,44,.08); border: 1px solid var(--rule); display: flex; flex-direction: column; gap: 12px; font-size: 12.5px; overflow: hidden; }
+@media (max-width: 600px) { .sheet { aspect-ratio: auto; padding: 22px 18px; } }
+.sheet-h { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--rule); padding-bottom: 12px; }
+.sheet-tag { display: flex; flex-direction: column; align-items: flex-end; font-size: 9.5px; letter-spacing: 0.12em; color: var(--stone); gap: 2px; }
+.sheet-title { font-family: var(--display); font-weight: 500; font-size: 28px; margin-top: 6px; }
+.sheet-sub { color: var(--soft); }
+.sheet-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.sheet-meta span, .cap { display: block; font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--stone); }
+.sheet-meta b { font-weight: 500; color: var(--ink); font-size: 13px; }
+.sheet-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.sheet-stats div { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; }
+.sheet-stats b { font-family: var(--display); font-size: 24px; font-weight: 600; color: var(--ink); line-height: 1.1; }
+.sheet-stats span { font-size: 11px; color: var(--soft); }
+.sheet-table { font-size: 12.5px; }
+.sheet-table th, .sheet-table td { padding: 5px 4px; }
+.st { font-weight: 600; }
+.st.good { color: var(--good); } .st.warn { color: var(--warn); } .st.bad { color: var(--bad); }
+.sheet-block ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink); }
+.sheet-block li { margin: 2px 0; }
+.sheet-block p { margin-top: 4px; color: var(--ink); }
+.sheet-photos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
+.sheet-photos figure { margin: 0; min-width: 0; }
+.sheet-photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 4px; background: var(--paper); display: block; }
+.sheet-photos figcaption { font-size: 10.5px; color: var(--soft); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sheet-f { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 8px; font-size: 10px; color: var(--soft); }
+@media (max-width: 600px) { .sheet-stats { grid-template-columns: 1fr 1fr; } .sheet-meta { grid-template-columns: 1fr; } }
+
+/* Upkeep */
+.upk { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.upk-h { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.upk-h h3 { font-size: 16.5px; margin-top: 2px; }
+.upk-act { display: grid; grid-template-columns: 180px 1fr auto; gap: 8px; border-top: 1px solid var(--rule); padding-top: 12px; }
+@media (max-width: 600px) { .upk-act { grid-template-columns: 1fr; } }
+.timeline { list-style: none; margin: 0; padding: 0 0 0 12px; border-left: 2px solid var(--sand-light); font-size: 13px; color: var(--soft); display: flex; flex-direction: column; gap: 4px; }
+.timeline b { color: var(--ink); font-weight: 500; }
+
+/* Team */
+.person { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 10px; align-items: center; padding: 12px 20px; border-top: 1px solid var(--rule); }
+.person:first-child { border-top: 0; }
+.p-name { color: var(--ink); font-weight: 500; }
+@media (max-width: 640px) { .person { grid-template-columns: 1fr; gap: 6px; padding: 14px 16px; } }
+.hits { display: flex; flex-direction: column; border: 1px solid var(--rule); border-radius: 10px; background: #fff; overflow: hidden; }
+.hit { display: flex; gap: 10px; align-items: center; padding: 10px 12px; background: none; border: 0; border-top: 1px solid var(--rule); cursor: pointer; text-align: left; color: var(--ink); }
+.hit:first-child { border-top: 0; }
+.hit:hover { background: var(--sand-light); }
+.hit img { width: 26px; height: 26px; border-radius: 50%; }
+.logo-preview { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 22px; display: flex; justify-content: center; }
+.logo-preview .logo-img { height: 48px; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--paper); padding: 11px 18px; border-radius: 10px; font-size: 14px; z-index: 60; max-width: calc(100% - 32px); box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+@media (min-width: 761px) { .toast { bottom: calc(32px + env(safe-area-inset-bottom, 0px)); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/preact@10.19.3/dist/preact.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script>
+var Std=(()=>{var A=Object.defineProperty;var L=Object.getOwnPropertyDescriptor;var z=Object.getOwnPropertyNames;var Y=Object.prototype.hasOwnProperty;var G=(t,e)=>{for(var n in e)A(t,n,{get:e[n],enumerable:!0})},B=(t,e,n,a)=>{if(e&&typeof e=="object"||typeof e=="function")for(let r of z(e))!Y.call(t,r)&&r!==n&&A(t,r,{get:()=>e[r],enumerable:!(a=L(e,r))||a.enumerable});return t};var K=t=>B(A({},"__esModule",{value:!0}),t);var ve={};G(ve,{AREAS:()=>q,FREQ_LABEL:()=>Z,NON_NEGOTIABLES:()=>X,STATE_LABEL:()=>be,TEMPLATE_KEYS:()=>I,TZ:()=>N,addDays:()=>p,addMinutes:()=>M,allItems:()=>E,auditScore:()=>ke,completion:()=>ye,dailyCompliance:()=>we,dayOfWeek:()=>y,dueDate:()=>T,dueTimeFor:()=>R,fmtDay:()=>g,getTemplate:()=>_,hhmm:()=>v,isRequired:()=>x,isValidPeriod:()=>j,isoWeek:()=>w,isoWeekMonday:()=>k,managerTemplates:()=>F,nowIST:()=>b,periodFor:()=>f,periodLabel:()=>D,periodRange:()=>m,periodsNeeded:()=>me,photoCount:()=>fe,previousPeriod:()=>S,scheduleFor:()=>ge,sectionResult:()=>U});var N="Asia/Kolkata",C=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],J=["January","February","March","April","May","June","July","August","September","October","November","December"],Q=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];function b(t=new Date){let e=new Intl.DateTimeFormat("en-CA",{timeZone:N,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:!1}).formatToParts(t),n=d=>{var c,s;return(s=(c=e.find(l=>l.type===d))==null?void 0:c.value)!=null?s:""},a=n("hour")==="24"?"00":n("hour"),r=`${n("year")}-${n("month")}-${n("day")}`,i=`${a}:${n("minute")}`;return{date:r,time:i,stamp:`${r} ${i}`}}var $=t=>Date.UTC(+t.slice(0,4),+t.slice(5,7)-1,+t.slice(8,10)),O=t=>new Date(t).toISOString().slice(0,10),p=(t,e)=>O($(t)+e*864e5),y=t=>new Date($(t)).getUTCDay(),v=t=>(t||"00:00").slice(0,5);function M(t,e){let[n,a]=v(t).split(":").map(Number),r=Math.min(23*60+59,Math.max(0,n*60+a+e));return`${String(Math.floor(r/60)).padStart(2,"0")}:${String(r%60).padStart(2,"0")}`}function w(t){let e=new Date($(t)),n=(e.getUTCDay()+6)%7;e.setUTCDate(e.getUTCDate()-n+3);let a=e.getUTCFullYear(),r=new Date(Date.UTC(a,0,4)),i=1+Math.round(((e.getTime()-r.getTime())/864e5-3+(r.getUTCDay()+6)%7)/7);return{year:a,week:i}}function k(t,e){let n=Date.UTC(t,0,4),a=(new Date(n).getUTCDay()+6)%7;return O(n-a*864e5+(e-1)*7*864e5)}function V(t){return w(`${t}-12-28`).week}function f(t,e){let n=+e.slice(0,4),a=+e.slice(5,7);switch(t){case"daily":return e;case"weekly":{let r=w(e);return`${r.year}-W${String(r.week).padStart(2,"0")}`}case"fortnightly":{let r=w(e);return`${r.year}-F${String(Math.ceil(r.week/2)).padStart(2,"0")}`}case"monthly":return e.slice(0,7);case"quarterly":return`${n}-Q${Math.ceil(a/3)}`;case"halfyearly":return`${n}-H${a<=6?1:2}`;case"yearly":return`${n}`}}function m(t,e){let n=+e.slice(0,4);switch(t){case"daily":return[e,e];case"weekly":{let a=k(n,+e.slice(6));return[a,p(a,6)]}case"fortnightly":{let a=+e.slice(6),r=2*a-1,i=Math.min(2*a,V(n));return[k(n,r),p(k(n,i),6)]}case"monthly":{let a=+e.slice(5,7),r=`${e}-01`,i=a===12?`${n+1}-01-01`:`${n}-${String(a+1).padStart(2,"0")}-01`;return[r,p(i,-1)]}case"quarterly":{let a=+e.slice(6),r=(a-1)*3+1,i=`${n}-${String(r).padStart(2,"0")}-01`,d=a===4?`${n+1}-01-01`:`${n}-${String(r+3).padStart(2,"0")}-01`;return[i,p(d,-1)]}case"halfyearly":return+e.slice(6)===1?[`${n}-01-01`,`${n}-06-30`]:[`${n}-07-01`,`${n}-12-31`];case"yearly":return[`${n}-01-01`,`${n}-12-31`]}}function S(t,e){let[n]=m(t,e);return f(t,p(n,-1))}function T(t,e){let[,n]=m(t,e);return t==="weekly"||t==="fortnightly"?p(n,-1):n}function g(t,e=!0){let n=`${+t.slice(8,10)} ${C[+t.slice(5,7)-1]}`;return e?`${Q[y(t)]} ${n}`:n}function D(t,e){let[n,a]=m(t,e);switch(t){case"daily":return g(e);case"weekly":return`Week ${+e.slice(6)} \xB7 ${g(n,!1)} to ${g(a,!1)}`;case"fortnightly":return`${g(n,!1)} to ${g(a,!1)}`;case"monthly":return`${J[+e.slice(5,7)-1]} ${e.slice(0,4)}`;case"quarterly":return`Q${e.slice(6)} ${e.slice(0,4)} \xB7 ${C[+n.slice(5,7)-1]} to ${C[+a.slice(5,7)-1]}`;case"halfyearly":return`${e.endsWith("H1")?"Jan to Jun":"Jul to Dec"} ${e.slice(0,4)}`;case"yearly":return e}}var Z={daily:"Daily",weekly:"Weekly",fortnightly:"Fortnightly",monthly:"Monthly",quarterly:"Quarterly",halfyearly:"Half yearly",yearly:"Yearly"};function j(t,e){if(!{daily:/^\d{4}-\d{2}-\d{2}$/,weekly:/^\d{4}-W\d{2}$/,fortnightly:/^\d{4}-F\d{2}$/,monthly:/^\d{4}-\d{2}$/,quarterly:/^\d{4}-Q[1-4]$/,halfyearly:/^\d{4}-H[12]$/,yearly:/^\d{4}$/}[t].test(e))return!1;try{let[a,r]=m(t,e);return!!a&&!!r&&a<=r}catch{return!1}}var q=[{key:"washrooms",name:"Client washrooms",weight:15},{key:"display",name:"Display kitchens",weight:15},{key:"cx",name:"Client visit and customer experience",weight:15},{key:"housekeeping",name:"Housekeeping and cleaning schedule",weight:10},{key:"inventory",name:"Sample racks, collateral and inventory",weight:10},{key:"meeting",name:"Meeting room",weight:10},{key:"grooming",name:"Staff and housekeeping grooming",weight:10},{key:"hospitality",name:"Hospitality",weight:5},{key:"ambience",name:"Store ambience",weight:5},{key:"daily",name:"Daily checklist compliance",weight:5}],X=["No discontinued product or shade on display, in samples or in brochures","Every sample rack complete, every shade and finish correctly labelled","Meeting room fully set before any scheduled client","A dedicated assistant present for every post design meeting","Refreshments within 5 minutes of arrival, on Magppie crockery","Every walk in greeted within 60 seconds","All display kitchens spotless, nothing stored on counters","All lights, appliances and demo features working at opening","Renovation or unused areas cordoned off with Magppie signage","Staff in uniform and grooming standard, opening to close","Every walk in logged in Zoho CRM the same day","No personal phone use, eating or sitting on display furniture","Client washrooms checked every hour and after every client use","Housekeeping in full uniform and grooming whenever on the client floor","No cleaning chemical, mop, bucket or cloth visible in any client area"],o=(t,e,n,a={})=>({id:t,title:e,items:n.map(([r,i,d])=>({id:r,text:i,photo:!!d})),...a}),ee={key:"opening",name:"Opening check",short:"Opening",frequency:"daily",due:"opening",description:"Complete before the store opens. Photo items need a picture taken this morning.",sections:[o("store","Store and ambience",[["o1","Store unlocked, alarm off, visitor register out"],["o2","All lights on, including display kitchen and accent lighting",!0],["o3","AC at store standard temperature (23 to 24 \xB0C) on floor, meeting rooms and washrooms"],["o12","Approved fragrance and background music on; display screens on the brand loop"],["o17","Entrance glass and handles clean, doormat straight, nothing stored at the entrance",!0],["o18","Exterior, steps and signage clean; client parking free of staff vehicles"]]),o("display","Display floor",[["o4","Every display kitchen wiped: counters, shutters, handles, glass, no fingerprints",!0],["o5","No stored items, bags or papers on any display counter"],["o6","Floors swept and mopped, no streaks"],["o7","Appliances and demo features tested: hob, chimney, taps, lights, soft close"],["o8","Sample racks complete and in order; gaps reported",!0],["o9","Brochures and price collateral are the current version only"],["o19","Planters healthy and dust free, no soil on the floor"]]),o("washroom","Washrooms and pantry",[["o10","Every client washroom cleaned to the full washroom standard, log started",!0],["o11","Pantry stocked: water, tea, coffee, milk, snacks, clean Magppie crockery"]]),o("team","Team",[["o13","Meeting room set for the first appointment"],["o14","Appointment list ready, assistant assigned to each meeting"],["o15","All staff in uniform and grooming standard"],["o20","Housekeeping grooming check done for every housekeeping person"],["o16","Morning huddle done: appointments, priorities, yesterday's breaches"]])]},te={key:"midday",name:"Midday check",short:"Midday",frequency:"daily",due:"14:00",description:"Complete by 2:00 pm.",sections:[o("floor","Floor and rooms",[["m1","Display kitchens wiped again after morning visits"],["m2","Samples returned to racks after every meeting"],["m4","Meeting room reset between appointments"],["m7","Floor walk done: corners, under furniture fronts, entrance"]]),o("washroom","Washrooms and pantry",[["m3","Washroom hourly log up to date, no hour missed",!0],["m5","Pantry restocked, used crockery cleared"]]),o("records","Records",[["m6","Morning walk ins logged in Zoho CRM"],["m8","Phone and WhatsApp enquiries answered within standard"]])]},ne={key:"closing",name:"Closing check",short:"Closing",frequency:"daily",due:"close+60",description:"Complete after the last client leaves.",sections:[o("records","Records",[["c1","All walk ins and meetings logged in Zoho CRM with next action"],["c9","Thank you messages sent for today's visits"],["c6","Any damage, fault or missing item logged in the maintenance log"]]),o("floor","Floor reset",[["c2","Samples, brochures and laptops back in place; laptop charging"],["c3","Display kitchens wiped, nothing left on counters",!0],["c4","Meeting room reset for tomorrow"],["c5","Pantry cleaned, tomorrow's stock list noted"],["c10","Consumables checked against minimum levels"]]),o("lockup","Lock up",[["c7","Appliances, lights, AC and music off, except security lighting"],["c8","Store locked, alarm on, lock up confirmed"]])]};function ae(t,e){let n=parseInt(t.slice(0,2),10)+(parseInt(t.slice(3,5),10)>0?1:0),a=parseInt(e.slice(0,2),10),r=[];for(let i=n;i<=a;i++){let d=`${String(i).padStart(2,"0")}:00`;r.push([`h${i}`,`${d} check done: dry floor, no odour, fully stocked, log signed`])}return{key:"washroom-log",name:"Client washroom log",short:"Washrooms",frequency:"daily",due:"close+60",description:"Client washrooms are the strictest standard in the store. One check every hour, plus after every client use.",sections:[{...o("hours","Hourly checks",r),strict:!0},o("proof","Proof",[["w1","Photo of the signed washroom door log for today",!0],["w2","Photo of each client washroom at closing",!0],["w3","Any leak, blockage or broken lock reported and the washroom closed until fixed"]])]}}var P=[o("z1","1. Exterior, parking and entrance",[["a1-1","Store sign lit (after dusk) and clean; no broken letters or flicker"],["a1-2","Facade glass, steps and ramp clean; no litter, stains, posters or cobwebs",!0],["a1-3","Client parking free of staff vehicles; guard at post and in uniform"],["a1-4","Entrance glass and handles fingerprint free"],["a1-5","Doormat clean, straight, not curling"],["a1-6","Nothing stored or parked at the entrance"],["a1-7","Umbrellas ready for client escort"],["a1-8","Visitor register at the desk, current"]],{area:"ambience"}),o("z2","2. Reception and waiting area",[["a2-1","Greeted within 60 seconds of entering (auditor tests this on arrival)"],["a2-2","Reception desk clear: no personal items, papers, food or chargers in view"],["a2-3","Seating clean, cushions plumped, no stains or crumbs"],["a2-4","Coffee tables wiped; only current brochures and approved magazines"],["a2-5","Display screen running the brand loop"],["a2-6","Planters healthy, dust free, clean saucers, no soil on the floor"]],{area:"cx"}),o("z3","3. Display floor and display kitchens",[["a3-1","Every display is a current product; nothing discontinued in view"],["a3-2","Every display has a clean, current label card (shade, finish, PG1 or PG2)"],["a3-3","Counters spotless: no dust, fingerprints, water marks, stored items",!0],["a3-4","Glass shutters streak free, inside and out"],["a3-5","Handles, taps and sinks clean and dry"],["a3-6","Open 3 random cabinets: clean inside, props neat, no dust or debris",!0],["a3-7","Open 3 random drawers: soft close works, baskets and trays clean"],["a3-8","Hob glass clean; chimney front and filters clean"],["a3-9","All display lights working, including under cabinet and accent lights"],["a3-10","Every demo feature works: hob, chimney, taps, lights, soft close, smart features"],["a3-11","No chips, cracks, misaligned shutters or loose hinges; or logged and cordoned"],["a3-12","Floor around and in front of every display clean, including the plinth line"]],{area:"display"}),o("z4","4. Sample library and collateral",[["a4-1","Every shade on the master list is on the rack, in its slot",!0],["a4-2","Samples clean, unchipped, not faded, correctly labelled"],["a4-3","Spares available for fast moving shades"],["a4-4","Only current brochures, price cards and PG1/PG2 collateral on the floor"],["a4-5","Architect kits stocked"]],{area:"inventory"}),o("z5","5. Meeting rooms",[["a5-1","Room clean, table clear, chairs aligned, AC at standard temperature",!0],["a5-2","Laptop charged and working; screen connected and tested"],["a5-3","Adapter, charger and backup in the room"],["a5-4","Stationery set: notepads, pens, tape, calculator"],["a5-5","Current price cards, estimate and OCF templates in the room"],["a5-6","Water and clean glasses ready"],["a5-7","Wi Fi card available"],["a5-8","Walls, glass and door clean; no marks or old notes left on boards"]],{area:"meeting"}),{...o("z6","6. Client washrooms (strictest zone)",[["a6-1","Floor completely dry, including around the WC and under the basin",!0],["a6-2","No odour of any kind; exhaust running"],["a6-3","WC bowl, seat, lid, flush and the area behind the WC spotless",!0],["a6-4","Health faucet dry, hung, not dripping"],["a6-5","Basin, taps and counter dry; no hair, soap crust or water spots"],["a6-6","Mirror streak free"],["a6-7","Hand wash at least half full; nozzle clean"],["a6-8","Hand towels or tissue stocked, with backup in the cabinet"],["a6-9","Toilet roll on holder with folded end, plus a spare in view"],["a6-10","Hand cream and air freshener in place"],["a6-11","Dustbin lidded, lined, under half full, clean outside"],["a6-12","Sanitary bin lidded and lined (where required)"],["a6-13","All lights, lock, hooks and handles working"],["a6-14","Floor drain and corners free of hair and dirt"],["a6-15","Grout and tile joints clean; no mould or black lines"],["a6-16","No cleaning products, mops or buckets in view"],["a6-17","Hourly log signed for every hour today and every day this week",!0]]),strict:!0,area:"washrooms",hint:"Check every washroom a client can reach. One unticked item fails the zone."},o("z7","7. Pantry and hospitality",[["a7-1","Counter, sink and floor clean; bin under half full"],["a7-2","Magppie crockery clean for 12 guests"],["a7-3","Water, tea, coffee, milk and snacks above minimum"],["a7-4","No expired food; fridge clean inside, nothing unlabelled"],["a7-5","Kettle and coffee machine clean and descaled"],["a7-6","Refreshment served within 5 minutes on the observed visit, on a tray with a napkin"],["a7-7","No pantry smell reaching the floor"]],{area:"hospitality"}),o("z8","8. Store ambience",[["a8-1","Temperature within standard on the floor, meeting rooms and washrooms"],["a8-2","No fused bulb or flicker anywhere in client areas"],["a8-3","Approved playlist at background level"],["a8-4","Store fragrance present; diffusers not empty"],["a8-5","No cooking, damp, smoke or chemical smell anywhere"],["a8-6","No construction, drilling or back of house noise reaching the floor"]],{area:"ambience"}),o("z9","9. Customer experience test",[["a9-1","Test call answered within 3 rings with the standard greeting"],["a9-2","Test WhatsApp answered within 15 minutes (in store hours)"],["a9-3","One client visit observed: greeting, four questions, tour order, next step agreed"],["a9-4","Every walk in this week is in Zoho CRM with a next action"],["a9-5","Thank you messages sent within 2 hours for this week's visits (sample of 5)"],["a9-6","Any complaint this week handled with LEARN and followed up within 24 hours"],["a9-7","Staff use client names and correct titles; no internal talk in client hearing"]],{area:"cx"}),o("z10","10. Staff grooming and conduct",[["a10-1","Full uniform, clean and ironed; name badge on (every person on shift)"],["a10-2","Hair, nails, shoes and grooming to standard"],["a10-3","No personal phone use, eating or sitting on displays on the floor"],["a10-4","Stand and greet when a client approaches"]],{area:"grooming"}),o("z11","11. Housekeeping grooming and conduct",[["a11-1","Clean housekeeping uniform, apron, name badge",!0],["a11-2","Closed black non slip shoes; hair tied or short; nails short and clean"],["a11-3","Gloves used for washrooms and changed before other work"],["a11-4","No mopping, vacuuming or washroom cleaning in front of clients"],["a11-5","Trolley, bucket and supplies out of client view"],["a11-6","Wet floor sign out whenever a floor is wet"],["a11-7","Can name the approved Silverstone cleaner and what never to use (ask them)"],["a11-8","Knows the washroom standard and when the next hourly check is due (ask them)"]],{area:"grooming"}),o("z12","12. Cleaning and deep clean records",[["a12-1","Daily cleaning log complete for every day this week"],["a12-2","This week's weekly cleaning tasks signed off on their days"],["a12-3","Fortnightly tasks done on time"],["a12-4","Monthly tasks done on time"],["a12-5","Quarterly and half yearly tasks on schedule; next vendor dates booked"],["a12-6","Before and after photos uploaded for every deep clean"]],{area:"housekeeping"}),o("z13","13. Planters",[["a13-1","Every plant healthy; no dead, yellow or dusty leaves",!0],["a13-2","Pots and saucers clean; no standing water"],["a13-3","No fungus gnats, mould or pests"],["a13-4","No soil, water marks or stains on the floor around planters"],["a13-5","Watering and feeding schedule followed; plant vendor visit logged this month"]],{area:"housekeeping"}),{...o("z14","14. Deep spaces spot check",[["a14-1","Under one sofa and its cushions"],["a14-2","Behind and under one display appliance or fridge",!0],["a14-3","Inside the void behind one kitchen plinth",!0],["a14-4","Top of one tall unit or cabinet"],["a14-5","One AC grille or diffuser"],["a14-6","One floor corner and length of skirting on the display floor"],["a14-7","Behind the sample rack"],["a14-8","One light fitting or pendant top"]]),area:"housekeeping",hint:"Use a torch. These are the places clients never see."},o("z15","15. Inventory and consumables",[["a15-1","Washroom amenities above minimum"],["a15-2","Cleaning chemicals above minimum, all labelled, dilution chart posted"],["a15-3","Colour coded microfibre cloths in use and not mixed"],["a15-4","Pantry stock above minimum"],["a15-5","Client facing stock above minimum (sample spares, brochures, price cards, architect kits)"],["a15-6","Meeting room stationery and adapters above minimum"],["a15-7","Uniforms: 3 sets per person; spare housekeeping set in store"],["a15-8","Asset register updated this month; damaged or missing items reported"],["a15-9","Saturday count done and order raised"]],{area:"inventory"}),o("z16","16. Back of house and housekeeping store",[["a16-1","Housekeeping store clean; chemicals on a separate shelf from food and samples",!0],["a16-2","Mops, buckets and cloths clean and dried, not left wet"],["a16-3","Stock room organised, nothing on the floor blocking access"],["a16-4","Staff washroom clean"],["a16-5","Back office desks clear; lockers closed"],["a16-6","Waste segregated and taken out daily"]],{area:"housekeeping"}),o("z17","17. Safety and maintenance",[["a17-1","Fire extinguishers in place, accessible, within refill date"],["a17-2","Emergency exits clear and signed; exit lights working"],["a17-3","First aid kit stocked"],["a17-4","No exposed wires, loose tiles, trip hazards or wobbly furniture"],["a17-5","Renovation areas cordoned with Magppie signage"],["a17-6","Every open fault in the maintenance log within its target fix time"]],{area:"display"})],re={key:"weekly-audit",name:"Weekly audit",short:"Audit",frequency:"weekly",due:"close+60",description:"The full master audit walk. Walk the store as a client would, then go back of house. Tick only what is fully met and photograph every fail.",sections:P,scored:!0},oe={key:"surprise-audit",name:"Founder's Office surprise audit",short:"Surprise audit",frequency:"monthly",due:"close+60",description:"Unannounced audit by Founder's Office, at least once a month per store. Same checklist and scoring as the weekly audit.",sections:P,scored:!0,adminOnly:!0},se={key:"weekly-cleaning",name:"Weekly cleaning",short:"Weekly clean",frequency:"weekly",due:"close+60",description:"Each task has a set day. Upload a photo after each deep task.",sections:[o("mon","Monday",[["wc1","Inside every display cabinet and drawer: emptied, vacuumed, wiped, props returned; hinges and soft close checked",!0],["wc2","Planters: watered to schedule, pots and saucers wiped, checked for pests and mould, turned for light",!0]]),o("tue","Tuesday",[["wc3","Washroom deep clean: taps and health faucets descaled, grout scrubbed, behind the WC, under the basin, drains, walls full height",!0],["wc4","Washroom and pantry exhaust grilles dusted and wiped"]]),o("wed","Wednesday",[["wc5","All glass at full height inside: partitions, doors, display glass, mirrors, windows",!0],["wc6","Sofas, chairs and cushions vacuumed, including under cushions; marks spot cleaned"]]),o("thu","Thursday",[["wc7","Deep spaces at floor level: under sofas, behind sample racks, under display islands, skirting and corners",!0],["wc8","All doors, frames, top edges, hinges and door closers wiped"]]),o("fri","Friday",[["wc9","Pantry: fridge cleaned inside, expired items thrown out, microwave and kettle inside, coffee machine descaled, cabinets inside"],["wc10","Laptops, screens, TV, remotes, phones and tablets wiped with approved screen cleaner"]]),o("sat","Saturday",[["wc11","High surfaces dusted to ladder height: tops of cabinets, shelves, frames, signage, ledges, ducts",!0],["wc12","All bins washed and sanitised inside and out"]])]},ie={key:"inventory",name:"Weekly inventory count",short:"Inventory",frequency:"weekly",due:"close+60",description:"Saturday count against minimum levels. Note any item below minimum and raise one consolidated order.",sections:[o("washroom","Washroom amenities",[["i1","Liquid hand wash at or above 2 L"],["i2","Hand cream: at least 1 spare per washroom"],["i3","Paper hand towels: at least 5 packs"],["i4","Toilet rolls: at least 10"],["i5","Bin liners and sanitary liners above minimum"],["i6","Air freshener refills and tissue boxes above minimum"]]),o("chem","Cleaning chemicals and tools",[["i7","Approved Silverstone and surface cleaner at least 1 L"],["i8","Glass, floor, washroom and stainless steel cleaners above minimum"],["i9","Disinfectant above minimum"],["i10","Colour coded microfibre cloths: at least 10 of each colour"],["i11","Mop heads, gloves, large bin liners, vacuum bags above minimum"],["i12","Every chemical bottle labelled; dilution chart posted",!0]]),o("pantry","Pantry and hospitality",[["i13","Drinking water: at least 2 days of use"],["i14","Tea, coffee, green tea, wellness drink: at least 2 days of use"],["i15","Healthy snacks, sugar and substitute sachets, napkins above minimum"],["i16","Magppie crockery clean for 12 guests"],["i17","Use by dates checked, expired items thrown out"]]),o("client","Client facing stock",[["i18","Every Silverstone shade on the master list, plus spares of fast moving shades",!0],["i19","Brochures at least 20, current version"],["i20","PG1 / PG2 price cards at least 10"],["i21","Architect kits at least 3"],["i22","Visiting cards for every staff member"]]),o("room","Meeting room and stationery",[["i23","Notepads, pens, measuring tapes, calculators above minimum"],["i24","HDMI or casting adapters and chargers: 1 per room plus 1 spare"],["i25","Printed OCF and estimate templates at least 5"]]),o("staff","Uniforms and staff items",[["i26","Staff uniforms: 3 sets per person, none faded or damaged"],["i27","Housekeeping uniforms and aprons: 3 sets per person, 1 spare set in store"],["i28","Name badges for everyone, plus 1 spare"],["i29","Umbrellas for client escort: 3"],["i30","First aid kit fully stocked"]]),o("order","Order",[["i31","Consolidated order raised for every item below minimum (list shortages in the note)"]])]},le={key:"fortnightly-cleaning",name:"Fortnightly deep clean",short:"Fortnightly",frequency:"fortnightly",due:"close+60",description:"Before opening, after closing, or on the weekly off. Before and after photos for each task.",sections:[o("tasks","Tasks",[["f1","Display chimney baffle filters removed and washed; hob burners and grates cleaned",!0],["f2","Free standing appliances pulled out where safe; cleaned behind and under",!0],["f3","Pendants, track lights, spotlights and decorative fittings dusted"],["f4","Kitchen plinths removed where clipped; void below cabinets vacuumed and wiped",!0],["f5","Planters: topsoil topped up or loosened, drainage trays cleaned, floor under planters checked",!0]])]},de={key:"monthly-deep-clean",name:"Monthly deep clean",short:"Monthly",frequency:"monthly",due:"close+60",description:"Vendor tasks booked a month ahead and supervised by the Store Manager.",sections:[o("tasks","Tasks",[["mo1","AC indoor filters removed and washed; grilles and diffusers wiped",!0],["mo2","Machine scrub of all hard floors; buffed if needed",!0],["mo3","Rugs and carpets deep vacuumed both sides; stains treated"],["mo4","High level: false ceiling grilles, cornices, ledges, cable trays, tops of tall units",!0],["mo5","Stock room, housekeeping store and electrical room cleared and cleaned"],["mo6","Plants fed and pruned; any plant not recovering in 2 weeks replaced",!0],["mo7","Pest control treatment of store, pantry and drains, after hours (vendor report uploaded)",!0],["mo8","Exterior signage and facade glass cleaned to full height",!0],["mo9","All floor drains, pantry sink trap and washroom traps cleaned and flushed"],["mo10","Asset register checked: every display, appliance, prop and furniture item"],["mo11","First aid kit checked and restocked"]])]},ce={key:"quarterly-deep-clean",name:"Quarterly deep clean",short:"Quarterly",frequency:"quarterly",due:"close+60",description:"Full service tasks once a quarter.",sections:[o("tasks","Tasks",[["q1","AC full service: coils, drain pan, duct check (vendor report uploaded)",!0],["q2","All sofas, chairs and fabric panels shampooed",!0],["q3","Curtains and blinds washed or dry cleaned; tracks cleaned"],["q4","Every display kitchen fully deep cleaned: every accessory removed, washed, refitted; hinges and channels checked",!0],["q5","Planters: repotted where roots crowd, top soil replaced, every pot and saucer deep cleaned",!0],["q6","Water purifier and dispenser serviced; water tank cleaned if the store has one"],["q7","Termite and rodent inspection and treatment",!0]])]},ue={key:"half-yearly-deep-clean",name:"Half yearly deep clean",short:"Half yearly",frequency:"halfyearly",due:"close+60",description:"Whole store deep clean after hours, plus wall touch ups and exhaust service.",sections:[o("tasks","Tasks",[["hy1","Whole store deep clean: every surface, void and fixture; walls washed; store reset",!0],["hy2","Paint touch ups on scuffs, chips and marks in client areas",!0],["hy3","Washroom and pantry exhaust fans removed, cleaned and serviced"]])]},pe={key:"yearly",name:"Yearly maintenance",short:"Yearly",frequency:"yearly",due:"close+60",description:"Once a year.",sections:[o("tasks","Tasks",[["y1","Floors restoration polished or recoated as the material needs",!0],["y2","Fire extinguishers refilled; alarm and emergency lights tested (certificate uploaded)",!0],["y3","All displays and props reviewed for wear; replacement plan sent to Founder's Office"]])]},H=[ee,te,ne,re,se,ie,le,de,ce,ue,pe,oe],I=["opening","midday","closing","washroom-log",...H.slice(3).map(t=>t.key)];function _(t,e){var n;return t==="washroom-log"?ae(e.opens_at,e.closes_at):(n=H.find(a=>a.key===t))!=null?n:null}function F(t){return I.map(e=>_(e,t)).filter(e=>!e.adminOnly)}function E(t){return t.sections.flatMap(e=>e.items)}function R(t,e){return t.due==="opening"?v(e.opens_at):t.due==="14:00"?"14:00":M(e.closes_at,60)}function x(t,e,n){if(t.frequency==="daily")return!(e<n.go_live||n.weekly_off!==null&&y(e)===n.weekly_off);let[,a]=m(t.frequency,e);return a>=n.go_live}function he(t,e,n,a,r){if((a==null?void 0:a.status)==="submitted")return"submitted";let i=T(t.frequency,e),d=`${i} ${R(t,n)}`;return r.stamp>d?"overdue":(a==null?void 0:a.status)==="draft"?"draft":t.frequency==="daily"||i<=p(r.date,6)?"due":"upcoming"}function me(t=b()){let e=new Set;for(let a=0;a<=7;a++)e.add(p(t.date,-a));let n=["weekly","fortnightly","monthly","quarterly","halfyearly","yearly"];for(let a of n){let r=f(a,t.date);e.add(r),e.add(S(a,r))}return[...e]}function ge(t,e,n=b()){let a=(s,l)=>e.find(u=>u.store_id===t.id&&u.template===s&&u.period===l),r=(s,l)=>{let u=a(s.key,l);return{template:s,period:l,label:D(s.frequency,l),dueDate:T(s.frequency,l),dueTime:R(s,t),state:he(s,l,t,u,n),report:u}},i=[],d=[];for(let s of F(t)){let l=f(s.frequency,n.date);if(x(s,l,t)&&i.push(r(s,l)),s.frequency==="daily")for(let u=1;u<=7;u++){let h=p(n.date,-u);if(!x(s,h,t))continue;let W=r(s,h);W.state!=="submitted"&&d.push({...W,state:"overdue"})}else{let u=S(s.frequency,l);if(x(s,u,t)){let h=r(s,u);h.state!=="submitted"&&d.push({...h,state:"overdue"})}}}let c=[...i.filter(s=>s.state==="overdue"),...d];return c.sort((s,l)=>(s.dueDate+s.dueTime).localeCompare(l.dueDate+l.dueTime)),{current:i,overdue:c}}function U(t,e){let n=t.items.filter(a=>{var r;return!((r=e[a.id])!=null&&r.done)}).length;return t.strict?{fails:n,score:n===0?1:0}:{fails:n,score:n===0?1:n<=2?.5:0}}function ye(t,e){let n=E(t);return n.length?n.filter(a=>{var r;return(r=e[a.id])==null?void 0:r.done}).length/n.length:0}function fe(t){return Object.values(t).reduce((e,n)=>{var a,r;return e+((r=(a=n.photos)==null?void 0:a.length)!=null?r:0)},0)}function ke(t,e,n,a){let r=q.map(c=>{let s;if(c.key==="daily")s=Math.max(0,Math.min(1,n));else{let l=t.sections.filter(u=>u.area===c.key);s=l.length?l.reduce((u,h)=>u+U(h,e).score,0)/l.length:0}return{key:c.key,name:c.name,weight:c.weight,score:s,points:Math.round(c.weight*s*10)/10}}),i=Math.round(r.reduce((c,s)=>c+s.points,0)*10)/10,d=a>0&&i>75;return{total:d?75:i,raw:i,capped:d,areas:r}}function we(t,e,n,a){let r=0,i=0;for(let d=0;d<7;d++){let c=p(n,d);if(c>a)break;if(!(c<t.go_live)&&!(t.weekly_off!==null&&y(c)===t.weekly_off))for(let s of["opening","midday","closing"])r++,e.some(l=>l.template===s&&l.period===c&&l.status==="submitted")&&i++}return r?i/r:1}var be={submitted:"Submitted",draft:"In progress",due:"Due",overdue:"Overdue",upcoming:"Upcoming"};return K(ve);})();
+
+</script>
+<script>
+/* Magppie Store Standards. Checklist, period and scoring logic lives in the Std bundle. */
+const { h, render } = preact;
+const { useState, useEffect, useMemo, useRef } = preactHooks;
+const html = htm.bind(h);
+const S = Std;
+
+/* ============================================================ constants */
+const DEFAULT_STORES = [
+  ["delhi-sultanpur", "Delhi Sultanpur", "Delhi"], ["delhi-kirti-nagar", "Delhi Kirti Nagar", "Delhi"],
+  ["hyderabad", "Hyderabad", "Hyderabad"], ["bombay", "Bombay", "Mumbai"], ["surat", "Surat", "Surat"],
+  ["mohali", "Mohali", "Mohali"], ["coimbatore", "Coimbatore", "Coimbatore"],
+].map(([id, name, city]) => ({ id, name, city, opens_at: "10:30", closes_at: "19:30", weekly_off: null, go_live: "2026-10-17", active: true }));
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/* Photo walk: at least N photos of different store areas on these checklists */
+const WALK_ZONES = [
+  ["entrance", "Entrance and exterior"], ["reception", "Reception and seating"], ["display", "Display kitchens"],
+  ["samples", "Sample library"], ["meeting", "Meeting room"], ["washroom", "Client washroom"],
+  ["pantry", "Pantry"], ["back", "Back of house"],
+];
+const WALK_MIN = { opening: 5, closing: 5, "weekly-audit": 5, "weekly-cleaning": 5, "monthly-deep-clean": 5, "surprise-audit": 5 };
+
+const UPKEEP_CATS = ["Sample replacement", "Breakage or damage", "Display or appliance fault", "Furniture or fixture", "Washroom or plumbing", "Lighting or electrical", "Collateral or stationery", "Other"];
+const URGENCY = [["urgent", "Urgent, today"], ["week", "This week"], ["later", "Can wait"]];
+const UPKEEP_STATUS = [["open", "Open"], ["progress", "In progress"], ["ordered", "Ordered"], ["resolved", "Resolved"]];
+
+const ICONS = {
+  camera: "M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM12 17a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2z",
+  check: "M5 12.5l4.5 4.5L19 7.5", chev: "M9 6l6 6-6 6", back: "M15 6l-6 6 6 6",
+  home: "M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z",
+  wrench: "M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.4-.4-2.4z",
+  alert: "M12 4l9 16H3zM12 10v4M12 17v.5", grid: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  list: "M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01",
+  cog: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 13a7.5 7.5 0 0 0 0-2l2-1.5-2-3.4-2.3 1a7.4 7.4 0 0 0-1.7-1L15 3.6h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7.5 7.5 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.3 1 2-3.4z",
+  doc: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6", mail: "M4 6h16v12H4zM4 7l8 6 8-6",
+  download: "M12 4v11M7 10l5 5 5-5M5 20h14", copy: "M9 9h10v10H9zM5 15V5h10", plus: "M12 5v14M5 12h14",
+  shield: "M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z", x: "M6 6l12 12M18 6L6 18", flag: "M5 21V4h11l-2 4 2 4H5",
+};
+function Icon({ n, s = 18 }) {
+  return html`<svg class="ic" width=${s} height=${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d=${ICONS[n]} /></svg>`;
+}
+
+/* ============================================================ platform */
+const P = { db: null, user: null, assets: null, downloads: null, me: null, myName: "", isOwner: false, canEdit: false, canWrite: null };
+async function initPlatform() {
+  const c = window.claude;
+  if (!c || typeof c.use !== "function") return;
+  const [db, user, assets, downloads] = await Promise.all([c.use("db"), c.use("user"), c.use("assets"), c.use("downloads")]);
+  Object.assign(P, { db, user, assets, downloads });
+  if (user) {
+    const me = await user.me();
+    P.me = me.id; P.myName = me.name; P.isOwner = !!me.isOwner; P.canEdit = !!me.canEdit;
+    P.canWrite = await user.can("data.write");
+  }
+}
+let showToast = () => {};
+function errText(e) {
+  const c = e && e.code;
+  if (c === "invalid_argument") return "You don't have permission to save here. Ask Founder's Office to check your access.";
+  if (c === "quota_exceeded") return "Storage for this page is full. Tell Founder's Office.";
+  if (c === "resource_exhausted") return "Too many saves at once. Wait a moment and try again.";
+  return "Couldn't save. Check your connection and try again.";
+}
+const queues = {};
+function enqueue(path, fn) { const p = (queues[path] || Promise.resolve()).catch(() => {}).then(fn); queues[path] = p; return p; }
+
+const repCol = (uid) => `reports/${uid}/r`;
+const breachCol = (uid) => `breaches/${uid}/b`;
+const upkeepCol = (uid) => `upkeep/${uid}/u`;
+const repId = (store, tk, period) => `${store}__${tk}__${period}`;
+
+/* ============================================================ hooks */
+function useNow() {
+  const [now, setNow] = useState(S.nowIST());
+  useEffect(() => { const t = setInterval(() => setNow(S.nowIST()), 60000); return () => clearInterval(t); }, []);
+  return now;
+}
+function useDoc(path) {
+  const [st, setSt] = useState({ loading: !!(P.db && path), data: null });
+  useEffect(() => {
+    if (!P.db || !path) { setSt({ loading: false, data: null }); return; }
+    setSt({ loading: true, data: null });
+    let un;
+    try {
+      un = P.db.doc(path).onSnapshot((s) => setSt({ loading: false, data: s.exists ? s.data() : null }),
+        (e) => { console.error(e); setSt((x) => ({ ...x, loading: false })); });
+    } catch (e) { console.error(e); setSt({ loading: false, data: null }); }
+    return () => un && un();
+  }, [path]);
+  return st;
+}
+/** Subscribe to the same query in several people's subtrees and merge the results */
+function useMulti(key, uids, build) {
+  const k = key && uids.length ? key + "|" + uids.join(",") : null;
+  const [map, setMap] = useState({});
+  const [loading, setLoading] = useState(!!(P.db && k));
+  useEffect(() => {
+    if (!P.db || !k) { setMap({}); setLoading(false); return; }
+    setMap({}); setLoading(true);
+    const seen = new Set();
+    const mark = (uid) => { if (!seen.has(uid)) { seen.add(uid); if (seen.size >= uids.length) setLoading(false); } };
+    const uns = uids.map((uid) => {
+      let q; try { q = build(P.db, uid); } catch (e) { console.error(e); }
+      if (!q) { mark(uid); return null; }
+      return q.onSnapshot((snap) => { setMap((m) => ({ ...m, [uid]: snap.docs.map((d) => ({ id: d.id, _owner: uid, ...d.data() })) })); mark(uid); },
+        (e) => { console.error(e); mark(uid); });
+    });
+    return () => uns.forEach((u) => u && u());
+  }, [k]);
+  const docs = useMemo(() => Object.values(map).flat(), [map]);
+  return { docs, loading };
+}
+function useNames(ids) {
+  const key = [...new Set(ids.filter(Boolean))].sort().join(",");
+  const [names, setNames] = useState({});
+  useEffect(() => {
+    if (!P.user || !key) return;
+    let live = true;
+    P.user.profiles(key.split(",")).then((ps) => { if (!live) return; const n = {}; for (const id in ps) n[id] = ps[id].name; setNames(n); });
+    return () => { live = false; };
+  }, [key]);
+  return (id) => (!id ? "" : id === P.me ? (P.myName || "You") : (names[id] || "Someone"));
+}
+
+/* ============================================================ helpers */
+const fmtStamp = (iso) => { if (!iso) return ""; try { return new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } };
+const fmtDate = (iso) => { if (!iso) return ""; try { return new Date(iso).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "long", year: "numeric" }); } catch (e) { return ""; } };
+function mergeReports(docs) {
+  const m = new Map();
+  for (const r of docs) {
+    const k = r.store_id + "|" + r.template + "|" + r.period, cur = m.get(k);
+    const better = !cur || ((r.status === "submitted") !== (cur.status === "submitted") ? r.status === "submitted" : (r.updated_at || "") > (cur.updated_at || ""));
+    if (better) m.set(k, r);
+  }
+  return [...m.values()];
+}
+const walkKeys = (answers) => WALK_ZONES.filter(([z]) => ((answers["walk:" + z] || {}).photos || []).length > 0).map(([z]) => z);
+
+async function copyText(text, msg) {
+  try { await navigator.clipboard.writeText(text); showToast(msg || "Copied"); return; } catch (e) {}
+  const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); showToast(msg || "Copied"); } catch (e) { showToast("Select the text and copy it manually."); }
+  ta.remove();
+}
+async function compress(file) {
+  try {
+    const bmp = await createImageBitmap(file);
+    const sc = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("encode"))), "image/jpeg", 0.8));
+  } catch (e) { return null; }
+}
+async function uploadPhoto(file) {
+  if (!P.assets) { showToast("Photo upload needs Contributor access. Ask Founder's Office."); return null; }
+  const blob = await compress(file);
+  try {
+    const r = blob ? await P.assets.upload(blob, { type: "image/jpeg" })
+      : await P.assets.upload(file, { type: /^image\/(png|webp|gif|svg\+xml)$/.test(file.type) ? file.type : "image/jpeg" });
+    return r.id;
+  } catch (e) {
+    showToast(e && e.code === "too_large" ? "That photo is too large." : e && e.code === "unsupported_type" ? "Use a JPG, PNG or WebP photo." : "Couldn't upload a photo. Try again.");
+    return null;
+  }
+}
+async function uploadMany(files, onEach) {
+  const ids = [];
+  for (const f of files) { const id = await uploadPhoto(f); if (id) { ids.push(id); onEach && onEach(id); } }
+  return ids;
+}
+
+/* ============================================================ small components */
+function Logo({ settings, size }) {
+  const [bad, setBad] = useState(false);
+  if (settings && settings.logo && !bad) return html`<img class=${"logo-img " + (size || "")} src=${"/_blob/" + settings.logo} alt="Magppie" onError=${() => setBad(true)} />`;
+  return html`<span class=${"wordmark " + (size || "")}>MAGPPIE</span>`;
+}
+function Pill({ state, label }) {
+  return html`<span class=${"pill " + state}>${label || (state === "off" ? "Not required" : S.STATE_LABEL[state])}</span>`;
+}
+function Photo({ id, onRemove, caption }) {
+  const [bad, setBad] = useState(false);
+  return html`<figure class="thumb">
+    ${bad ? html`<span class="thumb-fallback">Photo</span>` : html`<a href=${"/_blob/" + id} target="_blank" rel="noreferrer"><img src=${"/_blob/" + id} alt=${caption || "Photo"} loading="lazy" onError=${() => setBad(true)} /></a>`}
+    ${onRemove && html`<button type="button" aria-label="Remove photo" onClick=${onRemove}><${Icon} n="x" s=${14} /></button>`}
+  </figure>`;
+}
+function PhotoPicker({ label, onFiles, busy, compact }) {
+  return html`<label class=${"photo-btn" + (compact ? " compact" : "")} aria-busy=${busy ? "true" : "false"}>
+    <${Icon} n="camera" s=${17} /><span>${busy ? "Uploading…" : label}</span>
+    <input type="file" accept="image/*" multiple hidden disabled=${!!busy} onChange=${(e) => { const fs = [...(e.currentTarget.files || [])]; e.currentTarget.value = ""; if (fs.length) onFiles(fs); }} />
+  </label>`;
+}
+function Progress({ value }) {
+  return html`<div class="bar" role="progressbar" aria-valuenow=${Math.round(value * 100)} aria-valuemin="0" aria-valuemax="100"><i style=${"width:" + Math.round(value * 100) + "%"}></i></div>`;
+}
+function EmailHelper({ to, subject, body, title, hint }) {
+  const mailto = `mailto:${encodeURIComponent(to || "")}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return html`<section class="card pad stack">
+    <div class="row gap8"><${Icon} n="mail" /><h3>${title || "Email it"}</h3></div>
+    ${hint && html`<p class="small muted">${hint}</p>`}
+    <div class="email-field"><span class="lbl">To</span><span class="val">${to || html`<span class="muted">Founder's Office hasn't set recipients yet. Add 2 or 3 addresses yourself.</span>`}</span>${to && html`<button class="icon-btn" aria-label="Copy recipients" onClick=${() => copyText(to, "Recipients copied")}><${Icon} n="copy" s=${16} /></button>`}</div>
+    <div class="email-field"><span class="lbl">Subject</span><span class="val">${subject}</span><button class="icon-btn" aria-label="Copy subject" onClick=${() => copyText(subject, "Subject copied")}><${Icon} n="copy" s=${16} /></button></div>
+    <div class="email-body">${body}</div>
+    <div class="row gap8 wrap">
+      <button class="btn ghost" onClick=${() => copyText(body, "Email text copied")}><${Icon} n="copy" s=${16} />Copy email text</button>
+      <a class="btn ghost" href=${mailto} target="_blank" rel="noreferrer"><${Icon} n="mail" s=${16} />Open in email app</a>
+    </div>
+    <p class="small muted">If the email app doesn't open from here, copy the text into Gmail or Outlook.</p>
+  </section>`;
+}
+
+/* ============================================================ shell */
+function Shell({ ctx, children }) {
+  const { isAdmin, myStore, go, view, settings } = ctx;
+  const links = isAdmin
+    ? [["dash", "Stores", "grid"], ["reports", "Reports", "list"], ["upkeep", "Upkeep", "wrench"], ["breaches", "Breaches", "flag"], ["settings", "Settings", "cog"]]
+    : [["home", "Today", "home"], ["upkeep", "Upkeep", "wrench"], ["breach", "Breach", "flag"]];
+  const cur = view ? view.v : isAdmin ? "dash" : "home";
+  const active = (v) => cur === v || (v === "dash" && (cur === "store")) || (v === "home" && (cur === "report" || cur === "summary") && !isAdmin) || (v === "reports" && isAdmin && (cur === "report" || cur === "summary"));
+  const nav = (cls) => html`<nav class=${cls} aria-label="Main">${links.map(([v, l, ic]) => html`<button aria-current=${active(v) ? "page" : null} onClick=${() => go(v === "home" || v === "dash" ? null : { v })}><${Icon} n=${ic} s=${20} /><span>${l}</span></button>`)}</nav>`;
+  return html`
+    <header class="top"><div class="wrap top-in">
+      <button class="brand" onClick=${() => go(null)} aria-label="Home"><${Logo} settings=${settings} /><span class="brand-sub">${isAdmin ? "Founder's Office" : myStore ? myStore.name : "Store Standards"}</span></button>
+      ${nav("nav-top")}
+      <span class="who">${P.myName || ""}</span>
+    </div></header>
+    ${ctx.preview && html`<div class="wrap"><div class="note-strip">Preview. Saving is off here. Open this page signed in to claude.ai to use it.</div></div>`}
+    <main class="wrap page">${children}</main>
+    ${nav("nav-bottom")}`;
+}
+
+/* ============================================================ due rows */
+function DueRow({ item, store, ctx }) {
+  const r = item.report, today = ctx.now.date;
+  const when = item.dueDate === today ? `today, ${item.dueTime}` : `${S.fmtDay(item.dueDate)}, ${item.dueTime}`;
+  let meta = item.state === "submitted" ? `Submitted ${fmtStamp(r && r.submitted_at)}` : `Due ${when}`;
+  if (r && r.completion != null && item.state !== "submitted") meta += ` · ${Math.round(r.completion * 100)}%`;
+  if (item.template.scored && r && r.score != null) meta += ` · ${r.score}/100`;
+  const open = () => ctx.go({ v: item.state === "submitted" ? "summary" : "report", store: store.id, template: item.template.key, period: item.period, owner: r ? r._owner : P.me });
+  return html`<button class="due-row" onClick=${open}>
+    <span class=${"state-dot " + item.state}></span>
+    <span class="due-main"><span class="t">${item.template.name}</span><span class="m">${item.template.frequency === "daily" ? "" : item.label + " · "}${meta}</span></span>
+    <${Pill} state=${item.state} /><${Icon} n="chev" s=${16} />
+  </button>`;
+}
+
+/* ============================================================ store manager home */
+function StoreHome({ ctx, store }) {
+  const { now, go, isAdmin } = ctx;
+  const periods = useMemo(() => S.periodsNeeded(now), [now.date]);
+  const uids = isAdmin ? ctx.writers : [P.me];
+  const reps = useMulti(`sh:${store.id}:${periods.join(",")}`, uids, (db, uid) => db.collection(repCol(uid)).where("store_id", "==", store.id).where("period", "in", periods));
+  const reports = useMemo(() => mergeReports(reps.docs), [reps.docs]);
+  const { current, overdue } = S.scheduleFor(store, reports, now);
+  const daily = current.filter((c) => c.template.frequency === "daily");
+  const weekly = current.filter((c) => c.template.frequency === "weekly");
+  const longer = current.filter((c) => c.template.frequency !== "daily" && c.template.frequency !== "weekly");
+  const isOff = store.weekly_off != null && S.dayOfWeek(now.date) === Number(store.weekly_off);
+  const dailyDone = daily.filter((d) => d.state === "submitted").length;
+  const next = [...overdue, ...daily, ...weekly, ...longer].find((c) => c.state !== "submitted" && c.state !== "upcoming");
+  const [showLater, setShowLater] = useState(false);
+  const longerSoon = longer.filter((l) => l.state !== "upcoming"), longerLater = longer.filter((l) => l.state === "upcoming");
+
+  return html`
+    ${isAdmin && html`<button class="back" onClick=${() => go(null)}><${Icon} n="back" s=${16} />All stores</button>`}
+    <section class="hero card">
+      <div class="eyebrow">${S.fmtDay(now.date)} · ${now.time} IST</div>
+      <h1>${store.name}</h1>
+      <div class="hero-stats">
+        <div><b class="num">${dailyDone}/${daily.length}</b><span>today's checks done</span></div>
+        <div><b class=${"num" + (overdue.length ? " bad" : "")}>${overdue.length}</b><span>overdue</span></div>
+      </div>
+      ${daily.length > 0 && html`<${Progress} value=${daily.length ? dailyDone / daily.length : 0} />`}
+      ${reps.loading ? html`<p class="small muted">Loading…</p>` : next ? html`
+        <button class="next" onClick=${() => go({ v: "report", store: store.id, template: next.template.key, period: next.period, owner: next.report ? next.report._owner : P.me })}>
+          <span><span class="eyebrow">${next.state === "overdue" ? "Overdue, do this first" : "Next up"}</span><span class="next-t">${next.template.name}</span>
+          <span class="small">${next.state === "overdue" ? `Was due ${S.fmtDay(next.dueDate)}, ${next.dueTime}` : `Due ${next.dueDate === now.date ? "today" : S.fmtDay(next.dueDate)} by ${next.dueTime}`}</span></span>
+          <span class="next-go">Start <${Icon} n="chev" s=${16} /></span>
+        </button>` : html`<p class="all-done"><${Icon} n="check" /> ${isOff ? "Weekly off today. Nothing due." : "All caught up for now."}</p>`}
+    </section>
+    ${!isAdmin && html`<div class="quick">
+      <button class="quick-btn" onClick=${() => go({ v: "upkeep" })}><${Icon} n="wrench" s=${22} /><span><b>Report broken or replacement</b><span>Samples, displays, fixtures</span></span></button>
+      <button class="quick-btn" onClick=${() => go({ v: "breach" })}><${Icon} n="flag" s=${22} /><span><b>Log a breach</b><span>Non-negotiables</span></span></button>
+    </div>`}
+    ${overdue.length > 0 && html`<section class="card list"><div class="list-h"><h2>Overdue</h2><span class="pill overdue">${overdue.length}</span></div>${overdue.map((o) => html`<${DueRow} item=${o} store=${store} ctx=${ctx} />`)}</section>`}
+    <section class="card list"><div class="list-h"><h2>Today</h2></div>
+      ${daily.length ? daily.map((d) => html`<${DueRow} item=${d} store=${store} ctx=${ctx} />`) : html`<p class="pad muted">No daily checks today${isOff ? ": weekly off" : ""}.</p>`}</section>
+    <section class="card list"><div class="list-h"><h2>This week</h2><span class="small muted">Due Saturday after closing</span></div>
+      ${weekly.map((d) => html`<${DueRow} item=${d} store=${store} ctx=${ctx} />`)}</section>
+    <section class="card list"><div class="list-h"><h2>Deep cleaning</h2></div>
+      ${longerSoon.map((d) => html`<${DueRow} item=${d} store=${store} ctx=${ctx} />`)}
+      ${longerLater.length > 0 && html`<button class="more" onClick=${() => setShowLater(!showLater)}>${showLater ? "Hide" : `Show ${longerLater.length} later this quarter and year`}</button>`}
+      ${showLater && longerLater.map((d) => html`<${DueRow} item=${d} store=${store} ctx=${ctx} />`)}
+    </section>`;
+}
+
+/* ============================================================ report form */
+function ReportView({ ctx, storeId, templateKey, period, owner }) {
+  const { now, isAdmin, myStore, canWrite, go, allStores } = ctx;
+  const store = allStores.find((s) => s.id === storeId);
+  const t = store ? S.getTemplate(templateKey, store) : null;
+  const valid = !!(t && S.isValidPeriod(t.frequency, period) && owner);
+  const path = valid ? `${repCol(owner)}/${repId(storeId, templateKey, period)}` : null;
+  const doc = useDoc(path);
+  const scored = valid && t.scored;
+  const [ws, we] = valid ? (t.frequency === "weekly" ? S.periodRange("weekly", period) : S.periodRange("weekly", S.periodFor("weekly", now.date))) : ["", ""];
+  const weekDays = useMemo(() => (ws ? Array.from({ length: 7 }, (_, i) => S.addDays(ws, i)) : []), [ws]);
+  const uids = isAdmin ? ctx.writers : [P.me];
+  const wk = useMulti(scored ? `wk:${storeId}:${ws}` : null, uids, (db, uid) => db.collection(repCol(uid)).where("store_id", "==", storeId).where("period", "in", weekDays));
+  const wb = useMulti(scored ? `wb:${storeId}:${ws}` : null, uids, (db, uid) => db.collection(breachCol(uid)).where("store_id", "==", storeId).where("date", ">=", ws));
+
+  const [answers, setAnswers] = useState({});
+  const [note, setNote] = useState("");
+  const [save, setSave] = useState({ state: "idle", at: null });
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState({});
+  const status = doc.data ? doc.data.status : null;
+  const latest = useRef({}); latest.current = { answers, note };
+  const statusRef = useRef(status); statusRef.current = status;
+  const timer = useRef(null), pending = useRef(false), persistRef = useRef(null);
+
+  useEffect(() => {
+    if (doc.loading) return;
+    setAnswers((doc.data && doc.data.answers) || {}); setNote((doc.data && doc.data.note) || "");
+    setSave({ state: "idle", at: doc.data && doc.data.updated_at });
+  }, [doc.loading, status]);
+  useEffect(() => () => { clearTimeout(timer.current); if (pending.current && persistRef.current) persistRef.current(); }, [path]);
+  if (!valid) return html`<div class="card pad">That report doesn't exist. <button class="link" onClick=${() => go(null)}>Go back</button></div>`;
+
+  const [start] = S.periodRange(t.frequency, period);
+  const notStarted = start > now.date;
+  const allowed = canWrite && (isAdmin || (!t.adminOnly && myStore && myStore.id === storeId && owner === P.me));
+  const editable = allowed && !notStarted && !doc.loading && status !== "submitted";
+  const A = editable ? answers : (doc.data && doc.data.answers) || {};
+  const shownNote = editable ? note : (doc.data && doc.data.note) || "";
+  const items = S.allItems(t);
+  const done = items.filter((i) => A[i.id] && A[i.id].done).length;
+  const open = items.length - done;
+  const photoMissing = items.filter((i) => i.photo && A[i.id] && A[i.id].done && !(A[i.id].photos || []).length);
+  const walkMin = WALK_MIN[t.key] || 0;
+  const walkDone = walkKeys(A).length;
+  const daily = scored ? S.dailyCompliance(store, mergeReports(wk.docs), ws, we < now.date ? we : now.date) : 1;
+  const breachesInWeek = scored ? wb.docs.filter((b) => b.date <= we).length : 0;
+  const preview = scored ? S.auditScore(t, A, daily, breachesInWeek) : null;
+  const quickOk = t.frequency === "daily" || t.frequency === "weekly" && !t.scored;
+
+  function buildDoc(st) {
+    const a = latest.current.answers, n = latest.current.note, iso = new Date().toISOString();
+    const d = { store_id: storeId, template: t.key, period, status: st, answers: a, note: n, completion: S.completion(t, a), photo_count: S.photoCount(a),
+      score: null, updated_by: P.me, updated_at: iso, submitted_by: null, submitted_at: null };
+    if (st === "submitted") { d.submitted_by = P.me; d.submitted_at = iso; if (scored) d.score = S.auditScore(t, a, daily, breachesInWeek).total; }
+    return d;
+  }
+  function persistNow() {
+    pending.current = false;
+    return enqueue(path, async () => {
+      if (statusRef.current === "submitted") return;
+      setSave((s) => ({ ...s, state: "saving" }));
+      try { await P.db.doc(path).set(buildDoc("draft")); setSave({ state: "saved", at: new Date().toISOString() }); setError(null); }
+      catch (e) { console.error(e); setSave((s) => ({ ...s, state: "error" })); setError(errText(e)); }
+    });
+  }
+  persistRef.current = persistNow;
+  function schedule() { if (!editable) return; pending.current = true; clearTimeout(timer.current); timer.current = setTimeout(persistNow, 800); }
+  function setA(fn) { setAnswers((a) => { const n = fn(a); latest.current.answers = n; return n; }); }
+  function patch(id, p) { setA((a) => ({ ...a, [id]: { ...(a[id] || {}), ...p } })); schedule(); }
+  function tickAll(sec) { setA((a) => { const n = { ...a }; sec.items.forEach((i) => { n[i.id] = { ...(n[i.id] || {}), done: true }; }); return n; }); schedule(); }
+  async function addPhotos(key, files, markDone) {
+    setUploading((u) => ({ ...u, [key]: true })); setError(null);
+    await uploadMany(files, (aid) => setA((a) => { const cur = a[key] || {}; return { ...a, [key]: { ...cur, ...(markDone ? { done: true } : {}), photos: [...(cur.photos || []), aid] } }; }));
+    setUploading((u) => ({ ...u, [key]: false }));
+    clearTimeout(timer.current); pending.current = true; setTimeout(persistNow, 0);
+  }
+  function removePhoto(key, aid) {
+    setA((a) => { const cur = a[key] || {}; return { ...a, [key]: { ...cur, photos: (cur.photos || []).filter((p) => p !== aid) } }; });
+    schedule();
+    if (P.assets) P.assets.delete(aid).catch(() => {});
+  }
+  async function submit() {
+    setError(null);
+    if (walkDone < walkMin) { setError(`Add photos of at least ${walkMin} store areas in the photo walk (${walkDone} so far).`); document.getElementById("walk")?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    if (photoMissing.length) { setError(`${photoMissing.length} ticked item${photoMissing.length > 1 ? "s need" : " needs"} a photo.`); return; }
+    if (open > 0 && note.trim().length < 10) { setError(`Explain the ${open} open item${open > 1 ? "s" : ""} in the note before submitting.`); document.getElementById("note")?.focus(); return; }
+    setBusy(true); clearTimeout(timer.current); pending.current = false;
+    await (queues[path] || Promise.resolve()).catch(() => {});
+    try {
+      const cur = await P.db.doc(path).get();
+      if (cur.exists && cur.data().status === "submitted") { setBusy(false); setError("This report was already submitted."); return; }
+      await enqueue(path, () => P.db.doc(path).set(buildDoc("submitted")));
+      showToast(`${t.name} submitted`);
+      go({ v: "summary", store: storeId, template: t.key, period, owner, fresh: true });
+    } catch (e) { console.error(e); setError(errText(e)); }
+    setBusy(false);
+  }
+  async function reopen() {
+    setBusy(true);
+    try { await enqueue(path, () => P.db.doc(path).update({ status: "draft", updated_by: P.me, updated_at: new Date().toISOString() })); showToast("Reopened for edits"); }
+    catch (e) { setError(errText(e)); }
+    setBusy(false);
+  }
+  const due = `${S.fmtDay(S.dueDate(t.frequency, period))}, ${S.dueTimeFor(t, store)}`;
+  const totalSteps = items.length + (walkMin ? 1 : 0);
+  const stepsDone = done + (walkMin && walkDone >= walkMin ? 1 : 0);
+
+  return html`
+    <button class="back" onClick=${() => go(isAdmin ? { v: "store", store: storeId } : null)}><${Icon} n="back" s=${16} />${store.name}</button>
+    <section class="report-head">
+      <div class="eyebrow">${S.FREQ_LABEL[t.frequency]} · ${S.periodLabel(t.frequency, period)}</div>
+      <div class="row between gap8"><h1>${t.name}</h1><${Pill} state=${status === "submitted" ? "submitted" : status ? "draft" : "due"} /></div>
+      <p class="muted">${t.description}</p>
+      <p class="small muted">Due ${due}</p>
+    </section>
+    ${notStarted && html`<div class="alert warn">This period hasn't started yet.</div>`}
+    ${!allowed && !ctx.preview && status !== "submitted" && html`<div class="alert warn">You can view this checklist but not fill it in.${t.adminOnly ? " Only Founder's Office runs surprise audits." : ""}</div>`}
+    ${status === "submitted" && html`<div class="alert good row between gap8">
+      <span>Submitted ${fmtStamp(doc.data.submitted_at)}.${doc.data.score != null ? ` Score ${doc.data.score} / 100.` : ""}</span>
+      <span class="row gap8">
+        <button class="btn sm" onClick=${() => go({ v: "summary", store: storeId, template: t.key, period, owner })}><${Icon} n="doc" s=${16} />A4 summary</button>
+        ${isAdmin && canWrite && html`<button class="btn ghost sm" disabled=${busy} onClick=${reopen}>Reopen</button>`}
+      </span>
+    </div>`}
+
+    ${walkMin > 0 && !doc.loading && html`<section class="card walk" id="walk">
+      <div class="list-h"><div><h2>Store photo walk</h2><p class="small muted">Photograph at least ${walkMin} different areas so Founder's Office can see the store is clean. Add as many photos per area as you like.</p></div>
+        <span class=${"pill " + (walkDone >= walkMin ? "submitted" : "due")}>${walkDone} of ${walkMin}</span></div>
+      <div class="walk-grid">${WALK_ZONES.map(([z, label]) => {
+        const key = "walk:" + z, photos = (A[key] || {}).photos || [];
+        return html`<div class=${"zone" + (photos.length ? " has" : "")}>
+          <div class="zone-h"><span>${label}</span>${photos.length > 0 && html`<span class="zone-n"><${Icon} n="check" s=${14} />${photos.length}</span>`}</div>
+          ${photos.length > 0 && html`<div class="thumbs">${photos.map((p) => html`<${Photo} id=${p} caption=${label} onRemove=${editable ? () => removePhoto(key, p) : null} />`)}</div>`}
+          ${editable && P.assets && html`<${PhotoPicker} compact=${true} label=${photos.length ? "Add more" : "Add photos"} busy=${uploading[key]} onFiles=${(fs) => addPhotos(key, fs, false)} />`}
+        </div>`;
+      })}</div>
+    </section>`}
+
+    ${preview && html`<section class="card pad score-card">
+      <div class="score"><span class="big num">${preview.total}</span><span class="muted">/ 100 · pass mark 90</span>
+        ${preview.total >= 90 ? html`<span class="pill submitted">Pass</span>` : preview.total >= 75 ? html`<span class="pill due">Fix plan in 48 hours</span>` : html`<span class="pill overdue">Founder's Office audit</span>`}</div>
+      ${preview.capped && html`<p class="req">${breachesInWeek} breach${breachesInWeek > 1 ? "es" : ""} this week, so the score is capped at 75 (raw ${preview.raw}).</p>`}
+      <details><summary>Score by area</summary><div class="tbl"><table><tbody>${preview.areas.map((a) => html`<tr><td>${a.name}</td><td class="n muted">${a.weight}</td><td class="n">${a.points}</td></tr>`)}</tbody></table></div>
+      <p class="small muted">A zone with every item met scores full, one or two misses score half, more than two score zero. One miss in client washrooms scores zero.</p></details>
+    </section>`}
+
+    ${doc.loading ? html`<div class="card pad muted">Loading…</div>` : t.sections.map((sec) => {
+      const res = S.sectionResult(sec, A), met = sec.items.length - res.fails;
+      return html`<section class=${"card sec" + (met === sec.items.length ? " complete" : "")}>
+        <header class="sec-h">
+          <div><h3>${sec.title}</h3>${sec.hint && html`<p class="small muted">${sec.hint}</p>`}</div>
+          <div class="row gap8">
+            <span class="small muted num">${met}/${sec.items.length}${sec.strict ? " · strict" : ""}</span>
+            ${editable && quickOk && met < sec.items.length && html`<button class="btn ghost xs" onClick=${() => tickAll(sec)}>All OK</button>`}
+          </div>
+        </header>
+        <ul class="items">${sec.items.map((it) => {
+          const a = A[it.id] || {}, iid = "i-" + it.id, photos = a.photos || [];
+          return html`<li class=${"item" + (a.done ? " done" : "")}>
+            <label class="tap" for=${iid}>
+              <input class="cb" id=${iid} type="checkbox" checked=${!!a.done} disabled=${!editable} onChange=${(e) => patch(it.id, { done: e.currentTarget.checked })} />
+              <span class="txt">${it.text}${it.photo && html` <span class="tag"><${Icon} n="camera" s=${13} />photo</span>`}</span>
+            </label>
+            ${(photos.length > 0 || (editable && (it.photo || a.note !== undefined)) || (!editable && a.note)) && html`<div class="extra">
+              ${photos.length > 0 && html`<div class="thumbs">${photos.map((p) => html`<${Photo} id=${p} onRemove=${editable ? () => removePhoto(it.id, p) : null} />`)}</div>`}
+              ${editable && it.photo && P.assets && html`<${PhotoPicker} compact=${true} label=${photos.length ? "Add more" : "Add photo"} busy=${uploading[it.id]} onFiles=${(fs) => addPhotos(it.id, fs, true)} />`}
+              ${it.photo && a.done && !photos.length && html`<span class="req">Photo needed</span>`}
+              ${a.note !== undefined && (editable
+                ? html`<input type="text" class="item-note" id=${"n-" + it.id} aria-label=${"Note for " + it.text} value=${a.note} placeholder="Note" onInput=${(e) => patch(it.id, { note: e.currentTarget.value })} />`
+                : a.note ? html`<p class="small muted">Note: ${a.note}</p>` : null)}
+            </div>`}
+            ${editable && a.note === undefined && html`<button class="note-btn" aria-label=${"Add note to " + it.text} onClick=${() => patch(it.id, { note: "" })}>+ note</button>`}
+          </li>`;
+        })}</ul>
+      </section>`;
+    })}
+    <section class="card pad stack">
+      <label class="f" for="note">${open > 0 && editable ? `What's pending on the ${open} open item${open > 1 ? "s" : ""}, and when will it be fixed?` : "Overall note"}</label>
+      ${editable ? html`<textarea id="note" value=${note} placeholder="Shortages, faults, follow ups" onInput=${(e) => { const v = e.currentTarget.value; setNote(v); latest.current.note = v; schedule(); }}></textarea>`
+        : html`<p>${shownNote || html`<span class="muted">No note.</span>`}</p>`}
+    </section>
+    ${editable && html`<div class="submit-bar"><div class="wrap submit-in">
+      <div class="submit-meta">
+        <${Progress} value=${totalSteps ? stepsDone / totalSteps : 0} />
+        <span class="small"><b class="num">${done}/${items.length}</b> ticked${walkMin ? ` · ${walkDone}/${walkMin} areas` : ""}${photoMissing.length ? ` · ${photoMissing.length} photo${photoMissing.length > 1 ? "s" : ""} needed` : ""}</span>
+        <span class="saving">${save.state === "saving" ? "Saving…" : save.state === "error" ? "Not saved" : save.at ? `Saved ${fmtStamp(save.at)}` : "Saves automatically"}</span>
+      </div>
+      <button class="btn" disabled=${busy} onClick=${submit}>${busy ? "Submitting…" : "Submit"}</button>
+    </div>${error && html`<div class="wrap"><p class="req submit-err">${error}</p></div>`}</div>`}
+    ${!editable && error && html`<p class="req">${error}</p>`}
+    ${editable && html`<div aria-hidden="true" style="height:96px"></div>`}`;
+}
+
+/* ============================================================ A4 summary + PDF */
+function summarize(t, store, d, nameOf) {
+  const A = d.answers || {};
+  const sections = t.sections.map((sec) => {
+    const r = S.sectionResult(sec, A), met = sec.items.length - r.fails;
+    const status = r.fails === 0 ? "OK" : sec.strict || r.fails > 2 ? "Fail" : "Attention";
+    return { title: sec.title.replace(/^\d+\.\s*/, ""), met, total: sec.items.length, status };
+  });
+  const openItems = [];
+  t.sections.forEach((sec) => sec.items.forEach((it) => { const a = A[it.id] || {}; if (!a.done) openItems.push({ text: it.text, note: a.note || "" }); }));
+  const notes = [];
+  t.sections.forEach((sec) => sec.items.forEach((it) => { const a = A[it.id] || {}; if (a.done && a.note) notes.push({ text: it.text, note: a.note }); }));
+  const walk = WALK_ZONES.flatMap(([z, label]) => ((A["walk:" + z] || {}).photos || []).slice(0, 1).map((id) => ({ id, label })));
+  const itemPhotos = [];
+  t.sections.forEach((sec) => sec.items.forEach((it) => ((A[it.id] || {}).photos || []).slice(0, 1).forEach((id) => itemPhotos.push({ id, label: it.text }))));
+  const items = S.allItems(t), met = items.filter((i) => A[i.id] && A[i.id].done).length;
+  const verdict = d.score != null ? (d.score >= 90 ? "Pass" : d.score >= 75 ? "Fix plan within 48 hours" : "Founder's Office audit") : openItems.length ? `${openItems.length} open item${openItems.length > 1 ? "s" : ""}` : "All standards met";
+  return {
+    title: t.name, store: store.name, freq: S.FREQ_LABEL[t.frequency], periodLabel: S.periodLabel(t.frequency, d.period),
+    by: nameOf(d.submitted_by), at: fmtStamp(d.submitted_at), date: fmtDate(d.submitted_at), verdict,
+    stats: [
+      d.score != null ? { v: String(d.score), k: "Audit score / 100" } : { v: Math.round((d.completion || 0) * 100) + "%", k: "Completion" },
+      { v: `${met}/${items.length}`, k: "Standards met" }, { v: String(openItems.length), k: "Open items" }, { v: String(d.photo_count || 0), k: "Photos" },
+    ],
+    sections, openItems, notes, note: d.note || "", photos: [...walk, ...itemPhotos].slice(0, 6),
+  };
+}
+let jspdfLoading = null;
+function loadJsPdf() {
+  if (window.jspdf) return Promise.resolve();
+  if (!jspdfLoading) jspdfLoading = new Promise((res, rej) => {
+    const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js";
+    s.onload = res; s.onerror = () => { jspdfLoading = null; rej(new Error("load")); }; document.head.appendChild(s);
+  });
+  return jspdfLoading;
+}
+async function imgData(id, maxPx) {
+  try {
+    const r = await fetch("/_blob/" + id); if (!r.ok) return null;
+    const bmp = await createImageBitmap(await r.blob());
+    const sc = Math.min(1, maxPx / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+    const g = c.getContext("2d"); g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+    return { data: c.toDataURL("image/jpeg", 0.85), w: c.width, h: c.height };
+  } catch (e) { return null; }
+}
+async function buildPdf(sum, logoId) {
+  await loadJsPdf();
+  const { jsPDF } = window.jspdf;
+  const d = new jsPDF({ unit: "mm", format: "a4" });
+  const M = 16, R = 194, LIMIT = 280;
+  const INK = [43, 43, 43], SOFT = [107, 100, 90], RULE = [226, 219, 208], PAPER = [247, 244, 240], STONE = [140, 128, 112];
+  const ST = { OK: [78, 107, 74], Attention: [143, 106, 42], Fail: [148, 68, 58] };
+  const col = (c) => d.setTextColor(c[0], c[1], c[2]);
+  const font = (f, st, sz) => { d.setFont(f, st); d.setFontSize(sz); };
+  let y = M;
+  const logo = logoId ? await imgData(logoId, 800) : null;
+  if (logo) { const hh = 11, ww = Math.min(70, hh * logo.w / logo.h); d.addImage(logo.data, "JPEG", M, y - 1, ww, hh); }
+  else { font("times", "normal", 17); col(INK); d.text("MAGPPIE", M, y + 7, { charSpace: 2.4 }); }
+  font("helvetica", "normal", 7.5); col(STONE); d.text("STORE STANDARDS REPORT", R, y + 3.5, { align: "right" });
+  col(SOFT); d.text(sum.date, R, y + 8.5, { align: "right" });
+  y += 15; d.setDrawColor(...RULE); d.setLineWidth(0.3); d.line(M, y, R, y); y += 11;
+  font("times", "normal", 22); col(INK); d.text(sum.title, M, y); y += 7;
+  font("helvetica", "normal", 10.5); col(SOFT); d.text(`${sum.store}   ·   ${sum.freq}   ·   ${sum.periodLabel}`, M, y); y += 9;
+  const meta = [["SUBMITTED BY", sum.by], ["SUBMITTED ON", sum.at], ["RESULT", sum.verdict]];
+  const mw = (R - M) / 3;
+  meta.forEach(([k, v], i) => { font("helvetica", "normal", 7); col(STONE); d.text(k, M + i * mw, y, { charSpace: 0.4 }); font("helvetica", "normal", 10); col(INK); d.text(d.splitTextToSize(v || "", mw - 4)[0] || "", M + i * mw, y + 5); });
+  y += 11;
+  const bw = (R - M - 9) / 4;
+  sum.stats.forEach((s, i) => {
+    const x = M + i * (bw + 3);
+    d.setFillColor(...PAPER); d.setDrawColor(...RULE); d.roundedRect(x, y, bw, 19, 1.5, 1.5, "FD");
+    font("times", "bold", 17); col(INK); d.text(s.v, x + 4, y + 9.5);
+    font("helvetica", "normal", 7.5); col(SOFT); d.text(s.k, x + 4, y + 15);
+  });
+  y += 27;
+  const rh = sum.sections.length > 8 ? 5.2 : 6.5;
+  font("helvetica", "normal", 7); col(STONE); d.text("SECTION", M, y, { charSpace: 0.4 }); d.text("MET", 150, y, { align: "right" }); d.text("STATUS", R, y, { align: "right" });
+  y += 2; d.line(M, y, R, y); y += rh - 1.5;
+  sum.sections.forEach((s) => {
+    font("helvetica", "normal", 9); col(INK); d.text(d.splitTextToSize(s.title, 120)[0], M, y); d.text(`${s.met}/${s.total}`, 150, y, { align: "right" });
+    col(ST[s.status]); font("helvetica", "bold", 8.5); d.text(s.status, R, y, { align: "right" });
+    y += 1.6; d.setDrawColor(...RULE); d.line(M, y, R, y); y += rh - 1.6;
+  });
+  y += 3;
+  const photoRowH = 40;
+  const reserveNote = sum.note ? 16 : 0;
+  if (sum.openItems.length || sum.notes.length) {
+    font("helvetica", "normal", 7); col(STONE); d.text(sum.openItems.length ? "OPEN ITEMS" : "NOTES ON ITEMS", M, y, { charSpace: 0.4 }); y += 5;
+    const list = sum.openItems.length ? sum.openItems : sum.notes;
+    const minPhotos = sum.photos.length ? photoRowH + 8 : 0;
+    let shown = 0;
+    for (const it of list) {
+      const line = `${sum.openItems.length ? "•" : "–"}  ${it.text}${it.note ? `: ${it.note}` : ""}`;
+      const wrapped = d.splitTextToSize(line, R - M - 4).slice(0, 2);
+      if (y + wrapped.length * 4.3 > LIMIT - reserveNote - minPhotos) break;
+      font("helvetica", "normal", 9); col(INK); d.text(wrapped, M + 1, y); y += wrapped.length * 4.3 + 0.8; shown++;
+    }
+    if (shown < list.length) { font("helvetica", "italic", 8.5); col(SOFT); d.text(`+ ${list.length - shown} more in the app`, M + 1, y); y += 5; }
+    y += 2;
+  }
+  if (sum.note) {
+    font("helvetica", "normal", 7); col(STONE); d.text("MANAGER'S NOTE", M, y, { charSpace: 0.4 }); y += 5;
+    const lines = d.splitTextToSize(sum.note, R - M).slice(0, 3);
+    font("helvetica", "normal", 9); col(INK); d.text(lines, M, y); y += lines.length * 4.3 + 4;
+  }
+  const rows = Math.min(2, Math.floor((LIMIT - y - 6) / (photoRowH + 3)));
+  if (sum.photos.length && rows > 0) {
+    font("helvetica", "normal", 7); col(STONE); d.text("PHOTOS", M, y, { charSpace: 0.4 }); y += 3;
+    const cw = (R - M - 8) / 3, ih = photoRowH - 7;
+    const list = sum.photos.slice(0, rows * 3);
+    const imgs = await Promise.all(list.map((p) => imgData(p.id, 700)));
+    list.forEach((p, i) => {
+      const x = M + (i % 3) * (cw + 4), yy = y + Math.floor(i / 3) * (photoRowH + 3);
+      d.setFillColor(...PAPER); d.rect(x, yy, cw, ih, "F");
+      const im = imgs[i];
+      if (im) { const sc = Math.min(cw / im.w, ih / im.h), w = im.w * sc, hh = im.h * sc; d.addImage(im.data, "JPEG", x + (cw - w) / 2, yy + (ih - hh) / 2, w, hh); }
+      font("helvetica", "normal", 7.5); col(SOFT); d.text(d.splitTextToSize(p.label, cw)[0], x, yy + ih + 4);
+    });
+  }
+  d.setDrawColor(...RULE); d.line(M, 286, R, 286);
+  font("helvetica", "normal", 7); col(SOFT);
+  d.text(`Magppie Store Standards  ·  ${sum.store}  ·  ${sum.title}  ·  ${sum.periodLabel}`, M, 290.5);
+  d.text("Page 1 of 1", R, 290.5, { align: "right" });
+  return d.output("blob");
+}
+
+function Summary({ ctx, storeId, templateKey, period, owner, fresh }) {
+  const { allStores, go, isAdmin, settings } = ctx;
+  const store = allStores.find((s) => s.id === storeId);
+  const t = store ? S.getTemplate(templateKey, store) : null;
+  const path = t && owner ? `${repCol(owner)}/${repId(storeId, templateKey, period)}` : null;
+  const doc = useDoc(path);
+  const names = useNames([doc.data && doc.data.submitted_by]);
+  const [busy, setBusy] = useState(false);
+  if (!t) return html`<div class="card pad">Report not found.</div>`;
+  if (doc.loading) return html`<div class="card pad muted">Loading…</div>`;
+  if (!doc.data) return html`<div class="card pad">This report hasn't been started.</div>`;
+  const sum = summarize(t, store, doc.data, names);
+  const fileName = `Magppie ${store.name} ${t.name} ${period}.pdf`.replace(/[^\w .-]/g, "");
+  async function download() {
+    if (!P.downloads) { showToast("Downloads aren't available in this view."); return; }
+    setBusy(true);
+    try {
+      const blob = await buildPdf(sum, settings.logo);
+      await P.downloads.save({ filename: fileName, data: blob });
+      showToast("PDF saved. Attach it to the email.");
+    } catch (e) {
+      if (!(e && e.code === "declined")) showToast(e && e.message === "load" ? "Couldn't load the PDF maker. Check your connection." : "Couldn't make the PDF. Try again.");
+    }
+    setBusy(false);
+  }
+  const subject = `${store.name} · ${t.name} · ${sum.periodLabel}`;
+  const statLine = sum.stats.map((s) => `${s.k}: ${s.v}`).join(" · ");
+  const body = [
+    "Hello,", "",
+    `This is the ${sum.freq.toLowerCase()} ${t.name.toLowerCase()} for ${store.name}, ${sum.periodLabel}, submitted by ${sum.by} on ${sum.at}.`, "",
+    `Result: ${sum.verdict}.`, statLine, "",
+    ...(sum.openItems.length ? ["Open items:", ...sum.openItems.slice(0, 6).map((o) => `- ${o.text}${o.note ? ": " + o.note : ""}`), ...(sum.openItems.length > 6 ? [`- and ${sum.openItems.length - 6} more`] : []), ""] : []),
+    ...(sum.note ? [`Note: ${sum.note}`, ""] : []),
+    "The full A4 report with photos is attached.", "", "Regards,", sum.by,
+  ].join("\n");
+  const stClass = { OK: "good", Attention: "warn", Fail: "bad" };
+
+  return html`
+    <button class="back" onClick=${() => go(isAdmin ? { v: "store", store: storeId } : null)}><${Icon} n="back" s=${16} />${store.name}</button>
+    ${fresh && html`<div class="alert good"><b>Submitted.</b> Download the A4 report below and email it to your manager and Founder's Office.</div>`}
+    <div class="row between gap8 wrap">
+      <h1>A4 summary</h1>
+      <div class="row gap8 wrap">
+        <button class="btn" disabled=${busy} onClick=${download}><${Icon} n="download" s=${16} />${busy ? "Making PDF…" : "Download PDF"}</button>
+        <button class="btn ghost" onClick=${() => go({ v: "report", store: storeId, template: templateKey, period, owner })}>Open checklist</button>
+      </div>
+    </div>
+    <div class="sheet-wrap"><article class="sheet" aria-label="A4 report preview">
+      <header class="sheet-h"><${Logo} settings=${settings} size="sm" /><div class="sheet-tag"><span>STORE STANDARDS REPORT</span><span>${sum.date}</span></div></header>
+      <h2 class="sheet-title">${sum.title}</h2>
+      <p class="sheet-sub">${sum.store} · ${sum.freq} · ${sum.periodLabel}</p>
+      <div class="sheet-meta"><div><span>Submitted by</span><b>${sum.by}</b></div><div><span>Submitted on</span><b>${sum.at}</b></div><div><span>Result</span><b>${sum.verdict}</b></div></div>
+      <div class="sheet-stats">${sum.stats.map((s) => html`<div><b class="num">${s.v}</b><span>${s.k}</span></div>`)}</div>
+      <table class="sheet-table"><thead><tr><th>Section</th><th class="n">Met</th><th class="n">Status</th></tr></thead>
+        <tbody>${sum.sections.map((s) => html`<tr><td>${s.title}</td><td class="n num">${s.met}/${s.total}</td><td class=${"n st " + stClass[s.status]}>${s.status}</td></tr>`)}</tbody></table>
+      ${sum.openItems.length > 0 && html`<div class="sheet-block"><span class="cap">Open items</span><ul>${sum.openItems.slice(0, 8).map((o) => html`<li>${o.text}${o.note ? html`<span class="muted">: ${o.note}</span>` : ""}</li>`)}</ul>${sum.openItems.length > 8 && html`<p class="small muted">+ ${sum.openItems.length - 8} more in the app</p>`}</div>`}
+      ${sum.note && html`<div class="sheet-block"><span class="cap">Manager's note</span><p>${sum.note}</p></div>`}
+      ${sum.photos.length > 0 && html`<div class="sheet-block"><span class="cap">Photos</span><div class="sheet-photos">${sum.photos.map((p) => html`<figure><img src=${"/_blob/" + p.id} alt=${p.label} loading="lazy" /><figcaption>${p.label}</figcaption></figure>`)}</div></div>`}
+      <footer class="sheet-f">Magppie Store Standards · ${sum.store} · ${sum.title} · ${sum.periodLabel}</footer>
+    </article></div>
+    <${EmailHelper} title="Email it to 2 or 3 people" hint="Download the PDF first, then attach it to this email." to=${settings.reportRecipients || ""} subject=${subject} body=${body} />`;
+}
+
+/* ============================================================ upkeep */
+function UpkeepForm({ ctx, onDone }) {
+  const { isAdmin, myStore, stores, now } = ctx;
+  const [f, setF] = useState({ store: myStore ? myStore.id : (stores[0] && stores[0].id) || "", cat: UPKEEP_CATS[0], item: "", area: "", qty: "", urgency: "week", note: "" });
+  const [photos, setPhotos] = useState([]);
+  const [up, setUp] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  async function submit(e) {
+    e.preventDefault(); setErr(null);
+    if (!f.item.trim()) { setErr("Say what is broken or needs replacing."); return; }
+    setBusy(true);
+    const rec = { store_id: f.store, category: f.cat, item: f.item.trim().slice(0, 200), area: f.area.trim().slice(0, 120), qty: f.qty.trim().slice(0, 60),
+      urgency: f.urgency, note: f.note.trim().slice(0, 1500), photos, status: "open", created_by: P.me, created_at: new Date().toISOString(), date: now.date, updates: [] };
+    try { const ref = await P.db.collection(upkeepCol(P.me)).add(rec); onDone({ ...rec, id: ref.id }); }
+    catch (e2) { setErr(errText(e2)); }
+    setBusy(false);
+  }
+  return html`<form class="card pad stack" onSubmit=${submit}>
+    <h2>New upkeep request</h2>
+    ${isAdmin && html`<label class="f">Store<select id="u-store" value=${f.store} onChange=${(e) => setF({ ...f, store: e.currentTarget.value })}>${stores.map((s) => html`<option value=${s.id}>${s.name}</option>`)}</select></label>`}
+    <div class="f"><span>What kind of issue?</span><div class="chips">${UPKEEP_CATS.map((c) => html`<button type="button" class="chip" aria-pressed=${f.cat === c} onClick=${() => setF({ ...f, cat: c })}>${c}</button>`)}</div></div>
+    <label class="f">What is broken or needs replacing?<input id="u-item" type="text" value=${f.item} required placeholder=${f.cat === "Sample replacement" ? "e.g. Silverstone sample, shade name, chipped" : "e.g. Soft close hinge on island drawer"} onInput=${(e) => setF({ ...f, item: e.currentTarget.value })} /></label>
+    <div class="form-grid">
+      <label class="f">Where in the store<input id="u-area" type="text" value=${f.area} placeholder="e.g. Display kitchen 2" onInput=${(e) => setF({ ...f, area: e.currentTarget.value })} /></label>
+      <label class="f">Quantity<input id="u-qty" type="text" value=${f.qty} placeholder="e.g. 2 pieces" onInput=${(e) => setF({ ...f, qty: e.currentTarget.value })} /></label>
+    </div>
+    <div class="f"><span>How urgent?</span><div class="seg">${URGENCY.map(([k, l]) => html`<button type="button" aria-pressed=${f.urgency === k} onClick=${() => setF({ ...f, urgency: k })}>${l}</button>`)}</div></div>
+    <div class="f"><span>Photos</span>
+      ${photos.length > 0 && html`<div class="thumbs">${photos.map((p) => html`<${Photo} id=${p} onRemove=${() => setPhotos(photos.filter((x) => x !== p))} />`)}</div>`}
+      ${P.assets ? html`<${PhotoPicker} label=${photos.length ? "Add more photos" : "Add photos"} busy=${up} onFiles=${async (fs) => { setUp(true); await uploadMany(fs, (id) => setPhotos((ps) => [...ps, id])); setUp(false); }} />` : html`<p class="small muted">Photo upload needs Contributor access.</p>`}
+    </div>
+    <label class="f">Anything else<textarea id="u-note" value=${f.note} placeholder="When it happened, what's affected, any vendor details" onInput=${(e) => setF({ ...f, note: e.currentTarget.value })}></textarea></label>
+    ${err && html`<p class="req">${err}</p>`}
+    <div><button class="btn" disabled=${busy || up}>${busy ? "Sending…" : "Log request"}</button></div>
+  </form>`;
+}
+function upkeepEmail(r, storeName, settings, byName) {
+  const urg = (URGENCY.find((u) => u[0] === r.urgency) || [, ""])[1];
+  return {
+    to: settings.upkeepRecipients || settings.reportRecipients || "",
+    subject: `Upkeep request · ${storeName} · ${r.category}: ${r.item}${r.urgency === "urgent" ? " (urgent)" : ""}`,
+    body: ["Hello,", "", `${storeName} has logged an upkeep request.`, "", `Type: ${r.category}`, `Item: ${r.item}`, r.area ? `Where: ${r.area}` : null, r.qty ? `Quantity: ${r.qty}` : null, `Urgency: ${urg}`, r.note ? `Details: ${r.note}` : null, `Photos: ${(r.photos || []).length} (in Store Standards, Upkeep)`, "", "Regards,", byName].filter((x) => x !== null).join("\n"),
+  };
+}
+function UpkeepCard({ r, ctx, names, admin }) {
+  const storeName = (ctx.allStores.find((s) => s.id === r.store_id) || { name: r.store_id }).name;
+  const [st, setSt] = useState(r.status);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const label = (UPKEEP_STATUS.find((s) => s[0] === r.status) || [, r.status])[1];
+  const pill = r.status === "resolved" ? "submitted" : r.status === "open" ? (r.urgency === "urgent" ? "overdue" : "due") : "draft";
+  async function saveStatus() {
+    setBusy(true);
+    try {
+      await P.db.doc(`${upkeepCol(r._owner)}/${r.id}`).update({ status: st, updated_at: new Date().toISOString(), updates: [...(r.updates || []), { status: st, note: msg.trim().slice(0, 500), by: P.me, at: new Date().toISOString() }] });
+      setMsg(""); showToast("Status updated");
+    } catch (e) { showToast(errText(e)); }
+    setBusy(false);
+  }
+  return html`<article class="card upk">
+    <div class="upk-h"><div><span class="eyebrow">${admin ? storeName + " · " : ""}${r.category}</span><h3>${r.item}</h3>
+      <p class="small muted">${[r.area, r.qty].filter(Boolean).join(" · ")}${r.area || r.qty ? " · " : ""}${S.fmtDay(r.date)} · ${names(r.created_by)}</p></div>
+      <div class="stack" style="gap:6px;align-items:flex-end"><${Pill} state=${pill} label=${label} />${r.urgency === "urgent" && r.status !== "resolved" && html`<span class="small bad">Urgent</span>`}</div></div>
+    ${r.note && html`<p>${r.note}</p>`}
+    ${(r.photos || []).length > 0 && html`<div class="thumbs">${r.photos.map((p) => html`<${Photo} id=${p} />`)}</div>`}
+    ${(r.updates || []).length > 0 && html`<ul class="timeline">${r.updates.map((u) => html`<li><b>${(UPKEEP_STATUS.find((s) => s[0] === u.status) || [, u.status])[1]}</b> · ${fmtStamp(u.at)} · ${names(u.by)}${u.note ? html`<span>: ${u.note}</span>` : ""}</li>`)}</ul>`}
+    ${admin && ctx.canWrite && html`<div class="upk-act">
+      <select id=${"us-" + r.id} value=${st} onChange=${(e) => setSt(e.currentTarget.value)}>${UPKEEP_STATUS.map(([k, l]) => html`<option value=${k}>${l}</option>`)}</select>
+      <input type="text" id=${"um-" + r.id} value=${msg} placeholder="Update note (optional)" onInput=${(e) => setMsg(e.currentTarget.value)} />
+      <button class="btn sm" disabled=${busy || (st === r.status && !msg.trim())} onClick=${saveStatus}>Update</button>
+    </div>`}
+  </article>`;
+}
+function Upkeep({ ctx }) {
+  const { isAdmin, allStores, settings } = ctx;
+  const uids = isAdmin ? ctx.writers : [P.me];
+  const q = useMulti("upk", uids, (db, uid) => db.collection(upkeepCol(uid)).orderBy("created_at", "desc").limit(200));
+  const list = useMemo(() => [...q.docs].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || "")), [q.docs]);
+  const names = useNames(list.flatMap((r) => [r.created_by, ...(r.updates || []).map((u) => u.by)]));
+  const [showForm, setShowForm] = useState(!isAdmin);
+  const [sent, setSent] = useState(null);
+  const [filter, setFilter] = useState("active");
+  const [storeF, setStoreF] = useState("");
+  const shown = list.filter((r) => (filter === "all" || (filter === "active" ? r.status !== "resolved" : r.status === "resolved")) && (!storeF || r.store_id === storeF));
+  const sentEmail = sent ? upkeepEmail(sent, (allStores.find((s) => s.id === sent.store_id) || {}).name || "", settings, P.myName || "") : null;
+  return html`
+    <div class="row between gap8 wrap"><div class="stack tight"><div class="eyebrow">Store upkeep</div><h1>Breakage and replacements</h1></div>
+      ${!showForm && !sent && ctx.canWrite && html`<button class="btn" onClick=${() => setShowForm(true)}><${Icon} n="plus" s=${16} />New request</button>`}</div>
+    <p class="muted">Log anything broken, damaged or running out: samples, displays, appliances, fixtures, lighting. Founder's Office tracks every request until it is resolved.</p>
+    ${sent ? html`<div class="alert good row between gap8"><span><b>Request logged.</b> Email it to Founder's Office so it's actioned.</span><button class="btn ghost sm" onClick=${() => { setSent(null); setShowForm(true); }}>Log another</button></div>
+      <${EmailHelper} title="Email Founder's Office" to=${sentEmail.to} subject=${sentEmail.subject} body=${sentEmail.body} />`
+      : showForm && ctx.canWrite && html`<${UpkeepForm} ctx=${ctx} onDone=${(r) => { setSent(r); setShowForm(false); }} />`}
+    <div class="row between gap8 wrap">
+      <h2>${isAdmin ? "All requests" : "Your requests"}</h2>
+      <div class="row gap8 wrap">
+        ${isAdmin && html`<select id="uf-store" value=${storeF} onChange=${(e) => setStoreF(e.currentTarget.value)} style="width:auto"><option value="">All stores</option>${allStores.map((s) => html`<option value=${s.id}>${s.name}</option>`)}</select>`}
+        <div class="seg small-seg">${[["active", "Active"], ["resolved", "Resolved"], ["all", "All"]].map(([k, l]) => html`<button type="button" aria-pressed=${filter === k} onClick=${() => setFilter(k)}>${l}</button>`)}</div>
+      </div>
+    </div>
+    ${shown.length === 0 ? html`<div class="empty">${q.loading ? "Loading…" : filter === "active" ? "No open requests." : "Nothing here yet."}</div>`
+      : shown.map((r) => html`<${UpkeepCard} key=${r._owner + r.id} r=${r} ctx=${ctx} names=${names} admin=${isAdmin} />`)}`;
+}
+
+/* ============================================================ breach (store manager form) */
+function BreachForm({ ctx, onDone }) {
+  const { isAdmin, myStore, stores, now } = ctx;
+  const [f, setF] = useState({ store: myStore ? myStore.id : (stores[0] && stores[0].id) || "", date: now.date, rule: 13, staff: "", note: "" });
+  const [photos, setPhotos] = useState([]);
+  const [up, setUp] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  async function submit(e) {
+    e.preventDefault(); setErr(null);
+    if (!f.staff.trim() || f.note.trim().length < 5) { setErr("Add the staff name and what happened."); return; }
+    setBusy(true);
+    try {
+      await P.db.collection(breachCol(P.me)).add({ store_id: f.store, date: f.date, rule_no: Number(f.rule), staff: f.staff.trim().slice(0, 120), note: f.note.trim().slice(0, 1000), photos, logged_by: P.me, at: new Date().toISOString() });
+      setF({ ...f, staff: "", note: "" }); setPhotos([]); showToast("Breach logged"); onDone && onDone();
+    } catch (e2) { setErr(errText(e2)); }
+    setBusy(false);
+  }
+  return html`<form class="card pad stack" onSubmit=${submit}>
+    <h2>Log a breach</h2>
+    <div class="form-grid">
+      ${isAdmin && html`<label class="f">Store<select id="b-store" value=${f.store} onChange=${(e) => setF({ ...f, store: e.currentTarget.value })}>${stores.map((s) => html`<option value=${s.id}>${s.name}</option>`)}</select></label>`}
+      <label class="f">Date<input id="b-date" type="date" value=${f.date} max=${now.date} onInput=${(e) => setF({ ...f, date: e.currentTarget.value })} /></label>
+      <label class="f">Staff responsible<input id="b-staff" type="text" value=${f.staff} placeholder="Name" onInput=${(e) => setF({ ...f, staff: e.currentTarget.value })} /></label>
+    </div>
+    <label class="f">Which non-negotiable<select id="b-rule" value=${f.rule} onChange=${(e) => setF({ ...f, rule: e.currentTarget.value })}>${S.NON_NEGOTIABLES.map((n, i) => html`<option value=${i + 1}>${i + 1}. ${n}</option>`)}</select></label>
+    <label class="f">What happened and the fix<textarea id="b-note" value=${f.note} onInput=${(e) => setF({ ...f, note: e.currentTarget.value })}></textarea></label>
+    <div class="f"><span>Photos (optional)</span>
+      ${photos.length > 0 && html`<div class="thumbs">${photos.map((p) => html`<${Photo} id=${p} onRemove=${() => setPhotos(photos.filter((x) => x !== p))} />`)}</div>`}
+      ${P.assets && html`<${PhotoPicker} label="Add photos" busy=${up} onFiles=${async (fs) => { setUp(true); await uploadMany(fs, (id) => setPhotos((ps) => [...ps, id])); setUp(false); }} />`}</div>
+    ${err && html`<p class="req">${err}</p>`}
+    <div><button class="btn" disabled=${busy || up}>${busy ? "Logging…" : "Log breach"}</button></div>
+  </form>`;
+}
+function BreachSM({ ctx }) {
+  const q = useMulti("mybr", [P.me], (db, uid) => db.collection(breachCol(uid)).orderBy("date", "desc").limit(20));
+  return html`
+    <div class="stack tight"><div class="eyebrow">Non-negotiables</div><h1>Log a breach</h1>
+      <p class="muted">Log every non-negotiable breach the same day. Any breach in a week caps that week's audit score at 75.</p></div>
+    ${ctx.canWrite && html`<${BreachForm} ctx=${ctx} />`}
+    ${q.docs.length > 0 && html`<section class="card list"><div class="list-h"><h2>Logged by you</h2></div>
+      ${q.docs.map((b) => html`<div class="due-row static"><span class="due-main"><span class="t">${b.rule_no}. ${S.NON_NEGOTIABLES[b.rule_no - 1] || ""}</span><span class="m">${S.fmtDay(b.date)} · ${b.staff} · ${b.note}</span></span></div>`)}</section>`}`;
+}
+
+/* ============================================================ Founder's Office views */
+const COLS = [["opening", "Opening"], ["midday", "Midday"], ["closing", "Closing"], ["washroom-log", "Washroom"], ["weekly-audit", "Audit"], ["weekly-cleaning", "Clean"], ["inventory", "Stock"]];
+function reminderText(store, overdue, current) {
+  const due = current.filter((c) => c.state === "due" || c.state === "draft");
+  const lines = [`Magppie Store Standards: ${store.name}`];
+  if (overdue.length) { lines.push("", `${overdue.length} report${overdue.length > 1 ? "s are" : " is"} overdue:`); overdue.forEach((o) => lines.push(`- ${o.template.name} (${o.label})`)); }
+  if (due.length) { lines.push("", "Due next:"); due.forEach((d) => lines.push(`- ${d.template.name}, due ${d.dueDate === S.nowIST().date ? "today" : S.fmtDay(d.dueDate)} by ${d.dueTime}`)); }
+  lines.push("", "Please submit them in Store Standards with photos.");
+  return lines.join("\n");
+}
+function Dashboard({ ctx }) {
+  const { now, stores, go } = ctx;
+  const periods = useMemo(() => S.periodsNeeded(now), [now.date]);
+  const reps = useMulti("dash:" + periods.join(","), ctx.writers, (db, uid) => db.collection(repCol(uid)).where("period", "in", periods));
+  const reports = useMemo(() => mergeReports(reps.docs), [reps.docs]);
+  const [ws, we] = S.periodRange("weekly", S.periodFor("weekly", now.date));
+  const br = useMulti("brw:" + ws, ctx.writers, (db, uid) => db.collection(breachCol(uid)).where("date", ">=", ws));
+  const upk = useMulti("upkopen", ctx.writers, (db, uid) => db.collection(upkeepCol(uid)).where("status", "in", ["open", "progress", "ordered"]));
+  const weekBr = br.docs.filter((b) => b.date <= we);
+  const month = S.periodFor("monthly", now.date);
+  const rows = stores.map((s) => ({
+    store: s, ...S.scheduleFor(s, reports, now),
+    breaches: weekBr.filter((b) => b.store_id === s.id).length,
+    upkeep: upk.docs.filter((u) => u.store_id === s.id).length,
+    surprise: reports.find((r) => r.store_id === s.id && r.template === "surprise-audit" && r.period === month),
+  }));
+  const allOverdue = rows.flatMap((r) => r.overdue.map((o) => ({ store: r.store, item: o })));
+  const daily = rows.flatMap((r) => r.current.filter((c) => c.template.frequency === "daily"));
+  const scores = rows.map((r) => { const a = r.current.find((c) => c.template.key === "weekly-audit"); return a && a.report && a.report.score; }).filter((x) => typeof x === "number");
+  const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+  const urgent = upk.docs.filter((u) => u.urgency === "urgent").length;
+  const openItem = (store, item) => go({ v: item.state === "submitted" ? "summary" : "report", store: store.id, template: item.template.key, period: item.period, owner: item.report ? item.report._owner : P.me });
+
+  return html`
+    <div class="stack tight"><div class="eyebrow">${S.fmtDay(now.date)} · ${now.time} IST</div><h1>All stores</h1></div>
+    <div class="tiles">
+      <div class="tile"><b class="num">${daily.filter((d) => d.state === "submitted").length}<small>/${daily.length}</small></b><span>Daily checks in today</span></div>
+      <div class="tile"><b class=${"num" + (allOverdue.length ? " bad" : "")}>${allOverdue.length}</b><span>Overdue reports</span></div>
+      <div class="tile"><b class="num">${avg == null ? "·" : avg}</b><span>Avg audit score this week</span></div>
+      <button class="tile" onClick=${() => go({ v: "upkeep" })}><b class=${"num" + (urgent ? " bad" : "")}>${upk.docs.length}</b><span>Open upkeep${urgent ? ` · ${urgent} urgent` : ""}</span></button>
+    </div>
+    <section class="card">
+      <div class="list-h"><h2>Today and this week</h2>
+        <div class="legend"><span><i class="state-dot submitted"></i>Submitted</span><span><i class="state-dot due"></i>Due</span><span><i class="state-dot overdue"></i>Overdue</span><span><i class="state-dot off"></i>Not required</span></div></div>
+      <div class="tbl"><table class="matrix">
+        <thead><tr><th>Store</th>${COLS.map(([, l]) => html`<th>${l}</th>`)}<th>Late</th><th>Upkeep</th><th>Surprise</th><th></th></tr></thead>
+        <tbody>${rows.map((r) => html`<tr>
+          <td><button class="link strong" onClick=${() => go({ v: "store", store: r.store.id })}>${r.store.name}</button></td>
+          ${COLS.map(([k]) => { const it = r.current.find((x) => x.template.key === k);
+            if (!it) return html`<td><span class="state-dot off" title="Not required"></span></td>`;
+            const lbl = `${it.template.name}: ${S.STATE_LABEL[it.state]}`;
+            return html`<td><button class="cell" title=${lbl} aria-label=${lbl} onClick=${() => openItem(r.store, it)}>${it.template.scored && it.report && it.report.score != null ? html`<b class="num">${it.report.score}</b>` : html`<span class=${"state-dot " + it.state}></span>`}</button></td>`; })}
+          <td>${r.overdue.length ? html`<span class="pill overdue">${r.overdue.length}</span>` : html`<span class="muted">0</span>`}</td>
+          <td>${r.upkeep ? html`<span class="pill due">${r.upkeep}</span>` : html`<span class="muted">0</span>`}</td>
+          <td><button class="link small" onClick=${() => go({ v: r.surprise && r.surprise.status === "submitted" ? "summary" : "report", store: r.store.id, template: "surprise-audit", period: month, owner: r.surprise ? r.surprise._owner : P.me })}>${r.surprise && r.surprise.status === "submitted" ? `${r.surprise.score}` : r.surprise ? "Draft" : "Start"}</button></td>
+          <td><button class="icon-btn" title="Copy WhatsApp reminder" aria-label=${"Copy reminder for " + r.store.name} onClick=${() => copyText(reminderText(r.store, r.overdue, r.current), "Reminder copied. Paste it into WhatsApp.")}><${Icon} n="copy" s=${16} /></button></td>
+        </tr>`)}</tbody>
+      </table></div>
+      <p class="small muted pad">Tap a dot to open that report. The copy button copies a WhatsApp reminder listing the store's overdue and due reports.</p>
+    </section>
+    <section class="card list">
+      <div class="list-h"><h2>Overdue across stores</h2>${allOverdue.length > 0 && html`<span class="pill overdue">${allOverdue.length}</span>`}</div>
+      ${allOverdue.length === 0 ? html`<p class="pad muted">${reps.loading ? "Loading…" : "Nothing overdue. Every store is on time."}</p>`
+        : allOverdue.slice(0, 60).map(({ store, item }) => html`<button class="due-row" onClick=${() => openItem(store, item)}>
+          <span class="state-dot overdue"></span>
+          <span class="due-main"><span class="t">${store.name} · ${item.template.name}</span><span class="m">${item.label} · was due ${S.fmtDay(item.dueDate)}, ${item.dueTime}${item.report ? " · started, not submitted" : ""}</span></span>
+          <${Icon} n="chev" s=${16} /></button>`)}
+    </section>`;
+}
+function ReportsLog({ ctx }) {
+  const { allStores, go } = ctx;
+  const [filter, setFilter] = useState("");
+  const [tmpl, setTmpl] = useState("");
+  const q = useMulti("log", ctx.writers, (db, uid) => db.collection(repCol(uid)).orderBy("updated_at", "desc").limit(150));
+  const rows = useMemo(() => mergeReports(q.docs).filter((r) => (!filter || r.store_id === filter) && (!tmpl || r.template === tmpl)).sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || "")).slice(0, 200), [q.docs, filter, tmpl]);
+  const names = useNames(rows.map((r) => r.submitted_by));
+  const sample = allStores[0] || DEFAULT_STORES[0];
+  return html`
+    <div class="stack tight"><div class="eyebrow">Founder's Office</div><h1>Reports</h1><p class="muted">Every report from every store, newest first. Open a submitted report for its A4 summary.</p></div>
+    <div class="row gap8 wrap">
+      <select id="log-store" style="width:auto" value=${filter} onChange=${(e) => setFilter(e.currentTarget.value)}><option value="">All stores</option>${allStores.map((s) => html`<option value=${s.id}>${s.name}</option>`)}</select>
+      <select id="log-tmpl" style="width:auto" value=${tmpl} onChange=${(e) => setTmpl(e.currentTarget.value)}><option value="">All checklists</option>${S.TEMPLATE_KEYS.map((k) => html`<option value=${k}>${S.getTemplate(k, sample).name}</option>`)}</select>
+    </div>
+    <section class="card list">
+      ${rows.length === 0 && html`<p class="pad muted">${q.loading ? "Loading…" : "No reports yet."}</p>`}
+      ${rows.map((r) => {
+        const st = allStores.find((s) => s.id === r.store_id) || sample, t = S.getTemplate(r.template, st);
+        if (!t) return null;
+        return html`<button class="due-row" onClick=${() => go({ v: r.status === "submitted" ? "summary" : "report", store: r.store_id, template: r.template, period: r.period, owner: r._owner })}>
+          <span class=${"state-dot " + (r.status === "submitted" ? "submitted" : "due")}></span>
+          <span class="due-main"><span class="t">${st.name} · ${t.name}</span><span class="m">${S.periodLabel(t.frequency, r.period)} · ${r.status === "submitted" ? `submitted by ${names(r.submitted_by)}, ${fmtStamp(r.submitted_at)}` : "draft"}${r.score != null ? ` · ${r.score}/100` : r.completion != null ? ` · ${Math.round(r.completion * 100)}%` : ""} · ${r.photo_count || 0} photos</span></span>
+          <${Icon} n="chev" s=${16} /></button>`;
+      })}
+    </section>`;
+}
+function BreachesAdmin({ ctx }) {
+  const { allStores, now } = ctx;
+  const q = useMulti("allbr", ctx.writers, (db, uid) => db.collection(breachCol(uid)).orderBy("date", "desc").limit(200));
+  const rows = useMemo(() => [...q.docs].sort((a, b) => (b.date + (b.at || "")).localeCompare(a.date + (a.at || ""))), [q.docs]);
+  const names = useNames(rows.map((b) => b.logged_by));
+  const [showForm, setShowForm] = useState(false);
+  const storeName = (id) => (allStores.find((s) => s.id === id) || { name: id }).name;
+  const since = S.addDays(now.date, -90), rep = {};
+  rows.filter((b) => b.date >= since).forEach((b) => { const k = b.store_id + "|" + String(b.staff).trim().toLowerCase(); rep[k] = rep[k] || { name: b.staff, store: b.store_id, n: 0 }; rep[k].n++; });
+  const repeats = Object.values(rep).filter((r) => r.n >= 2).sort((a, b) => b.n - a.n);
+  const ladder = (n) => (n >= 4 ? "HR process" : n === 3 ? "Formal review with Founder's Office" : "Written warning");
+  async function del(b) { try { await P.db.doc(`${breachCol(b._owner)}/${b.id}`).delete(); showToast("Breach deleted"); } catch (e) { showToast(errText(e)); } }
+  return html`
+    <div class="row between gap8 wrap"><div class="stack tight"><div class="eyebrow">Non-negotiables</div><h1>Breach log</h1></div>
+      ${!showForm && ctx.canWrite && html`<button class="btn ghost" onClick=${() => setShowForm(true)}><${Icon} n="plus" s=${16} />Log a breach</button>`}</div>
+    ${showForm && html`<${BreachForm} ctx=${ctx} onDone=${() => setShowForm(false)} />`}
+    ${repeats.length > 0 && html`<div class="alert warn stack" style="gap:4px"><b>Repeat breaches in the last 90 days</b>${repeats.map((r) => html`<span>${r.name} (${storeName(r.store)}): ${r.n} · next step: ${ladder(r.n)}</span>`)}</div>`}
+    <section class="card tbl"><table>
+      <thead><tr><th>Date</th><th>Store</th><th>Non-negotiable</th><th>Staff</th><th>What happened</th><th>Logged by</th><th></th></tr></thead>
+      <tbody>
+        ${rows.length === 0 && html`<tr><td colspan="7" class="muted">${q.loading ? "Loading…" : "No breaches logged."}</td></tr>`}
+        ${rows.map((b) => html`<tr>
+          <td class="nowrap">${S.fmtDay(b.date)}</td><td>${storeName(b.store_id)}</td>
+          <td>${b.rule_no}. ${S.NON_NEGOTIABLES[b.rule_no - 1] || ""}</td><td>${b.staff}</td>
+          <td>${b.note}${(b.photos || []).length ? html`<div class="thumbs" style="margin-top:6px">${b.photos.map((p) => html`<${Photo} id=${p} />`)}</div>` : ""}</td>
+          <td class="small muted">${names(b.logged_by)}</td>
+          <td>${ctx.canWrite && html`<button class="link small" onClick=${() => del(b)}>Delete</button>`}</td>
+        </tr>`)}
+      </tbody></table></section>`;
+}
+
+/* ============================================================ settings */
+function Settings({ ctx }) {
+  const [tab, setTab] = useState("stores");
+  return html`
+    <div class="stack tight"><div class="eyebrow">Founder's Office</div><h1>Settings</h1></div>
+    <div class="seg tabs">${[["stores", "Stores"], ["team", "Team"], ["email", "Email and logo"]].map(([k, l]) => html`<button type="button" aria-pressed=${tab === k} onClick=${() => setTab(k)}>${l}</button>`)}</div>
+    ${!P.canEdit && !ctx.preview && html`<div class="alert warn">Only people with Editor access to this page can change settings.</div>`}
+    ${tab === "stores" ? html`<${StoresAdmin} ctx=${ctx} key=${ctx.storesStamp} />` : tab === "team" ? html`<${TeamAdmin} ctx=${ctx} />` : html`<${EmailLogo} ctx=${ctx} key=${ctx.settingsStamp} />`}`;
+}
+function StoresAdmin({ ctx }) {
+  const { allStores, canWrite } = ctx;
+  const [list, setList] = useState(() => allStores.map((s) => ({ ...s })));
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [nw, setNw] = useState("");
+  const can = canWrite && P.canEdit;
+  const upd = (i, p) => { setList((l) => l.map((s, j) => (j === i ? { ...s, ...p } : s))); setDirty(true); };
+  async function saveAll(next) {
+    const data = next || list;
+    for (const s of data) if (!s.name.trim() || !(S.hhmm(s.opens_at) < S.hhmm(s.closes_at))) { showToast(`Check ${s.name || "a store"}: opening must be before closing.`); return; }
+    setBusy(true);
+    try { await enqueue("config/stores", () => P.db.doc("config/stores").set({ list: data, updated_by: P.me, updated_at: new Date().toISOString() })); setDirty(false); showToast("Stores saved"); }
+    catch (e) { showToast(e && e.code === "invalid_argument" ? "Only editors of this page can change stores." : errText(e)); }
+    setBusy(false);
+  }
+  function add(e) {
+    e.preventDefault();
+    const id = nw.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    if (!id) return;
+    if (list.some((s) => s.id === id)) { showToast("A store with that name already exists."); return; }
+    const next = [...list, { id, name: nw.trim(), city: null, opens_at: "10:30", closes_at: "19:30", weekly_off: null, go_live: S.nowIST().date, active: true }];
+    setList(next); setNw(""); saveAll(next);
+  }
+  return html`
+    <p class="muted">Hours set the due times: opening check by opening time, closing check and washroom log within an hour of closing. Daily checks aren't expected on the weekly off. Reports only count as overdue from each store's start date.</p>
+    ${list.map((s, i) => html`<section class="card pad stack">
+      <div class="row between"><h3>${s.name || "New store"}</h3>
+        <label class="switch small"><input id=${"sa-" + s.id} type="checkbox" checked=${s.active !== false} disabled=${!can} onChange=${(e) => upd(i, { active: e.currentTarget.checked })} /> Active</label></div>
+      <div class="form-grid">
+        <label class="f">Name<input id=${"sn-" + s.id} type="text" value=${s.name} disabled=${!can} onInput=${(e) => upd(i, { name: e.currentTarget.value })} /></label>
+        <label class="f">Opens<input id=${"so-" + s.id} type="time" value=${S.hhmm(s.opens_at)} disabled=${!can} onInput=${(e) => upd(i, { opens_at: e.currentTarget.value })} /></label>
+        <label class="f">Closes<input id=${"sx-" + s.id} type="time" value=${S.hhmm(s.closes_at)} disabled=${!can} onInput=${(e) => upd(i, { closes_at: e.currentTarget.value })} /></label>
+        <label class="f">Weekly off<select id=${"sw-" + s.id} value=${s.weekly_off == null ? "" : String(s.weekly_off)} disabled=${!can} onChange=${(e) => upd(i, { weekly_off: e.currentTarget.value === "" ? null : Number(e.currentTarget.value) })}>
+          <option value="">Open all week</option>${DAYS.map((d, k) => html`<option value=${String(k)}>${d}</option>`)}</select></label>
+        <label class="f">Reports count from<input id=${"sg-" + s.id} type="date" value=${s.go_live} disabled=${!can} onInput=${(e) => upd(i, { go_live: e.currentTarget.value })} /></label>
+      </div></section>`)}
+    ${can && html`<form class="card pad row gap8" onSubmit=${add}><input id="ns-name" type="text" required value=${nw} placeholder="New store name" style="flex:1;min-width:180px" onInput=${(e) => setNw(e.currentTarget.value)} /><button class="btn ghost" type="submit"><${Icon} n="plus" s=${16} />Add store</button></form>`}
+    ${can && html`<div class="submit-bar"><div class="wrap submit-in"><span class="saving">${dirty ? "Unsaved changes" : "All changes saved"}</span><button class="btn" disabled=${busy || !dirty} onClick=${() => saveAll()}>Save stores</button></div></div>`}`;
+}
+function TeamAdmin({ ctx }) {
+  const { members, allStores, canWrite } = ctx;
+  const ids = Object.keys(members);
+  const names = useNames(ids);
+  const can = canWrite && P.canEdit;
+  const [q, setQ] = useState("");
+  const [hits, setHits] = useState([]);
+  const [pick, setPick] = useState(null);
+  const [role, setRole] = useState("store_manager");
+  const [store, setStore] = useState(allStores[0] ? allStores[0].id : "");
+  async function search(v) { setQ(v); if (!P.user) return; setHits(await P.user.search(v)); }
+  async function write(nextMembers, okMsg) {
+    try { await enqueue("config/team", () => P.db.doc("config/team").set({ ...(ctx.teamDoc || {}), members: nextMembers, updated_by: P.me, updated_at: new Date().toISOString() })); showToast(okMsg); }
+    catch (e) { showToast(e && e.code === "invalid_argument" ? "Only editors of this page can change the team." : errText(e)); }
+  }
+  function add(e) {
+    e.preventDefault();
+    if (!pick) { showToast("Search for a person and pick them first."); return; }
+    write({ ...members, [pick.id]: { role, store: role === "store_manager" ? store : null, active: true } }, `${pick.name} added`);
+    setPick(null); setQ(""); setHits([]);
+  }
+  const sorted = ids.filter((id) => members[id].active !== false).sort((a, b) => (members[a].role === members[b].role ? names(a).localeCompare(names(b)) : members[a].role === "admin" ? -1 : 1));
+  const former = ids.filter((id) => members[id].active === false);
+  return html`
+    <div class="band small stack" style="gap:6px"><b>Two steps for each person</b>
+      <span>1. Share this page with them from the Share menu. Store Managers get <b>Contributor</b> (they can submit and upload photos). Founder's Office and AVPs get <b>Editor</b> (they can see every store and change settings).</span>
+      <span>2. Add them below with their role and store. Store Managers only ever see their own submissions.</span></div>
+    ${can && html`<form class="card pad stack" onSubmit=${add}><h3>Add a person</h3>
+      <label class="f">Search your organisation<input id="t-search" type="text" value=${q} placeholder="Name or email" autocomplete="off" onFocus=${() => search(q)} onInput=${(e) => search(e.currentTarget.value)} /></label>
+      ${pick ? html`<div class="row gap8"><span class="pill submitted">${pick.name}</span><button type="button" class="link small" onClick=${() => setPick(null)}>Change</button></div>`
+        : hits.length > 0 && html`<div class="hits">${hits.map((p) => html`<button type="button" class="hit" onClick=${() => { setPick({ id: p.id, name: p.name }); setHits([]); }}><img src=${p.avatarUrl} alt="" /><span>${p.name}</span></button>`)}</div>`}
+      <div class="form-grid">
+        <label class="f">Role<select id="t-role" value=${role} onChange=${(e) => setRole(e.currentTarget.value)}><option value="store_manager">Store Manager</option><option value="admin">Founder's Office / AVP</option></select></label>
+        ${role === "store_manager" && html`<label class="f">Store<select id="t-store" value=${store} onChange=${(e) => setStore(e.currentTarget.value)}>${allStores.map((s) => html`<option value=${s.id}>${s.name}</option>`)}</select></label>`}
+        <button class="btn" type="submit">Add</button>
+      </div></form>`}
+    <section class="card list">
+      ${sorted.length === 0 && html`<p class="pad muted">No one added yet. As the page owner you are Founder's Office.</p>`}
+      ${sorted.map((id) => { const m = members[id]; return html`<div class="person">
+        <span class="p-name">${names(id)}</span>
+        ${can ? html`<select id=${"tr-" + id} value=${m.role} onChange=${(e) => write({ ...members, [id]: { ...m, role: e.currentTarget.value, store: e.currentTarget.value === "admin" ? null : m.store || (allStores[0] && allStores[0].id) } }, "Role updated")}>
+            <option value="store_manager">Store Manager</option><option value="admin">Founder's Office / AVP</option></select>` : html`<span>${m.role === "admin" ? "Founder's Office / AVP" : "Store Manager"}</span>`}
+        ${m.role === "store_manager" ? (can ? html`<select id=${"ts-" + id} value=${m.store} onChange=${(e) => write({ ...members, [id]: { ...m, store: e.currentTarget.value } }, "Store updated")}>${allStores.map((s) => html`<option value=${s.id}>${s.name}</option>`)}</select>` : html`<span>${(allStores.find((s) => s.id === m.store) || {}).name || ""}</span>`) : html`<span class="muted">All stores</span>`}
+        ${can && html`<button class="link small" onClick=${() => write({ ...members, [id]: { ...m, active: false } }, "Removed. Their past reports stay visible.")}>Remove</button>`}
+      </div>`; })}
+    </section>
+    ${former.length > 0 && html`<p class="small muted">${former.length} former member${former.length > 1 ? "s" : ""}: their past reports stay visible to Founder's Office. ${can && html`<button class="link small" onClick=${() => write(Object.fromEntries(Object.entries(members).map(([k, v]) => [k, v.active === false ? { ...v, active: true } : v])), "Restored")}>Restore all</button>`}</p>`}`;
+}
+function EmailLogo({ ctx }) {
+  const { settings, canWrite } = ctx;
+  const can = canWrite && P.canEdit;
+  const [f, setF] = useState({ reportRecipients: settings.reportRecipients || "", upkeepRecipients: settings.upkeepRecipients || "" });
+  const [logo, setLogo] = useState(settings.logo || null);
+  const [up, setUp] = useState(false);
+  const [busy, setBusy] = useState(false);
+  async function save(nextLogo) {
+    setBusy(true);
+    try { await enqueue("config/settings", () => P.db.doc("config/settings").set({ ...f, logo: nextLogo === undefined ? logo : nextLogo, updated_by: P.me, updated_at: new Date().toISOString() })); showToast("Saved"); }
+    catch (e) { showToast(e && e.code === "invalid_argument" ? "Only editors of this page can change settings." : errText(e)); }
+    setBusy(false);
+  }
+  async function pickLogo(fs) {
+    const file = fs[0]; if (!file || !P.assets) return;
+    setUp(true);
+    try {
+      const type = /^image\/(png|webp|svg\+xml|jpeg)$/.test(file.type) ? file.type : "image/png";
+      const r = await P.assets.upload(file, { type });
+      setLogo(r.id); await save(r.id);
+    } catch (e) { showToast("Couldn't upload the logo. Use a PNG, JPG or SVG under 2 MB."); }
+    setUp(false);
+  }
+  return html`
+    <section class="card pad stack"><h3>Email recipients</h3>
+      <p class="small muted">These fill the "To" line when a manager emails a report or an upkeep request. Separate addresses with commas.</p>
+      <label class="f">Store reports go to<input id="e-rep" type="text" value=${f.reportRecipients} disabled=${!can} placeholder="avp@magppie.com, founders.office@magppie.com" onInput=${(e) => setF({ ...f, reportRecipients: e.currentTarget.value })} /></label>
+      <label class="f">Upkeep requests go to<input id="e-upk" type="text" value=${f.upkeepRecipients} disabled=${!can} placeholder="founders.office@magppie.com, facilities@magppie.com" onInput=${(e) => setF({ ...f, upkeepRecipients: e.currentTarget.value })} /></label>
+      ${can && html`<div><button class="btn" disabled=${busy} onClick=${() => save()}>Save recipients</button></div>`}
+    </section>
+    <section class="card pad stack"><h3>Logo</h3>
+      <p class="small muted">Upload Magppie's official logo (PNG with a transparent background or SVG works best). It appears in the header and on every A4 report.</p>
+      <div class="logo-preview"><${Logo} settings=${{ logo }} /></div>
+      ${can && html`<div class="row gap8 wrap">
+        <label class="btn ghost">${up ? "Uploading…" : logo ? "Replace logo" : "Upload logo"}<input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden disabled=${up} onChange=${(e) => { const fs = [...(e.currentTarget.files || [])]; e.currentTarget.value = ""; pickLogo(fs); }} /></label>
+        ${logo && html`<button class="link small" onClick=${() => { setLogo(null); save(null); }}>Use the wordmark instead</button>`}
+      </div>`}
+    </section>`;
+}
+
+/* ============================================================ app */
+function NotSetUp() {
+  return html`<section class="hero card"><div class="eyebrow">Magppie Store Standards</div><h1>You're not set up yet</h1>
+    <p class="muted">Signed in as ${P.myName || "you"}. Founder's Office adds each Store Manager and assigns their store. Once that's done, reopen this page and your store's checklists will be here.</p></section>`;
+}
+function Toast() {
+  const [t, setT] = useState(null);
+  const timer = useRef(null);
+  showToast = (m) => { setT(m); clearTimeout(timer.current); timer.current = setTimeout(() => setT(null), 3000); };
+  return t ? html`<div class="toast" role="status">${t}</div>` : null;
+}
+function Main() {
+  const now = useNow();
+  const team = useDoc("config/team");
+  const storesDoc = useDoc("config/stores");
+  const settingsDoc = useDoc("config/settings");
+  const [view, setView] = useState(null);
+  useEffect(() => { try { window.scrollTo(0, 0); } catch (e) {} }, [view]);
+
+  // The owner records their id once, so other Founder's Office members can see what the owner submits
+  useEffect(() => {
+    if (!P.db || !P.isOwner || team.loading || !P.me) return;
+    if (team.data && team.data.owner === P.me) return;
+    P.db.doc("config/team").set({ ...(team.data || { members: {} }), owner: P.me }).catch((e) => console.error(e));
+  }, [team.loading, team.data && team.data.owner]);
+
+  const preview = !P.db;
+  const allStores = storesDoc.data && storesDoc.data.list && storesDoc.data.list.length ? storesDoc.data.list : DEFAULT_STORES;
+  const stores = allStores.filter((s) => s.active !== false);
+  const members = (team.data && team.data.members) || {};
+  const member = P.me ? members[P.me] : null;
+  const activeMember = member && member.active !== false ? member : null;
+  const isAdmin = preview || P.isOwner || (activeMember && activeMember.role === "admin");
+  const myStore = !isAdmin && activeMember && activeMember.role === "store_manager" ? allStores.find((s) => s.id === activeMember.store) || null : null;
+  const canWrite = !preview && !!P.me && P.canWrite !== false;
+  const writers = useMemo(() => [...new Set([...Object.keys(members), team.data && team.data.owner, P.me].filter(Boolean))].sort(), [Object.keys(members).join(","), team.data && team.data.owner]);
+  const settings = settingsDoc.data || {};
+  const ctx = { now, stores, allStores, members, teamDoc: team.data, isAdmin, myStore, canWrite, preview, go: setView, view, writers, settings,
+    storesStamp: (storesDoc.data && storesDoc.data.updated_at) || "d", settingsStamp: (settingsDoc.data && settingsDoc.data.updated_at) || "d" };
+
+  if (!preview && (team.loading || storesDoc.loading)) return html`<${Shell} ctx=${ctx}><div class="card pad muted">Loading…</div><//>`;
+  if (!isAdmin && !myStore) return html`<${Shell} ctx=${ctx}><${NotSetUp} /><//>`;
+
+  const v = view || (isAdmin ? { v: "dash" } : { v: "home" });
+  const sid = (x) => (isAdmin ? x : myStore.id);
+  const own = (o) => (isAdmin ? o || P.me : P.me);
+  let body;
+  switch (v.v) {
+    case "store": { const st = isAdmin ? allStores.find((s) => s.id === v.store) : myStore; body = st ? html`<${StoreHome} key=${st.id} ctx=${ctx} store=${st} />` : html`<${Dashboard} ctx=${ctx} />`; break; }
+    case "report": body = html`<${ReportView} key=${[v.store, v.template, v.period, v.owner].join("|")} ctx=${ctx} storeId=${sid(v.store)} templateKey=${v.template} period=${v.period} owner=${own(v.owner)} />`; break;
+    case "summary": body = html`<${Summary} key=${[v.store, v.template, v.period, v.owner].join("|")} ctx=${ctx} storeId=${sid(v.store)} templateKey=${v.template} period=${v.period} owner=${own(v.owner)} fresh=${!!v.fresh} />`; break;
+    case "upkeep": body = html`<${Upkeep} ctx=${ctx} />`; break;
+    case "breach": body = isAdmin ? html`<${BreachesAdmin} ctx=${ctx} />` : html`<${BreachSM} ctx=${ctx} />`; break;
+    case "breaches": body = isAdmin ? html`<${BreachesAdmin} ctx=${ctx} />` : html`<${BreachSM} ctx=${ctx} />`; break;
+    case "reports": body = isAdmin ? html`<${ReportsLog} ctx=${ctx} />` : html`<${StoreHome} ctx=${ctx} store=${myStore} />`; break;
+    case "settings": body = isAdmin ? html`<${Settings} ctx=${ctx} />` : html`<${StoreHome} ctx=${ctx} store=${myStore} />`; break;
+    default: body = isAdmin ? html`<${Dashboard} ctx=${ctx} />` : html`<${StoreHome} ctx=${ctx} store=${myStore} />`;
+  }
+  return html`<${Shell} ctx=${ctx}>${body}<//>`;
+}
+function App() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => { initPlatform().catch((e) => console.error(e)).finally(() => setReady(true)); }, []);
+  return html`${ready ? html`<${Main} />` : html`<header class="top"><div class="wrap top-in"><span class="brand"><span class="wordmark">MAGPPIE</span><span class="brand-sub">Store Standards</span></span></div></header><main class="wrap page"><div class="card pad muted">Loading…</div></main>`}<${Toast} />`;
+}
+render(html`<${App} />`, document.getElementById("app"));
+
+</script>
+
+</body></html>
